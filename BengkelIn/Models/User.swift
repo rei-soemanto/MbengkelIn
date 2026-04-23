@@ -10,10 +10,10 @@ import FirebaseFirestore
 struct User: Codable, Identifiable {
     @DocumentID var id: String?
     var role: String
-//    var name: String
-//    var email: String
-//    var phoneNumber: String
-//    var profileImageUrl: String?
+    var name: String
+    var email: String
+    var phoneNumber: String
+    var profileImageUrl: String?
     var balance: Double
     @ServerTimestamp var createdAt: Date?
 }
