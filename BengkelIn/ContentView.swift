@@ -29,7 +29,7 @@ struct ContentView: View {
                             Label("History", systemImage: "clock.fill")
                         }
                     
-                    ProfilePlaceholderView(viewModel: viewModel)
+                    ProfileView(viewModel: viewModel)
                         .tabItem {
                             Label("Profile", systemImage: "person.fill")
                         }

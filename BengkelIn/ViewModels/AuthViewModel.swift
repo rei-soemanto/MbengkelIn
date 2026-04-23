@@ -89,6 +89,38 @@ class AuthViewModel: ObservableObject {
         }
     }
     
+    func sendPasswordResetEmail() async {
+        guard let email = currentUser?.email else { return }
+        do {
+            try await Auth.auth().sendPasswordReset(withEmail: email)
+            self.successMessage = "Password reset email sent. Please check your inbox."
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+    }
+    
+    func deleteAccount(password: String) async {
+        isLoading = true
+        errorMessage = nil
+        guard let user = Auth.auth().currentUser, let email = user.email else { return }
+        
+        do {
+            let credential = EmailAuthProvider.credential(withEmail: email, password: password)
+            try await user.reauthenticate(with: credential)
+            
+            try await Firestore.firestore().collection("users").document(user.uid).delete()
+            
+            try await user.delete()
+            
+            self.userSession = nil
+            self.currentUser = nil
+            
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+    
     func signOut() {
         do {
             try Auth.auth().signOut()

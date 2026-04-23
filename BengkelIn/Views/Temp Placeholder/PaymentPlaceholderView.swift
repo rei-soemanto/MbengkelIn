@@ -74,3 +74,15 @@ struct ProfilePlaceholderView: View {
         }
     }
 }
+
+struct AddVehiclePlaceholder: View {
+    var body: some View { Text("Add Vehicle Form goes here").navigationTitle("Add Vehicle") }
+}
+
+struct UpdateProfilePlaceholder: View {
+    var body: some View { Text("Update Profile Form goes here").navigationTitle("Edit Profile") }
+}
+
+struct RegisterBengkelPlaceholder: View {
+    var body: some View { Text("Bengkel Registration Form goes here").navigationTitle("Register Bengkel") }
+}
