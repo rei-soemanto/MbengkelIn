@@ -7,92 +7,99 @@
 
 import Combine
 import SwiftUI
-import FirebaseAuth
-import FirebaseFirestore
+import Supabase
 
 @MainActor
 class AuthViewModel: ObservableObject {
-    @Published var userSession: FirebaseAuth.User?
+    @Published var userSession: Supabase.User?
     @Published var currentUser: User?
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var successMessage: String?
-    
+
     init() {
-        self.userSession = Auth.auth().currentUser
-        if self.userSession != nil {
-            Task { await fetchUser() }
+        Task {
+            do {
+                let session = try await supabase.auth.session
+                self.userSession = session.user
+                await fetchUser()
+            } catch {
+                self.userSession = nil
+            }
         }
     }
-    
-    func loginWithEmail(email: String, password: String) async {
+
+    func login(email: String, password: String) async {
         isLoading = true
         errorMessage = nil
         successMessage = nil
-        
         do {
-            let result = try await Auth.auth().signIn(withEmail: email, password: password)
-            
-            if !result.user.isEmailVerified {
-                self.errorMessage = "Please verify your email address before logging in."
-                try Auth.auth().signOut()
-                self.userSession = nil
-            } else {
-                self.userSession = result.user
-                await fetchUser()
-            }
+            let result = try await supabase.auth.signIn(email: email, password: password)
+            self.userSession = result.user
+            await fetchUser()
         } catch {
             self.errorMessage = error.localizedDescription
         }
         isLoading = false
     }
-    
-    func registerWithEmail(email: String, password: String, name: String, phoneNumber: String) async {
+
+    func signUp(email: String, password: String, name: String, phoneNumber: String) async {
         isLoading = true
         errorMessage = nil
         successMessage = nil
         
         do {
-            let result = try await Auth.auth().createUser(withEmail: email, password: password)
-            
-            let newUser = User(
-                id: result.user.uid,
-                role: "USER",
-                name: name,
+            let result = try await supabase.auth.signUp(
                 email: email,
-                phoneNumber: phoneNumber,
-                profileImageUrl: nil,
-                balance: 0.0
+                password: password,
+                data: [
+                    "name": .string(name),
+                    "phone_number": .string(phoneNumber)
+                ]
             )
             
-            try Firestore.firestore().collection("users").document(result.user.uid).setData(from: newUser)
-            
-            try await result.user.sendEmailVerification()
-            
-            try Auth.auth().signOut()
+            try await supabase.auth.signOut()
             self.userSession = nil
-            
-            self.successMessage = "Registration successful! Please check your email to verify your account."
+            self.successMessage = "Registration successful! Please log in."
             
         } catch {
             self.errorMessage = error.localizedDescription
         }
         isLoading = false
     }
-    
+
     func fetchUser() async {
-        guard let uid = Auth.auth().currentUser?.uid else { return }
+        guard let sessionUser = self.userSession else { return }
+        let uid = sessionUser.id.uuidString.lowercased()
         do {
-            self.currentUser = try await Firestore.firestore().collection("users").document(uid).getDocument(as: User.self)
+            var fetchedUser: User = try await supabase.from("users")
+                .select()
+                .eq("id", value: uid)
+                .single()
+                .execute()
+                .value
+            
+            fetchedUser.email = sessionUser.email
+            
+            // FIX: Safely extract the phone number from metadata since it wasn't a native auth field
+            if case let .string(phoneString) = sessionUser.userMetadata["phone_number"] {
+                fetchedUser.phoneNumber = phoneString
+            } else {
+                fetchedUser.phoneNumber = sessionUser.phone
+            }
+            
+            fetchedUser.role = sessionUser.role ?? "USER"
+            
+            self.currentUser = fetchedUser
         } catch {
-            print("Failed to fetch user profile: \(error)")
+            self.errorMessage = error.localizedDescription
         }
     }
     
     func sendPasswordResetEmail() async {
         guard let email = currentUser?.email else { return }
         do {
-            try await Auth.auth().sendPasswordReset(withEmail: email)
+            try await supabase.auth.resetPasswordForEmail(email)
             self.successMessage = "Password reset email sent. Please check your inbox."
         } catch {
             self.errorMessage = error.localizedDescription
@@ -102,16 +109,17 @@ class AuthViewModel: ObservableObject {
     func deleteAccount(password: String) async {
         isLoading = true
         errorMessage = nil
-        guard let user = Auth.auth().currentUser, let email = user.email else { return }
+        guard let sessionUser = self.userSession, let email = sessionUser.email else { return }
         
         do {
-            let credential = EmailAuthProvider.credential(withEmail: email, password: password)
-            try await user.reauthenticate(with: credential)
+            _ = try await supabase.auth.signIn(email: email, password: password)
             
-            try await Firestore.firestore().collection("users").document(user.uid).delete()
+            try await supabase.from("users")
+                .delete()
+                .eq("id", value: sessionUser.id.uuidString.lowercased())
+                .execute()
             
-            try await user.delete()
-            
+            try await supabase.auth.signOut()
             self.userSession = nil
             self.currentUser = nil
             
@@ -120,14 +128,16 @@ class AuthViewModel: ObservableObject {
         }
         isLoading = false
     }
-    
+
     func signOut() {
-        do {
-            try Auth.auth().signOut()
-            self.userSession = nil
-            self.currentUser = nil
-        } catch {
-            print("Failed to sign out")
+        Task {
+            do {
+                try await supabase.auth.signOut()
+                self.userSession = nil
+                self.currentUser = nil
+            } catch {
+                self.errorMessage = error.localizedDescription
+            }
         }
     }
 }

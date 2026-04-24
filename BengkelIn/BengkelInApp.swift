@@ -6,11 +6,16 @@
 //
 
 import SwiftUI
-import FirebaseCore
+import Foundation
+import Supabase
+
+let supabase = SupabaseClient(
+  supabaseURL: URL(string: "https://nerrnpbopdfrdcfvjowx.supabase.co")!,
+  supabaseKey: "sb_publishable_1SEf55NC7aq6FRlGxnBjbQ_vtJRWFav"
+)
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-        FirebaseApp.configure()
         return true
     }
 }

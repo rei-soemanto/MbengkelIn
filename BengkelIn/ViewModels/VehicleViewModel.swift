@@ -7,8 +7,7 @@
 
 import SwiftUI
 import Combine
-import FirebaseAuth
-import FirebaseFirestore
+import Supabase
 
 @MainActor
 class VehicleViewModel: ObservableObject {
@@ -18,13 +17,17 @@ class VehicleViewModel: ObservableObject {
     @Published var successMessage: String?
     
     func fetchVehicles() async {
-        guard let uid = Auth.auth().currentUser?.uid else { return }
+        guard let session = try? await supabase.auth.session else { return }
+        let uid = session.user.id.uuidString.lowercased()
+        
         do {
-            let snapshot = try await Firestore.firestore().collection("vehicles")
-                .whereField("customerId", isEqualTo: uid)
-                .getDocuments()
+            let fetchedVehicles: [Vehicle] = try await supabase.from("vehicles")
+                .select()
+                .eq("customer_id", value: uid)
+                .execute()
+                .value
             
-            self.userVehicles = snapshot.documents.compactMap { try? $0.data(as: Vehicle.self) }
+            self.userVehicles = fetchedVehicles
         } catch {
             print("Failed to fetch vehicles: \(error)")
         }
@@ -33,13 +36,28 @@ class VehicleViewModel: ObservableObject {
     func addVehicle(manufacturer: String, model: String, year: Int, licensePlate: String, color: String) async -> Bool {
         isLoading = true
         errorMessage = nil
-        guard let uid = Auth.auth().currentUser?.uid else { return false }
         
-        let newVehicle = Vehicle(customerId: uid, manufacturer: manufacturer, model: model, year: year, licensePlate: licensePlate, color: color)
+        guard let session = try? await supabase.auth.session else {
+            isLoading = false
+            return false
+        }
+        let uid = session.user.id.uuidString.lowercased()
+        
+        let newVehicle = Vehicle(
+            id: nil,
+            customerId: uid,
+            manufacturer: manufacturer,
+            model: model,
+            year: year,
+            licensePlate: licensePlate,
+            color: color,
+            createdAt: nil
+        )
         
         do {
-            let _ = try Firestore.firestore().collection("vehicles").addDocument(from: newVehicle)
-            await fetchVehicles() 
+            try await supabase.from("vehicles").insert(newVehicle).execute()
+            
+            await fetchVehicles()
             isLoading = false
             return true
         } catch {
@@ -50,33 +68,50 @@ class VehicleViewModel: ObservableObject {
     }
     
     func updateVehicle(vehicleId: String, manufacturer: String, model: String, year: Int, licensePlate: String, color: String) async -> Bool {
-            isLoading = true
-            errorMessage = nil
-            
-            do {
-                try await Firestore.firestore().collection("vehicles").document(vehicleId).updateData([
-                    "manufacturer": manufacturer,
-                    "model": model,
-                    "year": year,
-                    "licensePlate": licensePlate,
-                    "color": color
-                ])
-                
-                await fetchVehicles()
-                self.successMessage = "Vehicle updated successfully!"
-                isLoading = false
-                return true
-            } catch {
-                self.errorMessage = error.localizedDescription
-                isLoading = false
-                return false
-            }
+        isLoading = true
+        errorMessage = nil
+        
+        struct VehicleUpdate: Encodable {
+            let manufacturer: String
+            let model: String
+            let year: Int
+            let license_plate: String
+            let color: String
         }
+        
+        let updateData = VehicleUpdate(
+            manufacturer: manufacturer,
+            model: model,
+            year: year,
+            license_plate: licensePlate,
+            color: color
+        )
+            
+        do {
+            try await supabase.from("vehicles")
+                .update(updateData)
+                .eq("id", value: vehicleId)
+                .execute()
+                
+            await fetchVehicles()
+            self.successMessage = "Vehicle updated successfully!"
+            isLoading = false
+            return true
+        } catch {
+            self.errorMessage = error.localizedDescription
+            isLoading = false
+            return false
+        }
+    }
     
     func deleteVehicle(vehicleId: String) async {
         do {
-            try await Firestore.firestore().collection("vehicles").document(vehicleId).delete()
-            await fetchVehicles() 
+            try await supabase.from("vehicles")
+                .delete()
+                .eq("id", value: vehicleId)
+                .execute()
+                
+            await fetchVehicles()
         } catch {
             print("Failed to delete vehicle: \(error)")
         }

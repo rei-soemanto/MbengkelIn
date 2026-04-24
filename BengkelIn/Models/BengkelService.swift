@@ -8,9 +8,17 @@
 import Foundation
 
 struct BengkelService: Codable, Identifiable, Hashable {
-    var id: String = UUID().uuidString 
-    var serviceName: String            
+    var id: String = UUID().uuidString
+    var serviceName: String
     var description: String
     var basePrice: Double
     var isActive: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case serviceName = "service_name"
+        case description
+        case basePrice = "base_price"
+        case isActive = "is_active"
+    }
 }

@@ -5,15 +5,21 @@
 //  Created by Rei Soemanto on 23/04/26.
 //
 
-import FirebaseFirestore
+import Foundation
 
 struct User: Codable, Identifiable {
-    @DocumentID var id: String?
-    var role: String
+    var id: String
     var name: String
-    var email: String
-    var phoneNumber: String
     var profileImageUrl: String?
     var balance: Double
-    @ServerTimestamp var createdAt: Date?
+    var email: String?
+    var phoneNumber: String?
+    var role: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case profileImageUrl = "profile_image_url"
+        case balance
+    }
 }

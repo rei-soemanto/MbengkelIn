@@ -64,7 +64,7 @@ struct RegistrationView: View {
                 
                 Button {
                     Task {
-                        await authViewModel.registerWithEmail(email: email, password: password, name: name, phoneNumber: phoneNumber)
+                        await authViewModel.signUp(email: email, password: password, name: name, phoneNumber: phoneNumber)
                         
                         if authViewModel.errorMessage == nil {
                             dismiss()
