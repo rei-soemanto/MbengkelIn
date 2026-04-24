@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct RegistrationView: View {
-    @ObservedObject var viewModel: AuthViewModel
+    @ObservedObject var authViewModel: AuthViewModel
     @Environment(\.dismiss) var dismiss
     
     @State private var email = ""
@@ -19,11 +19,30 @@ struct RegistrationView: View {
     var body: some View {
         ZStack {
             VStack(spacing: 20) {
-                Text("Create Account")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.bottom, 10)
+                ZStack {
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.9))
+                        .frame(width: 120, height: 120)
+                        .cornerRadius(20)
+                    
+                    Image(systemName: "briefcase.fill")
+                        .font(.largeTitle)
+                        .foregroundColor(Color(.systemBackground))
+                }
+                .padding(.top, 30)
+                
+                VStack(alignment: .center, spacing: 8) {
+                    Text("BengkelIn")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                    
+                    Text("Professional roadside assistance and mechanical services at your fingertips.")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.bottom, 20)
                 
                 CustomInputField(iconName: "person", placeholder: "Full Name", text: $name)
                 
@@ -36,7 +55,7 @@ struct RegistrationView: View {
                 
                 CustomInputField(iconName: "lock", placeholder: "Password", text: $password, isSecure: true)
                 
-                if let errorMessage = viewModel.errorMessage {
+                if let errorMessage = authViewModel.errorMessage {
                     Text(errorMessage)
                         .foregroundColor(.red)
                         .font(.footnote)
@@ -45,23 +64,23 @@ struct RegistrationView: View {
                 
                 Button {
                     Task {
-                        await viewModel.registerWithEmail(email: email, password: password, name: name, phoneNumber: phoneNumber)
+                        await authViewModel.registerWithEmail(email: email, password: password, name: name, phoneNumber: phoneNumber)
                         
-                        if viewModel.errorMessage == nil {
+                        if authViewModel.errorMessage == nil {
                             dismiss()
                         }
                     }
                 } label: {
                     Text("Sign Up")
                         .font(.headline)
-                        .foregroundColor(.white)
+                        .foregroundColor(Color(.systemBackground))
                         .frame(maxWidth: .infinity)
                         .frame(height: 55)
-                        .background(Color.blue)
+                        .background(Color.primary.opacity(0.9))
                         .cornerRadius(12)
                 }
                 .padding(.top, 12)
-                .disabled(viewModel.isLoading)
+                .disabled(authViewModel.isLoading)
                 
                 Spacer()
                 
@@ -71,14 +90,14 @@ struct RegistrationView: View {
                             .foregroundColor(.gray)
                         Text("Sign In")
                             .fontWeight(.bold)
-                            .foregroundColor(.blue)
+                            .foregroundColor(Color.primary.opacity(0.9))
                     }
                     .font(.footnote)
                 }
             }
             .padding()
             
-            if viewModel.isLoading {
+            if authViewModel.isLoading {
                 ProgressView()
                     .padding()
                     .background(Color.white)
@@ -88,4 +107,18 @@ struct RegistrationView: View {
         }
         .navigationBarBackButtonHidden(true)
     }
+}
+
+#Preview("Light Theme") {
+    RegistrationView(
+        authViewModel: AuthViewModel()
+    )
+    .preferredColorScheme(.light)
+}
+
+#Preview("Dark Theme") {
+    RegistrationView(
+        authViewModel: AuthViewModel()
+    )
+    .preferredColorScheme(.dark)
 }

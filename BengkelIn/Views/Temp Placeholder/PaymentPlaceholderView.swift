@@ -50,39 +50,6 @@ struct HistoryPlaceholderView: View {
     }
 }
 
-// Your Future Scope
-struct ProfilePlaceholderView: View {
-    @ObservedObject var viewModel: AuthViewModel
-    
-    var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    Text("Name: \(viewModel.currentUser?.name ?? "")")
-                    Text("Email: \(viewModel.currentUser?.email ?? "")")
-                    Text("Role: \(viewModel.currentUser?.role ?? "")")
-                }
-                
-                Section {
-                    Button("Sign Out") {
-                        viewModel.signOut()
-                    }
-                    .foregroundColor(.red)
-                }
-            }
-            .navigationTitle("Profile")
-        }
-    }
-}
-
-struct AddVehiclePlaceholder: View {
-    var body: some View { Text("Add Vehicle Form goes here").navigationTitle("Add Vehicle") }
-}
-
-struct UpdateProfilePlaceholder: View {
-    var body: some View { Text("Update Profile Form goes here").navigationTitle("Edit Profile") }
-}
-
 struct RegisterBengkelPlaceholder: View {
     var body: some View { Text("Bengkel Registration Form goes here").navigationTitle("Register Bengkel") }
 }

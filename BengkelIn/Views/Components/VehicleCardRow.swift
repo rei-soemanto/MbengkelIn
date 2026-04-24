@@ -8,12 +8,13 @@
 import SwiftUI
 
 struct VehicleCardRow: View {
+    @ObservedObject var vehicleViewModel: VehicleViewModel
     var vehicle: Vehicle
     
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(vehicle.make) \(vehicle.model)")
+                Text("\(vehicle.manufacturer) \(vehicle.model)")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 Text("\(vehicle.licensePlate) • \(String(vehicle.year))")
@@ -23,9 +24,7 @@ struct VehicleCardRow: View {
             
             Spacer()
             
-            Button(action: {
-                print("Update vehicle")
-            }) {
+            NavigationLink(destination: VehicleFormView(vehicleViewModel: vehicleViewModel, vehicleToEdit: vehicle)) {
                 Image(systemName: "ellipsis")
                     .foregroundColor(.gray)
                     .padding(8)
@@ -34,7 +33,11 @@ struct VehicleCardRow: View {
             }
             
             Button(action: {
-                print("Delete vehicle")
+                Task {
+                    if let id = vehicle.id {
+                        await vehicleViewModel.deleteVehicle(vehicleId: id)
+                    }
+                }
             }) {
                 Image(systemName: "xmark")
                     .foregroundColor(.white)

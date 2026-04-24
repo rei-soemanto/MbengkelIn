@@ -8,8 +8,8 @@
 import SwiftUI
 
 struct DashboardView: View {
-    @ObservedObject var viewModel: AuthViewModel
-    @State private var recentOrders: [String] = [] 
+    @ObservedObject var authViewModel: AuthViewModel
+    @State private var recentOrders: [String] = []
     
     var body: some View {
         NavigationStack {
@@ -21,7 +21,7 @@ struct DashboardView: View {
                             Text("BengkelIn")
                                 .font(.title3)
                                 .foregroundColor(.gray)
-                            Text("Hi, \(viewModel.currentUser?.name ?? "User")!")
+                            Text("Hi, \(authViewModel.currentUser?.name ?? "User")!")
                                 .font(.largeTitle)
                                 .fontWeight(.bold)
                         }
@@ -53,7 +53,7 @@ struct DashboardView: View {
                                     .font(.subheadline)
                                     .foregroundColor(Color(.systemBackground).opacity(0.8))
                                 
-                                Text(formatToRupiah(viewModel.currentUser?.balance ?? 0.0))
+                                Text(formatToRupiah(authViewModel.currentUser?.balance ?? 0.0))
                                     .font(.title)
                                     .fontWeight(.bold)
                                     .foregroundColor(Color(.systemBackground))
@@ -123,14 +123,14 @@ struct DashboardView: View {
 
 #Preview("Light Theme") {
     DashboardView(
-        viewModel: AuthViewModel()
+        authViewModel: AuthViewModel()
     )
     .preferredColorScheme(.light)
 }
 
 #Preview("Dark Theme") {
     DashboardView(
-        viewModel: AuthViewModel()
+        authViewModel: AuthViewModel()
     )
     .preferredColorScheme(.dark)
 }

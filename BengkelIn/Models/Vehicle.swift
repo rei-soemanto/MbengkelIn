@@ -10,8 +10,8 @@ import FirebaseFirestore
 struct Vehicle: Codable, Identifiable {
     @DocumentID var id: String?
     var customerId: String 
-    var make: String       
-    var model: String      
+    var manufacturer: String
+    var model: String
     var year: Int
     var licensePlate: String
     var color: String

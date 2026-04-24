@@ -8,13 +8,13 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var viewModel = AuthViewModel()
+    @StateObject private var authViewModel = AuthViewModel()
     
     var body: some View {
         Group {
-            if viewModel.userSession != nil {
+            if authViewModel.userSession != nil {
                 TabView {
-                    DashboardView(viewModel: viewModel)
+                    DashboardView(authViewModel: authViewModel)
                         .tabItem {
                             Label("Dashboard", systemImage: "house.fill")
                         }
@@ -29,16 +29,16 @@ struct ContentView: View {
                             Label("History", systemImage: "clock.fill")
                         }
                     
-                    ProfileView(viewModel: viewModel)
+                    ProfileView(authViewModel: authViewModel)
                         .tabItem {
                             Label("Profile", systemImage: "person.fill")
                         }
                 }
             } else {
-                LoginView(viewModel: viewModel)
+                LoginView(authViewModel: authViewModel)
             }
         }
-        .tint(.black)
+        .tint(.primary)
     }
 }
 
