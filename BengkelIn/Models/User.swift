@@ -14,12 +14,13 @@ struct User: Codable, Identifiable {
     var balance: Double
     var email: String?
     var phoneNumber: String?
-    var role: String?
+    var role: String
 
     enum CodingKeys: String, CodingKey {
         case id
         case name
         case profileImageUrl = "profile_image_url"
         case balance
+        case role
     }
 }

@@ -23,9 +23,6 @@ struct Bengkel: Codable, Identifiable {
     // The embedded services array (Stored as JSONB in Supabase)
     var offeredServices: [BengkelService]
     
-    // Array of mechanics linked to this Bengkel
-    var mechanicUids: [String]
-    
     // Rating aggregates
     var averageRating: Double
     var totalReviews: Int
@@ -41,7 +38,6 @@ struct Bengkel: Codable, Identifiable {
         case longitude
         case status
         case offeredServices = "offered_services"
-        case mechanicUids = "mechanic_uids"
         case averageRating = "average_rating"
         case totalReviews = "total_reviews"
         case createdAt = "created_at"

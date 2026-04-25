@@ -9,6 +9,11 @@ import Combine
 import SwiftUI
 import Supabase
 
+enum AppMode {
+    case customer
+    case bengkel
+}
+
 @MainActor
 class AuthViewModel: ObservableObject {
     @Published var userSession: Supabase.User?
@@ -16,6 +21,8 @@ class AuthViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var successMessage: String?
+    
+    @Published var appMode: AppMode = .customer
 
     init() {
         Task {
@@ -81,14 +88,11 @@ class AuthViewModel: ObservableObject {
             
             fetchedUser.email = sessionUser.email
             
-            // FIX: Safely extract the phone number from metadata since it wasn't a native auth field
             if case let .string(phoneString) = sessionUser.userMetadata["phone_number"] {
                 fetchedUser.phoneNumber = phoneString
             } else {
                 fetchedUser.phoneNumber = sessionUser.phone
             }
-            
-            fetchedUser.role = sessionUser.role ?? "USER"
             
             self.currentUser = fetchedUser
         } catch {

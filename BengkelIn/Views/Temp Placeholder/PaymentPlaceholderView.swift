@@ -49,7 +49,3 @@ struct HistoryPlaceholderView: View {
         }
     }
 }
-
-struct RegisterBengkelPlaceholder: View {
-    var body: some View { Text("Bengkel Registration Form goes here").navigationTitle("Register Bengkel") }
-}
