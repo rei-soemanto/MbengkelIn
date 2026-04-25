@@ -74,6 +74,32 @@ struct ProfileView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     
+                    if let errorMessage = profileViewModel.errorMessage {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                            Text(errorMessage)
+                                .font(.subheadline)
+                            Spacer()
+                        }
+                        .padding()
+                        .background(Color.red.opacity(0.1))
+                        .foregroundColor(.red)
+                        .cornerRadius(10)
+                        .padding(.top, 10)
+                    } else if let successMessage = profileViewModel.successMessage {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text(successMessage)
+                                .font(.subheadline)
+                            Spacer()
+                        }
+                        .padding()
+                        .background(Color.green.opacity(0.1))
+                        .foregroundColor(.green)
+                        .cornerRadius(10)
+                        .padding(.top, 10)
+                    }
+                    
                     VStack(spacing: 12) {
                         ZStack(alignment: .bottomTrailing) {
                             if let imageUrlString = authViewModel.currentUser?.profileImageUrl,

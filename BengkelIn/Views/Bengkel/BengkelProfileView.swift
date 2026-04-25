@@ -26,6 +26,32 @@ struct BengkelProfileView: View {
             } else if let bengkel = bengkelViewModel.myBengkel {
                 ScrollView {
                     VStack(spacing: 24) {
+                        if let errorMessage = bengkelViewModel.errorMessage {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                Text(errorMessage)
+                                    .font(.subheadline)
+                                Spacer()
+                            }
+                            .padding()
+                            .background(Color.red.opacity(0.1))
+                            .foregroundColor(.red)
+                            .cornerRadius(10)
+                            .padding(.top, 10)
+                        } else if let successMessage = bengkelViewModel.successMessage {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                Text(successMessage)
+                                    .font(.subheadline)
+                                Spacer()
+                            }
+                            .padding()
+                            .background(Color.green.opacity(0.1))
+                            .foregroundColor(.green)
+                            .cornerRadius(10)
+                            .padding(.top, 10)
+                        }
+                        
                         VStack(spacing: 12) {
                             Image(systemName: "wrench.and.screwdriver.fill")
                                 .resizable()

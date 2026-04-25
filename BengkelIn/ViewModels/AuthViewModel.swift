@@ -67,7 +67,7 @@ class AuthViewModel: ObservableObject {
             
             try await supabase.auth.signOut()
             self.userSession = nil
-            self.successMessage = "Registration successful! Please log in."
+            self.successMessage = "Registration successful! Please check your email to activate account."
             
         } catch {
             self.errorMessage = error.localizedDescription
