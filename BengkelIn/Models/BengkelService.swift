@@ -7,16 +7,25 @@
 
 import Foundation
 
+enum ServiceType: String, Codable, CaseIterable {
+    case flatTire = "Flat Tire"
+    case accuProblem = "Accu Problem"
+    case oilChange = "Oil Change"
+    case engineOverheat = "Engine Overheat"
+    case towing = "Towing"
+    case brakeService = "Brake Service"
+    case generalCheckup = "General Checkup"
+    case other = "Other"
+}
+
 struct BengkelService: Codable, Identifiable, Hashable {
     var id: String = UUID().uuidString
-    var serviceName: String
-    var description: String
+    var serviceType: ServiceType 
     var isActive: Bool
     
     enum CodingKeys: String, CodingKey {
         case id
-        case serviceName = "service_name"
-        case description
+        case serviceType = "service_type"
         case isActive = "is_active"
     }
 }
