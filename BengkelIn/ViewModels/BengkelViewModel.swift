@@ -155,8 +155,8 @@ class BengkelViewModel: ObservableObject {
             return false
         }
     }
-    
-    func addService(bengkelId: String, serviceName: String, description: String, isActive: Bool) async -> Bool {
+
+    func addService(bengkelId: String, serviceType: ServiceType, isActive: Bool) async -> Bool {
         isLoading = true
         errorMessage = nil
         
@@ -168,8 +168,7 @@ class BengkelViewModel: ObservableObject {
             }
             
             let newService = BengkelService(
-                serviceName: serviceName,
-                description: description,
+                serviceType: serviceType,
                 isActive: isActive
             )
             
@@ -188,7 +187,7 @@ class BengkelViewModel: ObservableObject {
         }
     }
     
-    func updateService(bengkelId: String, serviceId: String, serviceName: String, description: String, isActive: Bool) async -> Bool {
+    func updateService(bengkelId: String, serviceId: String, serviceType: ServiceType, isActive: Bool) async -> Bool {
         isLoading = true
         errorMessage = nil
         
@@ -196,8 +195,7 @@ class BengkelViewModel: ObservableObject {
             guard var currentBengkel = self.myBengkel else { return false }
             
             if let index = currentBengkel.offeredServices.firstIndex(where: { $0.id == serviceId }) {
-                currentBengkel.offeredServices[index].serviceName = serviceName
-                currentBengkel.offeredServices[index].description = description
+                currentBengkel.offeredServices[index].serviceType = serviceType
                 currentBengkel.offeredServices[index].isActive = isActive
                 
                 try await supabase.from("bengkels").update(currentBengkel).eq("id", value: bengkelId).execute()
