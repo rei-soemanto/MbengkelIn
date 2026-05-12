@@ -14,8 +14,7 @@ struct BengkelServiceFormView: View {
     
     @Environment(\.dismiss) var dismiss
     
-    @State private var serviceName: String = ""
-    @State private var description: String = ""
+    @State private var serviceType: ServiceType = .flatTire
     @State private var isActive: Bool = true
     
     var body: some View {
@@ -29,16 +28,30 @@ struct BengkelServiceFormView: View {
                         Text(serviceToEdit == nil ? "Add New Service" : "Edit Service")
                             .font(.title2)
                             .fontWeight(.bold)
-                        Text("Describe a service you offer. Customers will propose a price via bidding.")
+                        Text("Select a service category you offer.")
                             .font(.subheadline)
                             .foregroundColor(.gray)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 10)
                     
-                    CustomInputField(iconName: "wrench.adjustable", placeholder: "Service Name (e.g., Oil Change)", text: $serviceName)
-                    
-                    CustomInputField(iconName: "text.alignleft", placeholder: "Description", text: $description)
+                    VStack(alignment: .leading) {
+                        Text("Service Category")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                            .padding(.leading, 4)
+                        
+                        Picker("Service Type", selection: $serviceType) {
+                            ForEach(ServiceType.allCases, id: \.self) { type in
+                                Text(type.rawValue).tag(type)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+                    }
                     
                     Toggle("Service is Active", isOn: $isActive)
                         .padding()
@@ -57,20 +70,16 @@ struct BengkelServiceFormView: View {
                             
                             let success: Bool
                             if let existingService = serviceToEdit {
-                                // EDIT MODE
                                 success = await bengkelViewModel.updateService(
                                     bengkelId: id,
                                     serviceId: existingService.id,
-                                    serviceName: serviceName,
-                                    description: description,
+                                    serviceType: serviceType,
                                     isActive: isActive
                                 )
                             } else {
-                                // ADD MODE
                                 success = await bengkelViewModel.addService(
                                     bengkelId: id,
-                                    serviceName: serviceName,
-                                    description: description,
+                                    serviceType: serviceType,
                                     isActive: isActive
                                 )
                             }
@@ -85,10 +94,10 @@ struct BengkelServiceFormView: View {
                             .foregroundColor(Color(.systemBackground))
                             .frame(maxWidth: .infinity)
                             .frame(height: 55)
-                            .background(Color.primary.opacity(serviceName.isEmpty || description.isEmpty ? 0.4 : 0.9))
+                            .background(Color.primary.opacity(bengkelViewModel.isLoading ? 0.4 : 0.9))
                             .cornerRadius(12)
                     }
-                    .disabled(serviceName.isEmpty || description.isEmpty || bengkelViewModel.isLoading)
+                    .disabled(bengkelViewModel.isLoading)
                     .padding(.top, 10)
                 }
                 .padding()
@@ -107,8 +116,7 @@ struct BengkelServiceFormView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if let service = serviceToEdit {
-                serviceName = service.serviceName
-                description = service.description
+                serviceType = service.serviceType
                 isActive = service.isActive
             }
         }
