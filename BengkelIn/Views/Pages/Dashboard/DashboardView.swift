@@ -47,23 +47,21 @@ struct DashboardView: View {
                     Spacer()
                 }
 
-                Button {
-                    // LINK CREATE ORDER PAGE
-                } label: {
-                    HStack {
-                        Image(systemName: "wrench.and.screwdriver.fill")
-                            .font(.largeTitle)
-                        Text("Create Order")
-                            .font(.title)
-                            .fontWeight(.bold)
-                    }
-                    .foregroundColor(Color(.systemBackground))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 120)
-                    .background(Color.primary.opacity(0.9))
-                    .cornerRadius(16)
-                    .shadow(color: Color.primary.opacity(0.15), radius: 10, x: 0, y: 5)
-                }
+                NavigationLink(destination: OrderView()) {
+                                    HStack {
+                                        Image(systemName: "wrench.and.screwdriver.fill")
+                                            .font(.largeTitle)
+                                        Text("Create Order")
+                                            .font(.title)
+                                            .fontWeight(.bold)
+                                    }
+                                    .foregroundColor(Color(.systemBackground))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 120)
+                                    .background(Color.primary.opacity(0.9))
+                                    .cornerRadius(16)
+                                    .shadow(color: Color.primary.opacity(0.15), radius: 10, x: 0, y: 5)
+                                }
 
                 NavigationLink(destination: Text("Payment Placeholder")) {
                     HStack {
