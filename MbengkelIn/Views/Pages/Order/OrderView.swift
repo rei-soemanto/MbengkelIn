@@ -52,13 +52,13 @@ struct OrderView: View {
                     }
                     Spacer()
                 }
-                .padding(.top, 50)
+                .padding(.top, 0)
                 .padding(.leading, 20)
                 
                 Spacer()
             }
             
-            VStack(spacing: 20) {
+            VStack(spacing: 0) {
                 LocationInputCard(
                     address: $viewModel.locationAddress,
                     isFocused: $viewModel.isEditingLocation,
@@ -67,7 +67,7 @@ struct OrderView: View {
                 )
                 
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("What do you need help with?")
+                    Text("Perlu bantuan apa?")
                         .font(.headline)
                         .padding(.horizontal)
                     
@@ -99,7 +99,7 @@ struct OrderView: View {
                     }
                     
                     PrimaryButton(
-                        title: "Find Mechanic",
+                        title: "Cari Mechanic",
                         iconName: "wrench.and.screwdriver.fill",
                         action: viewModel.createOrder
                     )

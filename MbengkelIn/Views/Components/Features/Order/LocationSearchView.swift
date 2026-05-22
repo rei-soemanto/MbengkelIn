@@ -30,7 +30,7 @@ struct LocationSearchView: View {
                         .foregroundColor(.primary)
                         .font(.title2)
                     
-                    TextField("Enter breakdown location...", text: $viewModel.locationAddress)
+                    TextField("Masukan lokasi...", text: $viewModel.locationAddress)
                         .font(.body)
                         .foregroundColor(.primary)
                         .focused($isTextFieldFocused)
@@ -62,7 +62,7 @@ struct LocationSearchView: View {
                                     .font(.title3)
                             }
                             
-                            Text("Use current location")
+                            Text("Gunakan lokasi saat ini")
                                 .font(.body)
                                 .fontWeight(.medium)
                                 .foregroundColor(.primary)
@@ -83,7 +83,7 @@ struct LocationSearchView: View {
                             viewModel.selectSearchResult(result)
                         }) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(result.properties.name ?? result.properties.street ?? "Unknown Location")
+                                Text(result.properties.name ?? result.properties.street ?? "Lokasi tidak diketahui")
                                     .font(.body)
                                     .foregroundColor(.primary)
                                 

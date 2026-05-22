@@ -15,7 +15,7 @@ struct LocationInputCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Current Location")
+            Text("Lokasi saat ini")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             
@@ -27,8 +27,9 @@ struct LocationInputCard: View {
                         .foregroundColor(.primary)
                         .font(.title2)
                     
-                    Text(address.isEmpty ? "Enter breakdown location..." : address)
+                    Text(address.isEmpty ? "Masukan lokasi..." : address)
                         .font(.body)
+                        .multilineTextAlignment(.leading)
                         .foregroundColor(address.isEmpty ? .secondary : .primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -53,7 +54,7 @@ struct LocationInputCard: View {
                             .font(.title3)
                     }
                     
-                    Text("Use current location")
+                    Text("Gunakan lokasi saat ini")
                         .font(.body)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
@@ -66,7 +67,6 @@ struct LocationInputCard: View {
         }
         .padding()
         .background(Color(.systemBackground))
-        .cornerRadius(20)
         .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: -5)
     }
 }
