@@ -1,0 +1,30 @@
+{
+  "enabledPlugins": {
+    "swift-engineer@sjungling-plugins": true,
+    "cli-developer@sjungling-plugins": true,
+    "technical-writer@sjungling-plugins": true,
+    "git-tools@sjungling-plugins": true,
+    "workflow@sjungling-plugins": true,
+    "data-tools@sjungling-plugins": true,
+    "tmux-tools@sjungling-plugins": true,
+    "tailscale-notify@sjungling-plugins": true,
+    "obsidian-plans@sjungling-plugins": true,
+    "token-tracker@sjungling-plugins": true,
+    "flow@sjungling-plugins": true,
+    "fuse-swift-apple-expert@fusengine-plugins": true
+  },
+  "extraKnownMarketplaces": {
+    "sjungling-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "sjungling/sjungling-claude-plugins"
+      }
+    },
+    "fusengine-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "fusengine/agents"
+      }
+    }
+  }
+}
