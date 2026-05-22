@@ -22,12 +22,12 @@ struct LocationSearchView: View {
                 }) {
                     Image(systemName: "arrow.left")
                         .font(.title3)
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)
                 }
                 
                 HStack {
                     Image(systemName: "mappin.circle.fill")
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)
                         .font(.title2)
                     
                     TextField("Enter breakdown location...", text: $viewModel.locationAddress)
@@ -42,7 +42,7 @@ struct LocationSearchView: View {
             .padding(.horizontal)
             .padding(.top, 60)
             .padding(.bottom, 16)
-            .background(Color.white)
+            .background(Color(.systemBackground))
             
             Divider()
             
@@ -55,17 +55,17 @@ struct LocationSearchView: View {
                         HStack(spacing: 12) {
                             if viewModel.isFetchingLocation {
                                 ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .primary))
                             } else {
                                 Image(systemName: "location.north.circle.fill")
-                                    .foregroundColor(.black)
+                                    .foregroundColor(.primary)
                                     .font(.title3)
                             }
                             
                             Text("Use current location")
                                 .font(.body)
                                 .fontWeight(.medium)
-                                .foregroundColor(.black)
+                                .foregroundColor(.primary)
                             
                             Spacer()
                         }
@@ -85,7 +85,7 @@ struct LocationSearchView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(result.properties.name ?? result.properties.street ?? "Unknown Location")
                                     .font(.body)
-                                    .foregroundColor(.black)
+                                    .foregroundColor(.primary)
                                 
                                 let subtitleParts = [result.properties.street, result.properties.city, result.properties.state]
                                     .compactMap { $0 }
@@ -94,7 +94,7 @@ struct LocationSearchView: View {
                                 if !subtitleParts.isEmpty {
                                     Text(subtitleParts.joined(separator: ", "))
                                         .font(.caption)
-                                        .foregroundColor(.gray)
+                                        .foregroundColor(.secondary)
                                 }
                             }
                             .padding(.vertical, 12)

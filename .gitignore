@@ -1,0 +1,3 @@
+.build/api-docs/
+.build/docs/
+.build/symbol-graphs-raw/

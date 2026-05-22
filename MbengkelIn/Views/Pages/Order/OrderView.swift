@@ -26,10 +26,10 @@ struct OrderView: View {
                 VStack(spacing: 0) {
                     Image(systemName: "mappin")
                         .font(.system(size: 40, weight: .bold))
-                        .foregroundColor(.black)
+                        .foregroundColor(.primary)
                     
                     Circle()
-                        .fill(Color.black.opacity(0.3))
+                        .fill(Color.primary.opacity(0.3))
                         .frame(width: 12, height: 12)
                         .scaleEffect(x: 2, y: 1)
                         .padding(.top, -2)
@@ -44,9 +44,9 @@ struct OrderView: View {
                     }) {
                         Image(systemName: "chevron.left")
                             .font(.title2)
-                            .foregroundColor(.black)
+                            .foregroundColor(.primary)
                             .padding()
-                            .background(Color.white)
+                            .background(Color(.systemBackground))
                             .clipShape(Circle())
                             .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
                     }
@@ -88,7 +88,7 @@ struct OrderView: View {
                         HStack {
                             Text("Estimated Cost")
                                 .font(.subheadline)
-                                .foregroundColor(.gray)
+                                .foregroundColor(.secondary)
                             Spacer()
                             Text("Rp\(viewModel.estimatedPrice)")
                                 .font(.headline)
@@ -107,7 +107,7 @@ struct OrderView: View {
                     .padding(.bottom, 20)
                 }
                 .padding(.top, 20)
-                .background(Color.white)
+                .background(Color(.systemBackground))
             }
             .opacity(viewModel.isEditingLocation ? 0 : 1)
             .disabled(viewModel.isEditingLocation)

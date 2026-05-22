@@ -20,8 +20,8 @@ struct ServicePill: View {
                 .fontWeight(.semibold)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
-                .foregroundColor(isSelected ? .white : .black)
-                .background(isSelected ? Color.black : Color.gray)
+                .foregroundColor(isSelected ? Color(.systemBackground) : .primary)
+                .background(isSelected ? Color.primary.opacity(0.9) : Color(.systemGray5))
                 .cornerRadius(20)
         }
     }
