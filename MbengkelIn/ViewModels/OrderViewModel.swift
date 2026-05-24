@@ -38,6 +38,9 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private var cancellables = Set<AnyCancellable>()
     
+    private let locationService = LocationService()
+    private let orderRepository = OrderRepository()
+    
     override init() {
         super.init()
         locationManager.delegate = self
@@ -58,22 +61,14 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func searchOSM(query: String) {
-        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://photon.komoot.io/api/?q=\(encodedQuery)&limit=5&lat=\(region.center.latitude)&lon=\(region.center.longitude)") else { return }
-        
-        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
-            guard let data = data, error == nil else { return }
+        Task { @MainActor in
             do {
-                let result = try JSONDecoder().decode(PhotonSearchResponse.self, from: data)
-                DispatchQueue.main.async {
-                    self?.searchResults = result.features
-                }
+                let features = try await locationService.searchOSM(query: query, coordinate: region.center)
+                self.searchResults = features
             } catch {
-                DispatchQueue.main.async {
-                    self?.searchResults = []
-                }
+                self.searchResults = []
             }
-        }.resume()
+        }
     }
     
     func selectSearchResult(_ result: PhotonSearchFeature) {
@@ -143,36 +138,16 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     private func fetchAddress(from coordinate: CLLocationCoordinate2D) {
         self.isFetchingLocation = true
-        let urlString = "https://photon.komoot.io/reverse?lon=\(coordinate.longitude)&lat=\(coordinate.latitude)"
-        guard let url = URL(string: urlString) else {
-            DispatchQueue.main.async { self.isFetchingLocation = false }
-            return
-        }
-        
-        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
-            guard let data = data, error == nil else {
-                DispatchQueue.main.async { self?.isFetchingLocation = false }
-                return
-            }
-            
+        Task { @MainActor in
             do {
-                let photonResponse = try JSONDecoder().decode(PhotonSearchResponse.self, from: data)
-                if let properties = photonResponse.features.first?.properties {
-                    let addressParts = [properties.name, properties.street, properties.city, properties.state]
-                        .compactMap { $0 }
-                        .filter { !$0.isEmpty }
-                    
-                    DispatchQueue.main.async {
-                        self?.locationAddress = addressParts.joined(separator: ", ")
-                        self?.isFetchingLocation = false
-                    }
-                } else {
-                    DispatchQueue.main.async { self?.isFetchingLocation = false }
+                if let address = try await locationService.fetchAddress(from: coordinate) {
+                    self.locationAddress = address
                 }
             } catch {
-                DispatchQueue.main.async { self?.isFetchingLocation = false }
+                // handle error silently
             }
-        }.resume()
+            self.isFetchingLocation = false
+        }
     }
     
     func selectService(_ service: String) {
@@ -188,20 +163,6 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
-    private struct ServiceRequestPayload: Encodable {
-        let customer_id: String
-        let description: String
-        let latitude: Double
-        let longitude: Double
-        let price: Int
-        let is_emergency: Bool
-        let status: String
-    }
-
-    private struct CreatedServiceRequest: Decodable {
-        let id: String
-    }
-
     func createOrder() {
         guard let service = selectedService, !locationAddress.isEmpty else { return }
         loadingPhase = .loading(message: "Membuat pesanan...")
@@ -218,12 +179,7 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
                     is_emergency: false,
                     status: "To Do"
                 )
-                let created: CreatedServiceRequest = try await supabase.from("service_requests")
-                    .insert(payload)
-                    .select("id")
-                    .single()
-                    .execute()
-                    .value
+                let created = try await orderRepository.createOrder(payload: payload)
                 self.createdServiceRequestId = created.id
                 self.loadingPhase = .idle
                 self.navigateToBidding = true
