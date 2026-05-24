@@ -14,32 +14,6 @@ class MechanicBiddingViewModel: ObservableObject {
     private var realtimeChannel: RealtimeChannelV2?
     private var pollingTask: Task<Void, Never>?
 
-    private struct OrdersRequest: Encodable {
-        let action: String
-        let latitude: Double
-        let longitude: Double
-        let radiusMeters: Double
-    }
-
-    private struct OrdersResponse: Decodable {
-        let orders: [NearbyOrder]
-    }
-
-    private struct PlaceBidRequest: Encodable {
-        let action: String
-        let serviceRequestId: String
-        let bengkelId: String
-        let price: Int
-        let notes: String?
-    }
-
-    private struct PlaceBidResponse: Decodable {
-        let bid: Bid
-    }
-
-    private struct BidStatusUpdate: Encodable {
-        let status: String
-    }
 
     deinit {
         if let channel = realtimeChannel {

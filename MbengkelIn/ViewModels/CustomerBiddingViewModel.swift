@@ -30,18 +30,6 @@ class CustomerBiddingViewModel: ObservableObject {
         "Towing": 150000
     ]
 
-    private struct BengkelUpdate: Encodable {
-        let bengkel_id: String
-        let status: String
-    }
-
-    private struct BidStatusUpdate: Encodable {
-        let status: String
-    }
-
-    private struct StartSearchPayload: Encodable {
-        let price: Int
-    }
 
     init(serviceRequestId: String, latitude: Double, longitude: Double) {
         self.serviceRequestId = serviceRequestId
