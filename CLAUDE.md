@@ -4,24 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-BengkelIn is a SwiftUI iOS app (university MAD ALP project) that connects vehicle owners with motor/car workshops ("bengkel"). It is a single Xcode project — no Swift Package Manager manifest, no CocoaPods, no fastlane. The only third-party dependency is `supabase-swift`, wired via Xcode's package manager (see `BengkelIn.xcodeproj/project.pbxproj`).
+MbengkelIn is a SwiftUI iOS app (university MAD ALP project) that connects vehicle owners with motor/car workshops ("bengkel"). It is a single Xcode project — no Swift Package Manager manifest, no CocoaPods, no fastlane. The only third-party dependency is `supabase-swift`, wired via Xcode's package manager (see `MbengkelIn.xcodeproj/project.pbxproj`). A project-local `.mcp.json` also wires the Supabase MCP server (project ref `nerrnpbopdfrdcfvjowx`) for schema/log access.
 
 ## Build / Run
 
-Open in Xcode and run the `BengkelIn` scheme on an iOS Simulator (no test target exists yet):
+Open in Xcode and run the `MbengkelIn` scheme on an iOS Simulator:
 
 ```sh
-open BengkelIn.xcodeproj
+open MbengkelIn.xcodeproj
 # or from CLI:
-xcodebuild -project BengkelIn.xcodeproj -scheme BengkelIn \
+xcodebuild -project MbengkelIn.xcodeproj -scheme MbengkelIn \
   -destination 'platform=iOS Simulator,name=iPhone 15' build
 ```
 
-There is no lint config, no test target, and no CI. The Supabase URL and publishable key are hard-coded at the top of `BengkelIn/BengkelInApp.swift` as a module-level `let supabase = SupabaseClient(...)` — every ViewModel imports that global directly rather than receiving a client via init.
+The project has 6 targets: the `MbengkelIn` iOS app, a `MbengkelInWatchOS Watch App` scheme, and four test targets (`MbengkelInUnitTests`, `MbengkelInUITests`, and the two watchOS test bundles). **All of these are currently empty Xcode template stubs** — the watchOS app and every test file are unmodified scaffolding, so all real code lives in the `MbengkelIn/` app target. There is no lint config and no CI.
+
+The Supabase URL and publishable key are hard-coded at the top of `MbengkelIn/MbengkelInApp.swift` as a module-level `let supabase = SupabaseClient(...)` — every ViewModel imports that global directly rather than receiving a client via init.
 
 ## Architecture
 
-MVVM with SwiftUI. Three layers under `BengkelIn/`:
+MVVM with SwiftUI. Three layers under `MbengkelIn/`:
 
 - `Models/` — `Codable` structs that map 1:1 to Supabase Postgres tables: `User` (`users`), `Bengkel` (`bengkels`), `Vehicle` (`vehicles`), `BengkelService`. `PhotonSearchResponse` decodes the Photon geocoding API (OpenStreetMap) used by the order flow.
 - `ViewModels/` — one `@MainActor`-isolated `ObservableObject` per domain: `AuthViewModel`, `ProfileViewModel`, `VehicleViewModel`, `BengkelViewModel`, `OrderViewModel`. Each owns its async Supabase calls (`supabase.from("…").select/insert/update/delete().execute()`) and publishes `isLoading` / `errorMessage` / `successMessage` for the views to bind to.
@@ -29,7 +31,7 @@ MVVM with SwiftUI. Three layers under `BengkelIn/`:
 
 ### App entry & session flow
 
-`BengkelInApp` → `ContentView` owns the single `@StateObject AuthViewModel`. `ContentView` gates on `authViewModel.userSession`: when nil it shows `LoginView`; when present it shows a 4-tab `TabView` (Dashboard / Payment / History / Profile). Payment and History are placeholders in `Views/Pages/Temp Placeholder/`.
+`MbengkelInApp` → `ContentView` owns the single `@StateObject AuthViewModel`. `ContentView` gates on `authViewModel.userSession`: when nil it shows `LoginView`; when present it shows a 4-tab `TabView` (Dashboard / Payment / History / Profile). Payment and History are placeholders in `Views/Pages/Temp Placeholder/`.
 
 `AuthViewModel` also exposes `appMode: AppMode { .customer, .bengkel }`. The Dashboard switches its content based on this mode — the same logged-in user can toggle between using the app as a customer and managing their bengkel. Bengkel-side screens (`RegisterBengkelView`, `UpdateBengkelView`, `BengkelDashboardView`, `BengkelServiceFormView`, `BengkelProfileView`) all assume `appMode == .bengkel`.
 

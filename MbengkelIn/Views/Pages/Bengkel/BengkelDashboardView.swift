@@ -92,6 +92,22 @@ struct BengkelDashboardView: View {
                 .background(Color(.systemGray6))
                 .cornerRadius(12)
                 
+                NavigationLink(destination: MechanicBiddingView()) {
+                    HStack {
+                        Image(systemName: "list.bullet.rectangle.portrait.fill")
+                            .font(.title2)
+                        Text("Lihat Order Masuk")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                    }
+                    .foregroundColor(Color(.systemBackground))
+                    .padding()
+                    .background(Color.primary.opacity(0.9))
+                    .cornerRadius(12)
+                }
+
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
                         Text(hasActiveJob ? "Current Active Job" : "Incoming Requests")

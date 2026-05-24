@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import MapKit
 import CoreLocation
+import Supabase
 
 class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var locationAddress: String = ""
@@ -17,6 +18,9 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var isFetchingLocation: Bool = false
     @Published var isEditingLocation: Bool = false
     @Published var searchResults: [PhotonSearchFeature] = []
+    @Published var errorMessage: String?
+    @Published var createdServiceRequestId: String? = nil
+    @Published var navigateToBidding: Bool = false
     
     @Published var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: -7.2845, longitude: 112.6315),
@@ -173,7 +177,44 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         estimatedPrice = Int.random(in: 50000...200000)
     }
     
+    private struct ServiceRequestPayload: Encodable {
+        let customer_id: String
+        let description: String
+        let latitude: Double
+        let longitude: Double
+        let price: Int
+        let is_emergency: Bool
+    }
+
+    private struct CreatedServiceRequest: Decodable {
+        let id: String
+    }
+
     func createOrder() {
-        guard selectedService != nil, !locationAddress.isEmpty else { return }
+        guard let service = selectedService, !locationAddress.isEmpty else { return }
+        Task { @MainActor in
+            self.errorMessage = nil
+            do {
+                let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
+                let payload = ServiceRequestPayload(
+                    customer_id: uid,
+                    description: service,
+                    latitude: self.region.center.latitude,
+                    longitude: self.region.center.longitude,
+                    price: self.estimatedPrice,
+                    is_emergency: false
+                )
+                let created: CreatedServiceRequest = try await supabase.from("service_requests")
+                    .insert(payload)
+                    .select("id")
+                    .single()
+                    .execute()
+                    .value
+                self.createdServiceRequestId = created.id
+                self.navigateToBidding = true
+            } catch {
+                self.errorMessage = error.localizedDescription
+            }
+        }
     }
 }

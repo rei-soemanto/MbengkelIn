@@ -7,6 +7,7 @@
 
 import SwiftUI
 import MapKit
+import CoreLocation
 
 struct OrderView: View {
     @StateObject private var viewModel = OrderViewModel()
@@ -17,6 +18,7 @@ struct OrderView: View {
             ZStack {
                 OrderMapView(
                     region: $viewModel.region,
+                    isEditing: viewModel.isEditingLocation,
                     onRegionChange: { coordinate in
                         viewModel.updateLocationFromMap(coordinate: coordinate)
                     }
@@ -117,6 +119,12 @@ struct OrderView: View {
                     .transition(.move(edge: .bottom))
                     .zIndex(2)
             }
+        }
+        .navigationDestination(isPresented: $viewModel.navigateToBidding) {
+            CustomerBiddingView(
+                serviceRequestId: viewModel.createdServiceRequestId ?? "",
+                coordinate: viewModel.region.center
+            )
         }
         .navigationBarHidden(true)
         .ignoresSafeArea(.keyboard, edges: .bottom)

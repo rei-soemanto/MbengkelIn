@@ -1,4 +1,32 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild -project MbengkelIn.xcodeproj -scheme MbengkelIn -destination 'platform=iOS Simulator,id=776FE248-A647-47E2-A660-874184D219AC' -derivedDataPath /tmp/mbengkelin-dd build)",
+      "Bash(xcodebuild -project MbengkelIn.xcodeproj -scheme MbengkelIn -destination 'platform=iOS Simulator,id=776FE248-A647-47E2-A660-874184D219AC' -derivedDataPath /tmp/mbengkelin_dd build)",
+      "Bash(osascript -e 'tell application \"System Events\" to get name of every process whose background only is false')",
+      "Bash(osascript)",
+      "Bash(which cliclick; ls /opt/homebrew/bin/cliclick /usr/local/bin/cliclick 2>/dev/null; echo \"---hidutil?\"; xcrun simctl help 2>&1 | grep -iE \"tap|touch|ui|sendkey\" )",
+      "Read(//opt/homebrew/bin/**)",
+      "Bash(python3 -c \"import Quartz; print\\('quartz ok'\\)\")",
+      "Bash(/usr/bin/python3 -c \"import Quartz; print\\('sys quartz ok'\\)\")",
+      "Bash(timeout 90 brew install cliclick)",
+      "Bash(brew install *)",
+      "Read(//usr/local/bin/**)",
+      "Bash(cliclick p *)",
+      "Bash(cliclick c:940,930)",
+      "Bash(system_profiler SPDisplaysDataType)",
+      "Bash(screencapture -x /tmp/fullscreen.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight /tmp/fullscreen.png)",
+      "Bash(/usr/libexec/PlistBuddy -c \"Print CFBundleIdentifier\" MbengkelIn.app/Info.plist)",
+      "Bash(open -a Simulator)",
+      "Bash(/usr/libexec/PlistBuddy -c \"Print CFBundleIdentifier\" /tmp/mbengkelin_dd/Build/Products/Debug-iphonesimulator/MbengkelIn.app/Info.plist)",
+      "Bash(sips -g pixelWidth -g pixelHeight /tmp/step1.png)",
+      "Bash(osascript -e 'tell application \"Simulator\" to activate' -e 'tell application \"System Events\" to tell process \"Simulator\" to get position of window 1 & \\(get size of window 1\\)')",
+      "Bash(osascript -e 'tell application \"Simulator\" to activate' -e 'delay 0.3' -e 'tell application \"System Events\" to click at {1462, 385}')",
+      "Bash(osascript -e 'tell application \"Simulator\" to activate')",
+      "Bash(cliclick c:1462,385)"
+    ]
+  },
   "enabledPlugins": {
     "swift-engineer@sjungling-plugins": true,
     "cli-developer@sjungling-plugins": true,
