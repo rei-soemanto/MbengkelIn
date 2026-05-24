@@ -21,6 +21,7 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var errorMessage: String?
     @Published var createdServiceRequestId: String? = nil
     @Published var navigateToBidding: Bool = false
+    @Published var loadingPhase: LoadingPhase = .idle
     
     @Published var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: -7.2845, longitude: 112.6315),
@@ -192,6 +193,7 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     func createOrder() {
         guard let service = selectedService, !locationAddress.isEmpty else { return }
+        loadingPhase = .loading(message: "Membuat pesanan...")
         Task { @MainActor in
             self.errorMessage = nil
             do {
@@ -211,10 +213,19 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
                     .execute()
                     .value
                 self.createdServiceRequestId = created.id
+                self.loadingPhase = .idle
                 self.navigateToBidding = true
             } catch {
                 self.errorMessage = error.localizedDescription
+                self.loadingPhase = .failed(
+                    title: "Gagal membuat pesanan",
+                    message: "Periksa koneksi internet kamu dan coba lagi."
+                )
             }
         }
+    }
+
+    func cancelLoading() {
+        loadingPhase = .idle
     }
 }

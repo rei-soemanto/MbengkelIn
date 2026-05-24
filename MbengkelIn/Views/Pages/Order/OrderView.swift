@@ -105,6 +105,8 @@ struct OrderView: View {
                         iconName: "wrench.and.screwdriver.fill",
                         action: viewModel.createOrder
                     )
+                    .disabled(viewModel.selectedService == nil)
+                    .opacity(viewModel.selectedService == nil ? 0.5 : 1)
                     .padding(.horizontal)
                     .padding(.bottom, 20)
                 }
@@ -129,6 +131,11 @@ struct OrderView: View {
         .navigationBarHidden(true)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.isEditingLocation)
+        .loadingOverlay(
+            phase: viewModel.loadingPhase,
+            onRetry: { viewModel.createOrder() },
+            onStop: { viewModel.cancelLoading() }
+        )
         .onAppear {
             viewModel.useCurrentLocation()
         }

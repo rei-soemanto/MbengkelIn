@@ -3,6 +3,7 @@ import CoreLocation
 
 struct CustomerBiddingView: View {
     @StateObject private var viewModel: CustomerBiddingViewModel
+    @Environment(\.dismiss) private var dismiss
 
     init(serviceRequestId: String, coordinate: CLLocationCoordinate2D) {
         _viewModel = StateObject(wrappedValue: CustomerBiddingViewModel(
@@ -15,11 +16,7 @@ struct CustomerBiddingView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                if viewModel.isLoading && viewModel.mechanics.isEmpty && viewModel.bids.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 60)
-                } else if viewModel.mechanics.isEmpty && viewModel.bids.isEmpty {
+                if viewModel.mechanics.isEmpty && viewModel.bids.isEmpty {
                     BiddingEmptyState(
                         icon: "person.2.slash",
                         title: "Belum ada mekanik",
@@ -39,7 +36,15 @@ struct CustomerBiddingView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Pilih Mekanik")
         .refreshable { await viewModel.refresh() }
-        .task { await viewModel.refresh() }
+        .onAppear { viewModel.searchForMechanics() }
+        .loadingOverlay(
+            phase: viewModel.loadingPhase,
+            onRetry: { viewModel.searchForMechanics() },
+            onStop: {
+                viewModel.stopSearch()
+                dismiss()
+            }
+        )
     }
 
     private var bidsSection: some View {

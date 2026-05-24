@@ -1,6 +1,5 @@
 import SwiftUI
 import Combine
-import Combine
 import Supabase
 
 @MainActor
@@ -9,10 +8,15 @@ class CustomerBiddingViewModel: ObservableObject {
     @Published var bids: [Bid] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var loadingPhase: LoadingPhase = .idle
 
     let serviceRequestId: String
     let latitude: Double
     let longitude: Double
+
+    private var searchTask: Task<Void, Never>?
+    private let searchTimeout: TimeInterval = 120
+    private let pollInterval: UInt64 = 5_000_000_000
 
     private struct MechanicsRequest: Encodable {
         let action: String
@@ -38,6 +42,41 @@ class CustomerBiddingViewModel: ObservableObject {
         self.serviceRequestId = serviceRequestId
         self.latitude = latitude
         self.longitude = longitude
+    }
+
+    func searchForMechanics() {
+        searchTask?.cancel()
+        loadingPhase = .loading(message: "Mencari mekanik terdekat...")
+        searchTask = Task { await runSearch() }
+    }
+
+    private func runSearch() async {
+        let deadline = Date().addingTimeInterval(searchTimeout)
+        while !Task.isCancelled {
+            await loadNearbyMechanics()
+            await loadReceivedBids()
+
+            if !mechanics.isEmpty || !bids.isEmpty {
+                loadingPhase = .idle
+                return
+            }
+
+            if Date() >= deadline {
+                loadingPhase = .failed(
+                    title: "Oops, gagal menemukan mekanik",
+                    message: "Tidak ada mekanik dalam jarak 5km."
+                )
+                return
+            }
+
+            try? await Task.sleep(nanoseconds: pollInterval)
+        }
+    }
+
+    func stopSearch() {
+        searchTask?.cancel()
+        searchTask = nil
+        loadingPhase = .idle
     }
 
     func loadNearbyMechanics() async {
