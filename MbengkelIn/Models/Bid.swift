@@ -9,6 +9,7 @@ struct Bid: Codable, Identifiable {
     var notes: String?
     var status: String
     var createdAt: String?
+    var bengkel: Bengkel?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -19,5 +20,6 @@ struct Bid: Codable, Identifiable {
         case notes
         case status
         case createdAt = "created_at"
+        case bengkel
     }
 }

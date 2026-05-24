@@ -29,6 +29,12 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     )
     
     let services = ["Engine", "Tire", "Battery", "Towing"]
+    let serviceMinPrices: [String: Int] = [
+        "Engine": 100000,
+        "Tire": 40000,
+        "Battery": 60000,
+        "Towing": 150000
+    ]
     private let locationManager = CLLocationManager()
     private var cancellables = Set<AnyCancellable>()
     
@@ -175,7 +181,11 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func calculateEstimate() {
-        estimatedPrice = Int.random(in: 50000...200000)
+        if let service = selectedService {
+            estimatedPrice = serviceMinPrices[service] ?? 50000
+        } else {
+            estimatedPrice = 0
+        }
     }
     
     private struct ServiceRequestPayload: Encodable {
@@ -185,6 +195,7 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         let longitude: Double
         let price: Int
         let is_emergency: Bool
+        let status: String
     }
 
     private struct CreatedServiceRequest: Decodable {
@@ -204,7 +215,8 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
                     latitude: self.region.center.latitude,
                     longitude: self.region.center.longitude,
                     price: self.estimatedPrice,
-                    is_emergency: false
+                    is_emergency: false,
+                    status: "To Do"
                 )
                 let created: CreatedServiceRequest = try await supabase.from("service_requests")
                     .insert(payload)

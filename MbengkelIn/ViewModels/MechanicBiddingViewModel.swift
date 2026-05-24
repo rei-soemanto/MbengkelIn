@@ -1,15 +1,18 @@
 import SwiftUI
 import Combine
-import Combine
 import Supabase
 
 @MainActor
 class MechanicBiddingViewModel: ObservableObject {
     @Published var orders: [NearbyOrder] = []
     @Published var myBengkel: Bengkel?
+    @Published var myPendingBids: [Bid] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var successMessage: String?
+
+    private var realtimeChannel: RealtimeChannelV2?
+    private var pollingTask: Task<Void, Never>?
 
     private struct OrdersRequest: Encodable {
         let action: String
@@ -34,6 +37,19 @@ class MechanicBiddingViewModel: ObservableObject {
         let bid: Bid
     }
 
+    private struct BidStatusUpdate: Encodable {
+        let status: String
+    }
+
+    deinit {
+        if let channel = realtimeChannel {
+            let client = supabase
+            Task {
+                await client.removeChannel(channel)
+            }
+        }
+    }
+
     func start() async {
         isLoading = true
         errorMessage = nil
@@ -53,11 +69,79 @@ class MechanicBiddingViewModel: ObservableObject {
             return
         }
         await loadOrders()
+        startRealtimeSubscription()
         isLoading = false
     }
 
+    func startRealtimeSubscription() {
+        stopRealtimeSubscription()
+
+        let channel = supabase.channel("mechanic-realtime-updates")
+        self.realtimeChannel = channel
+
+        let serviceRequestStream = channel.postgresChange(
+            AnyAction.self,
+            schema: "public",
+            table: "service_requests"
+        )
+
+        let bidsStream = channel.postgresChange(
+            AnyAction.self,
+            schema: "public",
+            table: "bids"
+        )
+
+        Task { [weak self] in
+            guard let self = self else { return }
+            await channel.subscribe()
+
+            // Listen to service_requests changes
+            Task { [weak self] in
+                for await _ in serviceRequestStream {
+                    await self?.loadOrders()
+                }
+            }
+
+            // Listen to bids changes (e.g., bid accepted/rejected)
+            Task { [weak self] in
+                for await _ in bidsStream {
+                    await self?.loadOrders()
+                }
+            }
+        }
+        
+        // Add polling as a robust fallback
+        startPolling()
+    }
+
+    private func startPolling() {
+        stopPolling()
+        pollingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
+                guard !Task.isCancelled else { break }
+                await self?.loadOrders()
+            }
+        }
+    }
+
+    private func stopPolling() {
+        pollingTask?.cancel()
+        pollingTask = nil
+    }
+
+    func stopRealtimeSubscription() {
+        if let channel = realtimeChannel {
+            Task {
+                await supabase.removeChannel(channel)
+            }
+            realtimeChannel = nil
+        }
+        stopPolling()
+    }
+
     func loadOrders() async {
-        guard let bengkel = myBengkel else { return }
+        guard let bengkel = myBengkel, let bengkelId = bengkel.id else { return }
         errorMessage = nil
         do {
             let body = OrdersRequest(
@@ -70,7 +154,20 @@ class MechanicBiddingViewModel: ObservableObject {
                 "bidding",
                 options: FunctionInvokeOptions(body: body)
             )
-            self.orders = response.orders
+            let nearbyOrders = response.orders
+
+            // Fetch all bids placed by this bengkel
+            let allMyBids: [Bid] = try await supabase.from("bids")
+                .select()
+                .eq("bengkel_id", value: bengkelId)
+                .execute()
+                .value
+
+            let rejectedRequestIds = Set(allMyBids.filter { $0.status.lowercased() == "rejected" || $0.status.lowercased() == "autorejected" }.map { $0.serviceRequestId })
+            self.myPendingBids = allMyBids.filter { $0.status.lowercased() == "pending" }
+
+            // Filter out orders that have a rejected bid from this bengkel
+            self.orders = nearbyOrders.filter { !rejectedRequestIds.contains($0.id) }
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -99,5 +196,17 @@ class MechanicBiddingViewModel: ObservableObject {
             self.errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    func rejectBid(_ bid: Bid) async {
+        do {
+            try await supabase.from("bids")
+                .update(BidStatusUpdate(status: "Rejected"))
+                .eq("id", value: bid.id)
+                .execute()
+            await loadOrders()
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
     }
 }

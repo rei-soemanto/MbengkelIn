@@ -19,9 +19,21 @@ struct MechanicBiddingView: View {
                     )
                 } else {
                     ForEach(viewModel.orders) { order in
-                        OrderRequestCard(order: order) {
-                            selectedOrder = order
-                        }
+                        let pendingBid = viewModel.myPendingBids.first(where: { $0.serviceRequestId == order.id })
+                        OrderRequestCard(
+                            order: order,
+                            pendingBid: pendingBid,
+                            onBid: {
+                                selectedOrder = order
+                            },
+                            onAutoReject: {
+                                if let bid = pendingBid {
+                                    Task {
+                                        await viewModel.rejectBid(bid)
+                                    }
+                                }
+                            }
+                        )
                     }
                 }
             }

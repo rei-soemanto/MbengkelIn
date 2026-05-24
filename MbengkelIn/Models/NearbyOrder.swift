@@ -3,7 +3,7 @@ import Foundation
 struct NearbyOrder: Codable, Identifiable {
     var id: String
     var customerId: String
-    var customerName: String
+    var customerName: String?
     var serviceType: String?
     var description: String?
     var isEmergency: Bool?
@@ -12,7 +12,7 @@ struct NearbyOrder: Codable, Identifiable {
     var price: Int?
     var status: String
     var createdAt: String?
-    var distanceM: Double
+    var distanceM: Double?
 
     enum CodingKeys: String, CodingKey {
         case id
