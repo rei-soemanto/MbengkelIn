@@ -2,6 +2,37 @@
 
 Refactor four feature areas to follow the same layered architecture as the Order feature. Additionally, replace `MKLocalSearch` geocoding in Bengkel with the **same Photon OSM map + search UI** used in `OrderView`.
 
+---
+
+## ✅ Current Progress (as of 2026-05-27)
+
+> [!IMPORTANT]
+> **All planned refactoring steps are COMPLETE.** The Auth, Profile, Vehicle, and Bengkel features have been fully refactored to the layered architecture.
+
+| Step | Status | Details |
+|------|--------|---------|
+| 1. DTOs | ✅ **Done** | `AuthDTOs.swift`, `VehicleDTOs.swift`, `BengkelDTOs.swift` created in `Models/DTOs/` |
+| 2. Protocol | ✅ **Done** | `LocationSearchable` protocol created in `Protocols/` |
+| 3. Repositories | ✅ **Done** | `UserRepository`, `VehicleRepository`, `BengkelRepository` created in `Repositories/` |
+| 4. Services | ✅ **Done** | `AuthService`, `StorageService` created in `Services/` (alongside existing `LocationService`) |
+| 5a. VehicleViewModel | ✅ **Done** | Delegates to `AuthService` + `VehicleRepository` |
+| 5b. ProfileViewModel | ✅ **Done** | Delegates to `AuthService` + `UserRepository` + `StorageService` |
+| 5c. AuthViewModel | ✅ **Done** | Delegates to `AuthService` + `UserRepository` |
+| 5d. BengkelViewModel | ✅ **Done** | Major rewrite: `CLLocationManagerDelegate` + `LocationSearchable` + `LocationService` + `BengkelRepository`; `MKLocalSearch` removed |
+| 5e. OrderViewModel | ✅ **Done** | Added `LocationSearchable` conformance |
+| 6a. LocationSearchView | ✅ **Done** | Made generic over `LocationSearchable` protocol |
+| 6b. RegisterBengkelView | ✅ **Done** | Rewritten with map + `LocationInputCard` + `LocationSearchView` |
+| 6c. UpdateBengkelView | ✅ **Done** | Rewritten with map + `LocationInputCard` + `LocationSearchView`; pre-populates from existing bengkel |
+
+### Remaining Work (Not in Original Plan)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| `CustomerBiddingViewModel` extraction | ⬜ **Not started** | Still uses direct `supabase.from()` calls — could be extracted to `BidRepository` + `BiddingService` |
+| `MechanicBiddingViewModel` extraction | ⬜ **Not started** | Same as above — uses edge functions + realtime + direct queries |
+| `OrderViewModel.createOrder()` | ⬜ **Not started** | Still has one direct `supabase.auth.session` call — could use `AuthService` |
+| Payment & History features | ⬜ **Placeholder** | Empty directories — features not yet implemented |
+
 ## Decisions Resolved
 
 - **Auth Service boundary → Option A**: `AuthService` wraps Supabase Auth SDK calls; `UserRepository` handles `users` table CRUD.
