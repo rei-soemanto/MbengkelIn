@@ -23,11 +23,14 @@ class AuthViewModel: ObservableObject {
     @Published var successMessage: String?
     
     @Published var appMode: AppMode = .customer
+    
+    private let authService = AuthService()
+    private let userRepository = UserRepository()
 
     init() {
         Task {
             do {
-                let session = try await supabase.auth.session
+                let session = try await authService.getCurrentSession()
                 self.userSession = session.user
                 await fetchUser()
             } catch {
@@ -41,8 +44,8 @@ class AuthViewModel: ObservableObject {
         errorMessage = nil
         successMessage = nil
         do {
-            let result = try await supabase.auth.signIn(email: email, password: password)
-            self.userSession = result.user
+            let session = try await authService.signIn(email: email, password: password)
+            self.userSession = session.user
             await fetchUser()
         } catch {
             self.errorMessage = error.localizedDescription
@@ -56,16 +59,14 @@ class AuthViewModel: ObservableObject {
         successMessage = nil
         
         do {
-            let result = try await supabase.auth.signUp(
+            try await authService.signUp(request: SignUpRequest(
                 email: email,
                 password: password,
-                data: [
-                    "name": .string(name),
-                    "phone_number": .string(phoneNumber)
-                ]
-            )
+                name: name,
+                phoneNumber: phoneNumber
+            ))
             
-            try await supabase.auth.signOut()
+            try await authService.signOut()
             self.userSession = nil
             self.successMessage = "Registration successful! Please check your email to activate account."
             
@@ -79,12 +80,7 @@ class AuthViewModel: ObservableObject {
         guard let sessionUser = self.userSession else { return }
         let uid = sessionUser.id.uuidString.lowercased()
         do {
-            var fetchedUser: User = try await supabase.from("users")
-                .select()
-                .eq("id", value: uid)
-                .single()
-                .execute()
-                .value
+            var fetchedUser = try await userRepository.fetchUser(uid: uid)
             
             fetchedUser.email = sessionUser.email
             
@@ -103,7 +99,7 @@ class AuthViewModel: ObservableObject {
     func sendPasswordResetEmail() async {
         guard let email = currentUser?.email else { return }
         do {
-            try await supabase.auth.resetPasswordForEmail(email)
+            try await authService.resetPassword(email: email)
             self.successMessage = "Password reset email sent. Please check your inbox."
         } catch {
             self.errorMessage = error.localizedDescription
@@ -116,14 +112,11 @@ class AuthViewModel: ObservableObject {
         guard let sessionUser = self.userSession, let email = sessionUser.email else { return }
         
         do {
-            _ = try await supabase.auth.signIn(email: email, password: password)
+            _ = try await authService.signIn(email: email, password: password)
             
-            try await supabase.from("users")
-                .delete()
-                .eq("id", value: sessionUser.id.uuidString.lowercased())
-                .execute()
+            try await userRepository.deleteUser(uid: sessionUser.id.uuidString.lowercased())
             
-            try await supabase.auth.signOut()
+            try await authService.signOut()
             self.userSession = nil
             self.currentUser = nil
             
@@ -136,7 +129,7 @@ class AuthViewModel: ObservableObject {
     func signOut() {
         Task {
             do {
-                try await supabase.auth.signOut()
+                try await authService.signOut()
                 self.userSession = nil
                 self.currentUser = nil
             } catch {

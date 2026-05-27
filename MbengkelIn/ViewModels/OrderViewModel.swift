@@ -11,7 +11,7 @@ import MapKit
 import CoreLocation
 import Supabase
 
-class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
+class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, LocationSearchable {
     @Published var locationAddress: String = ""
     @Published var selectedService: String? = nil
     @Published var estimatedPrice: Int = 0

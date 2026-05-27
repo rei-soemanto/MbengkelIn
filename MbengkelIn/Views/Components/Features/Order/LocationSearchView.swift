@@ -8,8 +8,8 @@
 
 import SwiftUI
 
-struct LocationSearchView: View {
-    @ObservedObject var viewModel: OrderViewModel
+struct LocationSearchView<VM: LocationSearchable>: View {
+    @ObservedObject var viewModel: VM
     @FocusState private var isTextFieldFocused: Bool
     
     var body: some View {
