@@ -8,14 +8,9 @@
 import Foundation
 
 enum ServiceType: String, Codable, CaseIterable {
-    case flatTire = "Flat Tire"
-    case accuProblem = "Accu Problem"
-    case oilChange = "Oil Change"
-    case engineOverheat = "Engine Overheat"
-    case towing = "Towing"
-    case brakeService = "Brake Service"
-    case generalCheckup = "General Checkup"
-    case other = "Other"
+    case banGembos = "Ban Gembos"
+    case akiKering = "Aki Kering"
+    case banPecah = "Ban Pecah"
 }
 
 struct BengkelService: Codable, Identifiable, Hashable {

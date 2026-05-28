@@ -3,6 +3,7 @@ import Foundation
 // Order Repository DTOs
 struct ServiceRequestPayload: Encodable {
     let customer_id: String
+    let service_type: ServiceType
     let description: String
     let latitude: Double
     let longitude: Double

@@ -14,7 +14,7 @@ struct BengkelServiceFormView: View {
     
     @Environment(\.dismiss) var dismiss
     
-    @State private var serviceType: ServiceType = .flatTire
+    @State private var serviceType: ServiceType = .akiKering
     @State private var isActive: Bool = true
     
     var body: some View {

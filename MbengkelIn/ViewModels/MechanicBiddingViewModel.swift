@@ -15,6 +15,7 @@ class MechanicBiddingViewModel: ObservableObject {
     private let notificationService = NotificationService()
     private var knownOrderIds: Set<String> = []
     private var didInitialLoad = false
+    private var providerUid: String?
 
 
     deinit {
@@ -32,6 +33,7 @@ class MechanicBiddingViewModel: ObservableObject {
         notificationService.requestAuthorization()
         do {
             let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
+            self.providerUid = uid
             let fetched: Bengkel = try await supabase.from("bengkels")
                 .select()
                 .eq("provider_uid", value: uid)
@@ -52,41 +54,43 @@ class MechanicBiddingViewModel: ObservableObject {
 
     func startRealtimeSubscription() {
         stopRealtimeSubscription()
+        guard let uid = providerUid else { return }
 
-        let channel = supabase.channel("mechanic-realtime-updates")
+        let channel = supabase.channel("mechanic-bids-\(uid)")
         self.realtimeChannel = channel
 
+        // Primary signal: this mechanic's own bids. When the customer accepts
+        // or rejects a bid, the row changes and we refresh in real time.
+        let bidsStream = channel.postgresChange(
+            AnyAction.self,
+            schema: "public",
+            table: "bids",
+            filter: "provider_uid=eq.\(uid)"
+        )
+
+        // Secondary signal: nearby service_requests change (new orders, price edits).
         let serviceRequestStream = channel.postgresChange(
             AnyAction.self,
             schema: "public",
             table: "service_requests"
         )
 
-        let bidsStream = channel.postgresChange(
-            AnyAction.self,
-            schema: "public",
-            table: "bids"
-        )
-
         Task { [weak self] in
             guard let self = self else { return }
             await channel.subscribe()
 
-            // Listen to service_requests changes
-            Task { [weak self] in
-                for await _ in serviceRequestStream {
-                    await self?.loadOrders()
-                }
-            }
-
-            // Listen to bids changes (e.g., bid accepted/rejected)
             Task { [weak self] in
                 for await _ in bidsStream {
                     await self?.loadOrders()
                 }
             }
+
+            Task { [weak self] in
+                for await _ in serviceRequestStream {
+                    await self?.loadOrders()
+                }
+            }
         }
-        
     }
 
     func stopRealtimeSubscription() {

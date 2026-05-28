@@ -27,25 +27,3 @@ struct PaymentPlaceholderView: View {
         .navigationTitle("Payment")
     }
 }
-
-// Bryan's Scope
-struct HistoryPlaceholderView: View {
-    var body: some View {
-        NavigationStack {
-            VStack {
-                Image(systemName: "clock")
-                    .font(.system(size: 50))
-                    .foregroundColor(.blue)
-                Text("Order History")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .padding(.top)
-                Text("List of past services will be built by Bryan.")
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
-                    .padding()
-            }
-            .navigationTitle("History")
-        }
-    }
-}

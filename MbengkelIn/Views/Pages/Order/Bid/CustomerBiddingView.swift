@@ -8,9 +8,9 @@ struct CustomerBiddingView: View {
     @State private var priceText: String = ""
     @State private var showError: Bool = false
 
-    init(serviceRequestId: String, coordinate: CLLocationCoordinate2D) {
+    init(serviceType: ServiceType, coordinate: CLLocationCoordinate2D) {
         _viewModel = StateObject(wrappedValue: CustomerBiddingViewModel(
-            serviceRequestId: serviceRequestId,
+            serviceType: serviceType,
             latitude: coordinate.latitude,
             longitude: coordinate.longitude
         ))
@@ -18,9 +18,7 @@ struct CustomerBiddingView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if viewModel.isLoading && viewModel.serviceRequest == nil {
-                loadingScreen
-            } else if !viewModel.isSearching {
+            if !viewModel.isSearching {
                 priceSetupScreen
             } else {
                 activeBiddingScreen
@@ -30,11 +28,8 @@ struct CustomerBiddingView: View {
         .navigationTitle(viewModel.isSearching ? "Mencari Mekanik" : "Atur Tawaran Anda")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            Task {
-                await viewModel.loadServiceRequest()
-                inputPrice = viewModel.customerBidPrice
-                priceText = "\(viewModel.customerBidPrice)"
-            }
+            inputPrice = viewModel.customerBidPrice
+            priceText = "\(viewModel.customerBidPrice)"
         }
         .onChange(of: viewModel.customerBidPrice) { newPrice in
             inputPrice = newPrice
@@ -46,6 +41,20 @@ struct CustomerBiddingView: View {
                 message: Text("Harga penawaran harus minimal Rp\(viewModel.minPrice)."),
                 dismissButton: .default(Text("OK"))
             )
+        }
+        .navigationDestination(isPresented: Binding(
+            get: { viewModel.acceptedBid != nil },
+            set: { if !$0 { viewModel.acceptedBid = nil } }
+        )) {
+            if let bid = viewModel.acceptedBid {
+                OrderTrackingView(
+                    bid: bid,
+                    customerCoordinate: CLLocationCoordinate2D(
+                        latitude: viewModel.latitude,
+                        longitude: viewModel.longitude
+                    )
+                )
+            }
         }
     }
 
@@ -76,7 +85,7 @@ struct CustomerBiddingView: View {
                             .clipShape(Circle())
                         
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(viewModel.serviceRequest?.description ?? "Service")
+                            Text(viewModel.serviceType.rawValue)
                                 .font(.title3)
                                 .fontWeight(.bold)
                             Text("Pemberian penawaran harga awal")
@@ -199,10 +208,8 @@ struct CustomerBiddingView: View {
         }
     }
 
-    // MARK: - Active Bidding Screen
     private var activeBiddingScreen: some View {
         VStack(spacing: 0) {
-            // Active Pricing Bar
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Tawaran Aktif Anda")

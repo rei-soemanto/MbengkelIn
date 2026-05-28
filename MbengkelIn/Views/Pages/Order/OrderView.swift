@@ -122,10 +122,12 @@ struct OrderView: View {
             }
         }
         .navigationDestination(isPresented: $viewModel.navigateToBidding) {
-            CustomerBiddingView(
-                serviceRequestId: viewModel.createdServiceRequestId ?? "",
-                coordinate: viewModel.region.center
-            )
+            if let serviceType = viewModel.pendingServiceType {
+                CustomerBiddingView(
+                    serviceType: serviceType,
+                    coordinate: viewModel.region.center
+                )
+            }
         }
         .navigationBarHidden(true)
         .ignoresSafeArea(.keyboard, edges: .bottom)

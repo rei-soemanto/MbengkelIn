@@ -19,7 +19,7 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
     @Published var isEditingLocation: Bool = false
     @Published var searchResults: [PhotonSearchFeature] = []
     @Published var errorMessage: String?
-    @Published var createdServiceRequestId: String? = nil
+    @Published var pendingServiceType: ServiceType? = nil
     @Published var navigateToBidding: Bool = false
     @Published var loadingPhase: LoadingPhase = .idle
     
@@ -28,12 +28,11 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
         span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
     )
     
-    let services = ["Engine", "Tire", "Battery", "Towing"]
+    let services = ["Ban Gembos", "Ban Pecah", "Aki Kering"]
     let serviceMinPrices: [String: Int] = [
-        "Engine": 100000,
-        "Tire": 40000,
-        "Battery": 60000,
-        "Towing": 150000
+        "Ban Gembos": 25000,
+        "Ban Pecah": 40000,
+        "Aki Kering": 60000,
     ]
     private let locationManager = CLLocationManager()
     private var cancellables = Set<AnyCancellable>()
@@ -165,32 +164,13 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
     
     func createOrder() {
         guard let service = selectedService, !locationAddress.isEmpty else { return }
-        loadingPhase = .loading(message: "Membuat pesanan...")
-        Task { @MainActor in
-            self.errorMessage = nil
-            do {
-                let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
-                let payload = ServiceRequestPayload(
-                    customer_id: uid,
-                    description: service,
-                    latitude: self.region.center.latitude,
-                    longitude: self.region.center.longitude,
-                    price: self.estimatedPrice,
-                    is_emergency: false,
-                    status: "To Do"
-                )
-                let created = try await orderRepository.createOrder(payload: payload)
-                self.createdServiceRequestId = created.id
-                self.loadingPhase = .idle
-                self.navigateToBidding = true
-            } catch {
-                self.errorMessage = error.localizedDescription
-                self.loadingPhase = .failed(
-                    title: "Gagal membuat pesanan",
-                    message: "Periksa koneksi internet kamu dan coba lagi."
-                )
-            }
+        guard let serviceType = ServiceType(rawValue: service) else {
+            self.errorMessage = "Layanan tidak dikenali."
+            return
         }
+        self.errorMessage = nil
+        self.pendingServiceType = serviceType
+        self.navigateToBidding = true
     }
 
     func cancelLoading() {

@@ -5,35 +5,37 @@ import Supabase
 @MainActor
 class CustomerBiddingViewModel: ObservableObject {
     @Published var bids: [Bid] = []
+    @Published var acceptedBid: Bid?
     @Published var isLoading = false
     @Published var isStartingSearch = false
     @Published var errorMessage: String?
     @Published var loadingPhase: LoadingPhase = .idle
 
-    // Real-time and pricing states
-    @Published var serviceRequest: NearbyOrder?
     @Published var minPrice: Int = 0
     @Published var customerBidPrice: Int = 0
     @Published var isSearching = false
 
-    let serviceRequestId: String
+    @Published var serviceRequestId: String?
+    let serviceType: ServiceType
     let latitude: Double
     let longitude: Double
 
     private var realtimeChannel: RealtimeChannelV2?
 
     let serviceMinPrices: [String: Int] = [
-        "Engine": 100000,
-        "Tire": 40000,
-        "Battery": 60000,
-        "Towing": 150000
+        "Aki Kering": 60000,
+        "Ban Gembos": 25000,
+        "Ban Pecah": 40000
     ]
 
 
-    init(serviceRequestId: String, latitude: Double, longitude: Double) {
-        self.serviceRequestId = serviceRequestId
+    init(serviceType: ServiceType, latitude: Double, longitude: Double) {
+        self.serviceType = serviceType
         self.latitude = latitude
         self.longitude = longitude
+        let min = serviceMinPrices[serviceType.rawValue] ?? 40000
+        self.minPrice = min
+        self.customerBidPrice = min
     }
 
     deinit {
@@ -45,50 +47,41 @@ class CustomerBiddingViewModel: ObservableObject {
         }
     }
 
-    func loadServiceRequest() async {
-        isLoading = true
-        errorMessage = nil
-        do {
-            let fetched: NearbyOrder = try await supabase.from("service_requests")
-                .select()
-                .eq("id", value: serviceRequestId)
-                .single()
-                .execute()
-                .value
-            self.serviceRequest = fetched
-            
-            let desc = fetched.description ?? "Tire"
-            self.minPrice = serviceMinPrices[desc] ?? 40000
-            
-            if let price = fetched.price, price > 0 {
-                self.customerBidPrice = price
-            } else {
-                self.customerBidPrice = self.minPrice
-            }
-
-            // Recover searching state based on local logic if needed,
-            // but for now we require the user to explicitly click "Temukan Mekanik"
-            // if they reload the view, to confirm their price.
-        } catch {
-            self.errorMessage = error.localizedDescription
-        }
-        isLoading = false
-    }
-
     func startSearch(price: Int) async {
         guard price >= minPrice else {
             self.errorMessage = "Harga penawaran harus minimal Rp\(minPrice)"
             return
         }
-        
+
         isStartingSearch = true
         errorMessage = nil
-        loadingPhase = .loading(message: "Memulai pencarian...")
+        loadingPhase = .loading(message: "Membuat pesanan...")
         do {
-            try await supabase.from("service_requests")
-                .update(StartSearchPayload(price: price))
-                .eq("id", value: serviceRequestId)
-                .execute()
+            if let existingId = serviceRequestId {
+                try await supabase.from("service_requests")
+                    .update(StartSearchPayload(price: price))
+                    .eq("id", value: existingId)
+                    .execute()
+            } else {
+                let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
+                let payload = ServiceRequestPayload(
+                    customer_id: uid,
+                    service_type: serviceType,
+                    description: serviceType.rawValue,
+                    latitude: latitude,
+                    longitude: longitude,
+                    price: price,
+                    is_emergency: false,
+                    status: "To Do"
+                )
+                let created: CreatedServiceRequest = try await supabase.from("service_requests")
+                    .insert(payload)
+                    .select("id")
+                    .single()
+                    .execute()
+                    .value
+                self.serviceRequestId = created.id
+            }
 
             self.customerBidPrice = price
             self.isSearching = true
@@ -105,6 +98,7 @@ class CustomerBiddingViewModel: ObservableObject {
 
     func startRealtimeSubscription() {
         stopRealtimeSubscription()
+        guard let serviceRequestId = serviceRequestId else { return }
 
         let channel = supabase.channel("bids-updates-\(serviceRequestId)")
         self.realtimeChannel = channel
@@ -137,6 +131,7 @@ class CustomerBiddingViewModel: ObservableObject {
     }
 
     func loadReceivedBids() async {
+        guard let serviceRequestId = serviceRequestId else { return }
         do {
             let fetched: [Bid] = try await supabase.from("bids")
                 .select("*, bengkel:bengkels(*)")
@@ -144,9 +139,11 @@ class CustomerBiddingViewModel: ObservableObject {
                 .order("price", ascending: true)
                 .execute()
                 .value
-            // Only show Pending bids — expired/rejected bids are hidden
-            // Check case-insensitively just in case the edge function uses 'pending'
             self.bids = fetched.filter { $0.status.lowercased() == "pending" }
+            if let accepted = fetched.first(where: { $0.status.lowercased() == "accepted" }) {
+                self.acceptedBid = accepted
+                stopRealtimeSubscription()
+            }
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -154,13 +151,13 @@ class CustomerBiddingViewModel: ObservableObject {
 
     func refresh() async {
         errorMessage = nil
-        await loadServiceRequest()
         if isSearching {
             await loadReceivedBids()
         }
     }
 
     func acceptBid(_ bid: Bid) async {
+        guard let serviceRequestId = serviceRequestId else { return }
         isLoading = true
         errorMessage = nil
         do {
@@ -174,11 +171,11 @@ class CustomerBiddingViewModel: ObservableObject {
                 .eq("id", value: serviceRequestId)
                 .execute()
 
-            // Stop realtime since order is accepted
             stopRealtimeSubscription()
-            
             await loadReceivedBids()
-            await loadServiceRequest()
+            if self.acceptedBid == nil {
+                self.acceptedBid = bid
+            }
         } catch {
             self.errorMessage = error.localizedDescription
         }
