@@ -74,7 +74,7 @@ struct OrderTrackingView: View {
                         .font(.caption).foregroundColor(.secondary).lineLimit(2)
                 }
                 Spacer()
-                NavigationLink(destination: ChatView(bengkel: bid.bengkel)) {
+                NavigationLink(destination: ChatView(serviceRequestId: bid.serviceRequestId, title: bid.bengkel?.name ?? "Bengkel")) {
                     Image(systemName: "message.fill")
                         .font(.title3)
                         .foregroundColor(.primary)
@@ -94,6 +94,7 @@ struct OrderTrackingView: View {
                 Label("Sedang menuju", systemImage: "location.circle.fill")
                     .font(.caption).foregroundColor(.green)
             }
+            CompleteOrderButton(requestId: bid.serviceRequestId, isCustomer: true)
         }
         .padding()
         .background(Color(.systemBackground))

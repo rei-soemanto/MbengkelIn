@@ -29,6 +29,15 @@ class OrderRepository {
             .value
     }
 
+    func fetchOrder(id: String) async throws -> NearbyOrder {
+        return try await supabase.from("service_requests")
+            .select()
+            .eq("id", value: id)
+            .single()
+            .execute()
+            .value
+    }
+
     func fetchAcceptedBid(serviceRequestId: String) async throws -> Bid? {
         let bids: [Bid] = try await supabase.from("bids")
             .select("*, bengkel:bengkels(*)")
@@ -38,5 +47,17 @@ class OrderRepository {
             .execute()
             .value
         return bids.first
+    }
+
+    // Marks the caller's side complete; status flips to "Done" only when both sides confirm.
+    @discardableResult
+    func markOrderCompleted(requestId: String) async throws -> NearbyOrder {
+        return try await supabase.rpc(
+            "mark_order_completed",
+            params: MarkCompletedParams(p_request_id: requestId)
+        )
+        .single()
+        .execute()
+        .value
     }
 }

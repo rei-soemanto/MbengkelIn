@@ -9,9 +9,10 @@ import SwiftUI
 
 struct BengkelDashboardView: View {
     @ObservedObject var authViewModel: AuthViewModel
+    // Shared with ContentView so watching/notifications run regardless of tab.
+    @ObservedObject var mechanicViewModel: MechanicBiddingViewModel
 
     @StateObject private var bengkelViewModel = BengkelViewModel()
-    @StateObject private var mechanicViewModel = MechanicBiddingViewModel()
 
     @State private var todaysEarnings: Double = 0.0
     @State private var selectedOrder: NearbyOrder?
@@ -157,7 +158,6 @@ struct BengkelDashboardView: View {
             if let uid = authViewModel.currentUser?.id {
                 await bengkelViewModel.startWatching(uid: uid)
             }
-            await mechanicViewModel.start()
         }
         .onDisappear {
             bengkelViewModel.stopWatching()
@@ -166,28 +166,6 @@ struct BengkelDashboardView: View {
             PlaceBidSheet(minPrice: order.price ?? 0) { price, notes in
                 Task { await mechanicViewModel.placeBid(order: order, price: price, notes: notes) }
             }
-        }
-        .sheet(item: $mechanicViewModel.newOrderAlert) { order in
-            IncomingJobModal(
-                order: order,
-                onBid: {
-                    mechanicViewModel.newOrderAlert = nil
-                    selectedOrder = order
-                },
-                onDismiss: { mechanicViewModel.newOrderAlert = nil }
-            )
-            .presentationDetents([.medium])
-        }
-        .alert(
-            "Order Diambil",
-            isPresented: Binding(
-                get: { mechanicViewModel.lostBidAlert != nil },
-                set: { if !$0 { mechanicViewModel.lostBidAlert = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) { mechanicViewModel.lostBidAlert = nil }
-        } message: {
-            Text(mechanicViewModel.lostBidAlert ?? "")
         }
     }
 
@@ -202,11 +180,11 @@ struct BengkelDashboardView: View {
 }
 
 #Preview ("Light Mode") {
-    BengkelDashboardView(authViewModel: AuthViewModel())
+    BengkelDashboardView(authViewModel: AuthViewModel(), mechanicViewModel: MechanicBiddingViewModel())
         .preferredColorScheme(.light)
 }
 
 #Preview ("Dark Mode") {
-    BengkelDashboardView(authViewModel: AuthViewModel())
+    BengkelDashboardView(authViewModel: AuthViewModel(), mechanicViewModel: MechanicBiddingViewModel())
         .preferredColorScheme(.dark)
 }

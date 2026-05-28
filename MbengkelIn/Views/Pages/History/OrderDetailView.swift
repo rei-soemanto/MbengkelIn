@@ -36,6 +36,22 @@ struct OrderDetailView: View {
                 .allowsHitTesting(false)
 
                 detailCard
+
+                if order.status == "On Progress" {
+                    NavigationLink(destination: ChatView(serviceRequestId: order.id, title: order.customerName ?? "Pelanggan")) {
+                        HStack {
+                            Image(systemName: "message.fill")
+                            Text("Chat dengan Pelanggan").fontWeight(.bold)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                        }
+                        .foregroundColor(Color(.systemBackground))
+                        .padding()
+                        .background(Color.primary.opacity(0.9))
+                        .cornerRadius(12)
+                    }
+                    CompleteOrderButton(requestId: order.id, isCustomer: false)
+                }
             }
             .padding()
         }

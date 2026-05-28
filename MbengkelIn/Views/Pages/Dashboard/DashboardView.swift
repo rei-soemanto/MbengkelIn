@@ -9,6 +9,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @ObservedObject var authViewModel: AuthViewModel
+    @ObservedObject var mechanicViewModel: MechanicBiddingViewModel
     @State private var recentOrders: [String] = []
     
     var body: some View {
@@ -26,7 +27,7 @@ struct DashboardView: View {
                 if authViewModel.appMode == .customer || authViewModel.currentUser?.role != "PROVIDER" {
                     customerDashboard
                 } else {
-                    BengkelDashboardView(authViewModel: authViewModel)
+                    BengkelDashboardView(authViewModel: authViewModel, mechanicViewModel: mechanicViewModel)
                 }
             }
         }
@@ -138,14 +139,16 @@ struct DashboardView: View {
 
 #Preview("Light Theme") {
     DashboardView(
-        authViewModel: AuthViewModel()
+        authViewModel: AuthViewModel(),
+        mechanicViewModel: MechanicBiddingViewModel()
     )
     .preferredColorScheme(.light)
 }
 
 #Preview("Dark Theme") {
     DashboardView(
-        authViewModel: AuthViewModel()
+        authViewModel: AuthViewModel(),
+        mechanicViewModel: MechanicBiddingViewModel()
     )
     .preferredColorScheme(.dark)
 }
