@@ -214,8 +214,11 @@ struct BengkelProfileView: View {
             if let mock = previewBengkel {
                 bengkelViewModel.myBengkel = mock
             } else if let uid = authViewModel.currentUser?.id {
-                await bengkelViewModel.fetchMyBengkel(uid: uid)
+                await bengkelViewModel.startWatching(uid: uid)
             }
+        }
+        .onDisappear {
+            bengkelViewModel.stopWatching()
         }
         .alert("Delete Bengkel", isPresented: $showDeleteBengkelAlert) {
             SecureField("Enter your password", text: $passwordForDeletion)

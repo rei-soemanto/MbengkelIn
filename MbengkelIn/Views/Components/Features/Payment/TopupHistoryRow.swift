@@ -3,6 +3,10 @@ import SwiftUI
 struct TopupHistoryRow: View {
     let topup: Topup
 
+    private var isResumable: Bool {
+        topup.status.lowercased() == "pending" && topup.redirectUrl != nil
+    }
+
     private var statusColor: Color {
         switch topup.status.lowercased() {
         case "success": return .green
@@ -31,7 +35,11 @@ struct TopupHistoryRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(Int(topup.grossAmount).rupiah)
                     .font(.headline)
-                if let date = topup.createdAt {
+                if isResumable {
+                    Text("Ketuk untuk lanjutkan pembayaran")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else if let date = topup.createdAt {
                     Text(date.formatted(date: .abbreviated, time: .shortened))
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -48,6 +56,13 @@ struct TopupHistoryRow: View {
                 .background(statusColor.opacity(0.15))
                 .foregroundColor(statusColor)
                 .clipShape(Capsule())
+
+            if isResumable {
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+            }
         }
         .padding()
         .background(Color(.systemGray6))

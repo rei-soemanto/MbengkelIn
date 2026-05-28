@@ -33,6 +33,8 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
     private let locationService = LocationService()
     private let locationManager = CLLocationManager()
     private var cancellables = Set<AnyCancellable>()
+    private var realtimeChannel: RealtimeChannelV2?
+    private var pollingTask: Task<Void, Never>?
     
     override init() {
         super.init()
@@ -193,6 +195,82 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
         }
     }
     
+    deinit {
+        if let channel = realtimeChannel {
+            let client = supabase
+            Task {
+                await client.removeChannel(channel)
+            }
+        }
+    }
+
+    // Loads the bengkel once, then keeps its status (e.g. Pending -> Verified)
+    // live via a realtime subscription + polling fallback. Avoids needing a relog.
+    func startWatching(uid: String) async {
+        await fetchMyBengkel(uid: uid)
+        startRealtimeSubscription(uid: uid)
+    }
+
+    private func startRealtimeSubscription(uid: String) {
+        stopWatching()
+
+        let channel = supabase.channel("bengkel-status-\(uid)")
+        self.realtimeChannel = channel
+
+        let stream = channel.postgresChange(
+            AnyAction.self,
+            schema: "public",
+            table: "bengkels",
+            filter: "provider_uid=eq.\(uid)"
+        )
+
+        Task { [weak self] in
+            guard let self = self else { return }
+            await channel.subscribe()
+            for await _ in stream {
+                await self.refreshBengkelQuietly(uid: uid)
+            }
+        }
+
+        startPolling(uid: uid)
+    }
+
+    private func startPolling(uid: String) {
+        stopPolling()
+        pollingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
+                guard !Task.isCancelled else { break }
+                await self?.refreshBengkelQuietly(uid: uid)
+            }
+        }
+    }
+
+    private func stopPolling() {
+        pollingTask?.cancel()
+        pollingTask = nil
+    }
+
+    func stopWatching() {
+        if let channel = realtimeChannel {
+            Task {
+                await supabase.removeChannel(channel)
+            }
+            realtimeChannel = nil
+        }
+        stopPolling()
+    }
+
+    // Background refresh that does NOT toggle isLoading (prevents spinner flicker).
+    func refreshBengkelQuietly(uid: String) async {
+        do {
+            let fetched = try await bengkelRepository.fetchBengkel(providerUid: uid)
+            self.myBengkel = fetched
+        } catch {
+            // ignore transient errors during background refresh
+        }
+    }
+
     func fetchMyBengkel(uid: String) async {
         isLoading = true
         errorMessage = nil

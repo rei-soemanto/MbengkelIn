@@ -210,8 +210,11 @@ struct BengkelDashboardView: View {
         }
         .task {
             if let uid = authViewModel.currentUser?.id {
-                await bengkelViewModel.fetchMyBengkel(uid: uid)
+                await bengkelViewModel.startWatching(uid: uid)
             }
+        }
+        .onDisappear {
+            bengkelViewModel.stopWatching()
         }
     }
     

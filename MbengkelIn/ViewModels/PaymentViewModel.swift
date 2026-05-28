@@ -24,6 +24,76 @@ class PaymentViewModel: ObservableObject {
     private let topupRepository = TopupRepository()
     private let paymentService = PaymentService()
 
+    private var realtimeChannel: RealtimeChannelV2?
+    private var pollingTask: Task<Void, Never>?
+
+    deinit {
+        if let channel = realtimeChannel {
+            let client = supabase
+            Task {
+                await client.removeChannel(channel)
+            }
+        }
+    }
+
+    func start() async {
+        await refresh()
+        await startRealtimeSubscription()
+    }
+
+    func startRealtimeSubscription() async {
+        stop()
+        guard let session = try? await authService.getCurrentSession() else { return }
+        let uid = session.user.id.uuidString.lowercased()
+
+        let channel = supabase.channel("topups-updates-\(uid)")
+        self.realtimeChannel = channel
+
+        let stream = channel.postgresChange(
+            AnyAction.self,
+            schema: "public",
+            table: "topups",
+            filter: "user_id=eq.\(uid)"
+        )
+
+        Task { [weak self] in
+            guard let self = self else { return }
+            await channel.subscribe()
+            for await _ in stream {
+                await self.refresh()
+            }
+        }
+
+        // Polling fallback (matches bidding VMs) for when realtime replication is off.
+        startPolling()
+    }
+
+    private func startPolling() {
+        stopPolling()
+        pollingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
+                guard !Task.isCancelled else { break }
+                await self?.refresh()
+            }
+        }
+    }
+
+    private func stopPolling() {
+        pollingTask?.cancel()
+        pollingTask = nil
+    }
+
+    func stop() {
+        if let channel = realtimeChannel {
+            Task {
+                await supabase.removeChannel(channel)
+            }
+            realtimeChannel = nil
+        }
+        stopPolling()
+    }
+
     func refresh() async {
         guard let session = try? await authService.getCurrentSession() else { return }
         let uid = session.user.id.uuidString.lowercased()
@@ -56,6 +126,16 @@ class PaymentViewModel: ObservableObject {
             self.errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    // Reopen the Snap session for an unfinished (pending) top-up, using the
+    // redirect_url stored when it was created. Valid until the link expires.
+    func resumeTopup(_ topup: Topup) {
+        guard topup.status.lowercased() == "pending",
+              let urlString = topup.redirectUrl,
+              let url = URL(string: urlString) else { return }
+        self.currentOrderId = topup.orderId
+        self.paymentTarget = PaymentTarget(url: url)
     }
 
     // Called when the Midtrans WebView sheet is dismissed. The webhook credits

@@ -27,7 +27,8 @@ struct PaymentView: View {
             }
             .background(Color(.systemBackground))
             .navigationTitle("Pembayaran")
-            .task { await viewModel.refresh() }
+            .task { await viewModel.start() }
+            .onDisappear { viewModel.stop() }
             .refreshable { await viewModel.refresh() }
             .sheet(item: $viewModel.paymentTarget) { target in
                 MidtransPaymentSheet(url: target.url) {
@@ -116,7 +117,16 @@ struct PaymentView: View {
                     .padding(.vertical, 8)
             } else {
                 ForEach(viewModel.topups) { topup in
-                    TopupHistoryRow(topup: topup)
+                    if topup.status.lowercased() == "pending", topup.redirectUrl != nil {
+                        Button {
+                            viewModel.resumeTopup(topup)
+                        } label: {
+                            TopupHistoryRow(topup: topup)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        TopupHistoryRow(topup: topup)
+                    }
                 }
             }
         }
