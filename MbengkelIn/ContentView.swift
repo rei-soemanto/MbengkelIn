@@ -24,7 +24,7 @@ struct ContentView: View {
                             Label("Payment", systemImage: "creditcard.fill")
                         }
                     
-                    HistoryView()
+                    HistoryView(authViewModel: authViewModel)
                         .tabItem {
                             Label("History", systemImage: "clock.fill")
                         }

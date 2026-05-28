@@ -59,7 +59,7 @@ struct OrderTrackingView: View {
         }
         .navigationTitle("Mechanic Menuju Lokasi")
         .navigationBarTitleDisplayMode(.inline)
-        .ignoresSafeArea(edges: .bottom)
+        .navigationBarBackButtonHidden(true)
     }
 
     private var infoCard: some View {
@@ -74,6 +74,14 @@ struct OrderTrackingView: View {
                         .font(.caption).foregroundColor(.secondary).lineLimit(2)
                 }
                 Spacer()
+                NavigationLink(destination: ChatView(bengkel: bid.bengkel)) {
+                    Image(systemName: "message.fill")
+                        .font(.title3)
+                        .foregroundColor(.primary)
+                        .padding(12)
+                        .background(Color(.systemGray6))
+                        .clipShape(Circle())
+                }
             }
             Divider()
             HStack {
@@ -111,5 +119,37 @@ struct OrderTrackingView: View {
         f.numberStyle = .currency; f.currencyCode = "IDR"
         f.locale = Locale(identifier: "id_ID"); f.maximumFractionDigits = 0
         return f.string(from: NSNumber(value: amount)) ?? "Rp 0"
+    }
+}
+
+#Preview {
+    let bengkel = Bengkel(
+        id: "preview-bengkel",
+        providerUid: "preview-provider",
+        name: "Bengkel Jaya Motor",
+        address: "Jl. Raya Darmo No. 12, Surabaya",
+        latitude: -7.2905,
+        longitude: 112.6360,
+        status: "Verified",
+        offeredServices: [],
+        averageRating: 4.8,
+        totalReviews: 132
+    )
+    let bid = Bid(
+        id: "preview-bid",
+        serviceRequestId: "preview-request",
+        providerUid: "preview-provider",
+        bengkelId: "preview-bengkel",
+        price: 75000,
+        notes: "Segera meluncur ke lokasi Anda.",
+        status: "Accepted",
+        createdAt: nil,
+        bengkel: bengkel
+    )
+    NavigationStack {
+        OrderTrackingView(
+            bid: bid,
+            customerCoordinate: CLLocationCoordinate2D(latitude: -7.2845, longitude: 112.6315)
+        )
     }
 }

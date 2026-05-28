@@ -28,6 +28,10 @@ struct OrderHistoryRow: View {
                     Text(String(order.createdAt?.prefix(10) ?? "-"))
                         .font(.caption)
                         .foregroundColor(.secondary)
+                    if let rating = order.rating, rating > 0 {
+                        StarRatingView(rating: Double(rating))
+                            .frame(height: 12)
+                    }
                 }
 
                 Spacer()

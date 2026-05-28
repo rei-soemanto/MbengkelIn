@@ -12,6 +12,8 @@ struct NearbyOrder: Codable, Identifiable {
     var price: Int?
     var status: String
     var bengkelId: String?
+    var rating: Int?
+    var review: String?
     var createdAt: String?
     var distanceM: Double?
 
@@ -27,6 +29,8 @@ struct NearbyOrder: Codable, Identifiable {
         case price
         case status
         case bengkelId = "bengkel_id"
+        case rating
+        case review
         case createdAt = "created_at"
         case distanceM = "distance_m"
     }

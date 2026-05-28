@@ -58,6 +58,25 @@ struct OrderDetailView: View {
             detailRow(label: "Harga", value: order.price.map { Rupiah.format($0) } ?? "-")
             detailRow(label: "Tanggal", value: String(order.createdAt?.prefix(10) ?? "-"))
             detailRow(label: "Darurat", value: (order.isEmergency ?? false) ? "Ya" : "Tidak")
+
+            if let rating = order.rating, rating > 0 {
+                Divider()
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Rating")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        StarRatingView(rating: Double(rating))
+                            .frame(height: 16)
+                    }
+                    .font(.subheadline)
+                    if let review = order.review, !review.isEmpty {
+                        Text(review)
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                    }
+                }
+            }
         }
         .padding()
         .background(Color(.systemBackground))

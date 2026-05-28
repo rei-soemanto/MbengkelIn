@@ -20,6 +20,15 @@ class OrderRepository {
             .value
     }
 
+    func fetchBengkelOrders(bengkelId: String) async throws -> [NearbyOrder] {
+        return try await supabase.from("service_requests")
+            .select()
+            .eq("bengkel_id", value: bengkelId)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+    }
+
     func fetchAcceptedBid(serviceRequestId: String) async throws -> Bid? {
         let bids: [Bid] = try await supabase.from("bids")
             .select("*, bengkel:bengkels(*)")

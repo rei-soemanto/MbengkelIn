@@ -6,88 +6,34 @@
 //
 
 import SwiftUI
-import CoreLocation
 
 struct HistoryView: View {
-    @StateObject private var viewModel = HistoryViewModel()
+    @ObservedObject var authViewModel: AuthViewModel
 
     var body: some View {
         NavigationStack {
-            content
-                .navigationTitle("Riwayat Pesanan")
-                .background(Color(.systemGroupedBackground))
-                .task { await viewModel.loadOrders() }
-                .refreshable { await viewModel.loadOrders() }
-                .navigationDestination(isPresented: detailBinding) {
-                    if let order = viewModel.detailOrder {
-                        OrderDetailView(order: order)
+            VStack(spacing: 0) {
+                if authViewModel.currentUser?.role == "PROVIDER" {
+                    Picker("App Mode", selection: $authViewModel.appMode) {
+                        Text("Customer").tag(AppMode.customer)
+                        Text("Bengkel").tag(AppMode.bengkel)
                     }
+                    .pickerStyle(.segmented)
+                    .padding()
                 }
-                .navigationDestination(isPresented: trackingBinding) {
-                    if let bid = viewModel.trackingBid,
-                       let coordinate = viewModel.trackingCoordinate {
-                        OrderTrackingView(bid: bid, customerCoordinate: coordinate)
-                    }
-                }
-        }
-    }
 
-    @ViewBuilder
-    private var content: some View {
-        if viewModel.isLoading && viewModel.orders.isEmpty {
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if viewModel.orders.isEmpty {
-            emptyState
-        } else {
-            orderList
-        }
-    }
-
-    private var orderList: some View {
-        ScrollView {
-            LazyVStack(spacing: 12) {
-                ForEach(viewModel.orders) { order in
-                    OrderHistoryRow(order: order) {
-                        Task { await viewModel.select(order) }
-                    }
+                if authViewModel.appMode == .customer || authViewModel.currentUser?.role != "PROVIDER" {
+                    CustomerHistoryView()
+                } else {
+                    BengkelHistoryView()
                 }
             }
-            .padding()
+            .navigationTitle("Riwayat Pesanan")
+            .background(Color(.systemGroupedBackground))
         }
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "clock.badge.questionmark")
-                .font(.system(size: 50))
-                .foregroundColor(.secondary)
-            Text("Belum ada pesanan")
-                .font(.title3.bold())
-            Text("Riwayat pesanan kamu akan muncul di sini.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var detailBinding: Binding<Bool> {
-        Binding(
-            get: { viewModel.detailOrder != nil },
-            set: { if !$0 { viewModel.detailOrder = nil } }
-        )
-    }
-
-    private var trackingBinding: Binding<Bool> {
-        Binding(
-            get: { viewModel.trackingBid != nil },
-            set: { if !$0 { viewModel.trackingBid = nil; viewModel.trackingCoordinate = nil } }
-        )
     }
 }
 
 #Preview {
-    HistoryView()
+    HistoryView(authViewModel: AuthViewModel())
 }
