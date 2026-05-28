@@ -24,6 +24,12 @@ struct BengkelUpdate: Encodable {
     let status: String
 }
 
+struct AcceptOrderPayload: Encodable {
+    let bengkel_id: String
+    let status: String
+    let price: Int
+}
+
 struct BidStatusUpdate: Encodable {
     let status: String
 }

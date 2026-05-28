@@ -85,8 +85,11 @@ class CustomerBiddingViewModel: ObservableObject {
             let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
             let user = try await userRepository.fetchUser(uid: uid)
             self.balance = user.balance
-            guard Double(price) <= user.balance else {
-                self.errorMessage = "Saldo tidak cukup. Tawaran Rp\(price), saldo Anda Rp\(Int(user.balance))."
+            // If re-searching an existing order, its current hold is added back before checking.
+            let existingHold = serviceRequestId != nil ? Double(customerBidPrice) : 0
+            let available = user.availableBalance + existingHold
+            guard Double(price) <= available else {
+                self.errorMessage = "Saldo tidak cukup. Tawaran Rp\(price), saldo tersedia Rp\(Int(available))."
                 loadingPhase = .idle
                 isStartingSearch = false
                 return
@@ -262,8 +265,10 @@ class CustomerBiddingViewModel: ObservableObject {
             let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
             let user = try await userRepository.fetchUser(uid: uid)
             self.balance = user.balance
-            guard Double(bid.price) <= user.balance else {
-                self.errorMessage = "Saldo tidak cukup untuk menerima tawaran Rp\(bid.price). Saldo Anda Rp\(Int(user.balance))."
+            // This order already holds `customerBidPrice`; accepting swaps that hold to bid.price.
+            let available = user.availableBalance + Double(customerBidPrice)
+            guard Double(bid.price) <= available else {
+                self.errorMessage = "Saldo tidak cukup untuk menerima tawaran Rp\(bid.price). Saldo tersedia Rp\(Int(available))."
                 isLoading = false
                 return
             }
@@ -282,7 +287,7 @@ class CustomerBiddingViewModel: ObservableObject {
                 .execute()
 
             try await supabase.from("service_requests")
-                .update(BengkelUpdate(bengkel_id: bid.bengkelId, status: "On Progress"))
+                .update(AcceptOrderPayload(bengkel_id: bid.bengkelId, status: "On Progress", price: bid.price))
                 .eq("id", value: serviceRequestId)
                 .execute()
 
