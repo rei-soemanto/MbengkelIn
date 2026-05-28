@@ -19,7 +19,7 @@ struct ContentView: View {
                             Label("Dashboard", systemImage: "house.fill")
                         }
                     
-                    PaymentPlaceholderView()
+                    PaymentView()
                         .tabItem {
                             Label("Payment", systemImage: "creditcard.fill")
                         }
