@@ -19,10 +19,18 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
     @Published var isEditingLocation: Bool = false
     @Published var searchResults: [PhotonSearchFeature] = []
     @Published var errorMessage: String?
+    @Published var tireCount: Int = 1
+    @Published var photoData: Data? = nil
     @Published var pendingServiceType: ServiceType? = nil
+    @Published var pendingTireCount: Int = 1
+    @Published var pendingPhotoUrl: String? = nil
     @Published var navigateToBidding: Bool = false
     @Published var loadingPhase: LoadingPhase = .idle
-    
+
+    var requiresTireCount: Bool {
+        selectedService == "Ban Gembos" || selectedService == "Ban Pecah"
+    }
+
     @Published var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: -7.2845, longitude: 112.6315),
         span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
@@ -39,7 +47,8 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
     
     private let locationService = LocationService()
     private let orderRepository = OrderRepository()
-    
+    private let storageService = StorageService()
+
     override init() {
         super.init()
         locationManager.delegate = self
@@ -151,26 +160,57 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
     
     func selectService(_ service: String) {
         selectedService = service
+        tireCount = 1
+        photoData = nil
         calculateEstimate()
     }
-    
-    private func calculateEstimate() {
-        if let service = selectedService {
-            estimatedPrice = serviceMinPrices[service] ?? 50000
-        } else {
-            estimatedPrice = 0
-        }
+
+    func setTireCount(_ count: Int) {
+        tireCount = min(4, max(1, count))
+        calculateEstimate()
     }
-    
+
+    private func calculateEstimate() {
+        guard let service = selectedService else {
+            estimatedPrice = 0
+            return
+        }
+        let base = serviceMinPrices[service] ?? 50000
+        estimatedPrice = requiresTireCount ? base * tireCount : base
+    }
+
     func createOrder() {
         guard let service = selectedService, !locationAddress.isEmpty else { return }
         guard let serviceType = ServiceType(rawValue: service) else {
             self.errorMessage = "Layanan tidak dikenali."
             return
         }
+        if requiresTireCount && photoData == nil {
+            self.errorMessage = "Mohon sertakan foto kondisi ban."
+            return
+        }
         self.errorMessage = nil
-        self.pendingServiceType = serviceType
-        self.navigateToBidding = true
+        loadingPhase = .loading(message: "Mengunggah foto...")
+        Task { @MainActor in
+            do {
+                var uploadedUrl: String? = nil
+                if let data = photoData {
+                    let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
+                    uploadedUrl = try await storageService.uploadOrderPhoto(uid: uid, data: data)
+                }
+                self.pendingServiceType = serviceType
+                self.pendingTireCount = requiresTireCount ? tireCount : 1
+                self.pendingPhotoUrl = uploadedUrl
+                self.loadingPhase = .idle
+                self.navigateToBidding = true
+            } catch {
+                self.errorMessage = error.localizedDescription
+                self.loadingPhase = .failed(
+                    title: "Gagal mengunggah foto",
+                    message: "Periksa koneksi internet kamu dan coba lagi."
+                )
+            }
+        }
     }
 
     func cancelLoading() {

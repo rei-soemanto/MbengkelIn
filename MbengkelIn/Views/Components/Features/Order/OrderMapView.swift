@@ -64,6 +64,7 @@ struct OrderMapView: UIViewRepresentable {
         var parent: OrderMapView
         var isProgrammaticChange = false
         private var geocodeWorkItem: DispatchWorkItem?
+        private var lastGeocodedCoordinate: CLLocationCoordinate2D?
 
         init(_ parent: OrderMapView) {
             self.parent = parent
@@ -100,12 +101,19 @@ struct OrderMapView: UIViewRepresentable {
                 }
             }
 
+            if let last = lastGeocodedCoordinate {
+                let lastLoc = CLLocation(latitude: last.latitude, longitude: last.longitude)
+                let newLoc = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+                if lastLoc.distance(from: newLoc) < 30 { return }
+            }
+
             geocodeWorkItem?.cancel()
             let workItem = DispatchWorkItem { [weak self] in
+                self?.lastGeocodedCoordinate = coordinate
                 self?.parent.onRegionChange(coordinate)
             }
             geocodeWorkItem = workItem
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8, execute: workItem)
         }
     }
 }

@@ -38,6 +38,13 @@ class OrderRepository {
             .value
     }
 
+    func deleteOrder(id: String) async throws {
+        try await supabase.from("service_requests")
+            .delete()
+            .eq("id", value: id)
+            .execute()
+    }
+
     func fetchAcceptedBid(serviceRequestId: String) async throws -> Bid? {
         let bids: [Bid] = try await supabase.from("bids")
             .select("*, bengkel:bengkels(*)")

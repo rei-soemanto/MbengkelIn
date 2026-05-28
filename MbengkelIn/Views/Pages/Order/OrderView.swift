@@ -8,10 +8,13 @@
 import SwiftUI
 import MapKit
 import CoreLocation
+import PhotosUI
 
 struct OrderView: View {
     @StateObject private var viewModel = OrderViewModel()
     @Environment(\.presentationMode) var presentationMode
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var didRequestInitialLocation = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -71,6 +74,11 @@ struct OrderView: View {
                             .padding(.horizontal)
                         }
 
+                        if viewModel.requiresTireCount {
+                            tireCountSection
+                            photoSection
+                        }
+
                         if viewModel.estimatedPrice > 0 {
                             HStack {
                                 Text("Perkiraan Biaya")
@@ -89,8 +97,8 @@ struct OrderView: View {
                             iconName: "wrench.and.screwdriver.fill",
                             action: viewModel.createOrder
                         )
-                        .disabled(viewModel.selectedService == nil)
-                        .opacity(viewModel.selectedService == nil ? 0.5 : 1)
+                        .disabled(isCreateDisabled)
+                        .opacity(isCreateDisabled ? 0.5 : 1)
                         .padding(.horizontal)
                         .padding(.bottom, 12)
                     }
@@ -125,7 +133,9 @@ struct OrderView: View {
             if let serviceType = viewModel.pendingServiceType {
                 CustomerBiddingView(
                     serviceType: serviceType,
-                    coordinate: viewModel.region.center
+                    coordinate: viewModel.region.center,
+                    tireCount: viewModel.pendingTireCount,
+                    photoUrl: viewModel.pendingPhotoUrl
                 )
             }
         }
@@ -138,8 +148,78 @@ struct OrderView: View {
             onStop: { viewModel.cancelLoading() }
         )
         .onAppear {
-            viewModel.useCurrentLocation()
+            if !didRequestInitialLocation {
+                didRequestInitialLocation = true
+                viewModel.useCurrentLocation()
+            }
         }
+        .onChange(of: selectedPhoto) { newItem in
+            Task {
+                if let data = try? await newItem?.loadTransferable(type: Data.self) {
+                    viewModel.photoData = data
+                }
+            }
+        }
+    }
+
+    private var isCreateDisabled: Bool {
+        if viewModel.selectedService == nil { return true }
+        if viewModel.requiresTireCount && viewModel.photoData == nil { return true }
+        return false
+    }
+
+    private var tireCountSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Berapa ban yang bermasalah?")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            HStack(spacing: 12) {
+                ForEach(1...4, id: \.self) { count in
+                    Button(action: { viewModel.setTireCount(count) }) {
+                        Text("\(count)")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .foregroundColor(viewModel.tireCount == count ? Color(.systemBackground) : .primary)
+                            .background(viewModel.tireCount == count ? Color.primary.opacity(0.9) : Color(.systemGray5))
+                            .cornerRadius(12)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    private var photoSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Foto kondisi ban")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                if let data = viewModel.photoData, let uiImage = UIImage(data: data) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 160)
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+                        .cornerRadius(12)
+                } else {
+                    VStack(spacing: 8) {
+                        Image(systemName: "camera.fill")
+                            .font(.title2)
+                        Text("Tambahkan foto")
+                            .font(.subheadline)
+                    }
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 120)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                }
+            }
+        }
+        .padding(.horizontal)
     }
 }
 

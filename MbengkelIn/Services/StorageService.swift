@@ -25,6 +25,22 @@ class StorageService {
         return publicURL.absoluteString
     }
 
+    func uploadOrderPhoto(uid: String, data: Data) async throws -> String {
+        let path = "\(uid)/\(UUID().uuidString).jpg"
+
+        let fileOptions = FileOptions(contentType: "image/jpeg", upsert: true)
+
+        try await supabase.storage
+            .from("order-photos")
+            .upload(path, data: data, options: fileOptions)
+
+        let publicURL = try supabase.storage
+            .from("order-photos")
+            .getPublicURL(path: path)
+
+        return publicURL.absoluteString
+    }
+
     func uploadChatImage(serviceRequestId: String, data: Data) async throws -> String {
         let path = "\(serviceRequestId)/\(UUID().uuidString).jpg"
 

@@ -10,6 +10,8 @@ struct ServiceRequestPayload: Encodable {
     let price: Int
     let is_emergency: Bool
     let status: String
+    let tire_count: Int
+    let photo_url: String?
 }
 
 struct CreatedServiceRequest: Decodable {

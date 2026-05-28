@@ -8,11 +8,13 @@ struct CustomerBiddingView: View {
     @State private var priceText: String = ""
     @State private var showError: Bool = false
 
-    init(serviceType: ServiceType, coordinate: CLLocationCoordinate2D) {
+    init(serviceType: ServiceType, coordinate: CLLocationCoordinate2D, tireCount: Int = 1, photoUrl: String? = nil) {
         _viewModel = StateObject(wrappedValue: CustomerBiddingViewModel(
             serviceType: serviceType,
             latitude: coordinate.latitude,
-            longitude: coordinate.longitude
+            longitude: coordinate.longitude,
+            tireCount: tireCount,
+            photoUrl: photoUrl
         ))
     }
 
@@ -42,6 +44,14 @@ struct CustomerBiddingView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
+        .alert("Tidak Bisa Melanjutkan", isPresented: Binding(
+            get: { viewModel.errorMessage != nil },
+            set: { if !$0 { viewModel.errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.errorMessage ?? "")
+        }
         .navigationDestination(isPresented: Binding(
             get: { viewModel.acceptedBid != nil },
             set: { if !$0 { viewModel.acceptedBid = nil } }
@@ -55,6 +65,22 @@ struct CustomerBiddingView: View {
                     )
                 )
             }
+        }
+        .confirmationDialog(
+            "Belum ada bengkel yang menawar",
+            isPresented: $viewModel.showRetryPrompt,
+            titleVisibility: .visible
+        ) {
+            Button("Naikkan harga tawaran") { viewModel.raisePrice() }
+            Button("Coba lagi dengan harga sama") { viewModel.retrySamePrice() }
+            Button("Batalkan pesanan", role: .destructive) {
+                Task { await viewModel.cancelAndDelete() }
+            }
+        } message: {
+            Text("Pesanan akan dibatalkan otomatis dalam 10 detik jika tidak ada pilihan.")
+        }
+        .onChange(of: viewModel.shouldDismiss) { dismissNow in
+            if dismissNow { dismiss() }
         }
     }
 
