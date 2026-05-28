@@ -8,57 +8,164 @@
 import SwiftUI
 import Combine
 import MapKit
+import CoreLocation
 import Supabase
 
 @MainActor
-class BengkelViewModel: ObservableObject {
+class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, LocationSearchable {
     @Published var myBengkel: Bengkel?
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var successMessage: String?
     
-    struct BengkelUpdateRequest: Encodable {
-        let name: String
-        let address: String
-        let latitude: Double
-        let longitude: Double
+    // ── Location / Map state (same pattern as OrderViewModel) ──
+    @Published var locationAddress: String = ""
+    @Published var isEditingLocation: Bool = false
+    @Published var isFetchingLocation: Bool = false
+    @Published var searchResults: [PhotonSearchFeature] = []
+    @Published var region = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: -7.2845, longitude: 112.6315),
+        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+    )
+    
+    private let authService = AuthService()
+    private let bengkelRepository = BengkelRepository()
+    private let locationService = LocationService()
+    private let locationManager = CLLocationManager()
+    private var cancellables = Set<AnyCancellable>()
+    
+    override init() {
+        super.init()
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        
+        // Debounced search (identical pattern to OrderViewModel)
+        $locationAddress
+            .debounce(for: .milliseconds(400), scheduler: RunLoop.main)
+            .removeDuplicates()
+            .sink { [weak self] query in
+                guard let self = self else { return }
+                if query.isEmpty || !self.isEditingLocation {
+                    self.searchResults = []
+                } else {
+                    self.searchOSM(query: query)
+                }
+            }
+            .store(in: &cancellables)
     }
+    
+    // MARK: - Location Search (OSM Photon)
+    
+    private func searchOSM(query: String) {
+        Task { @MainActor in
+            do {
+                let features = try await locationService.searchOSM(query: query, coordinate: region.center)
+                self.searchResults = features
+            } catch {
+                self.searchResults = []
+            }
+        }
+    }
+    
+    func selectSearchResult(_ result: PhotonSearchFeature) {
+        self.isEditingLocation = false
+        
+        let title = result.properties.name ?? result.properties.street ?? "Unknown Location"
+        self.locationAddress = title
+        self.searchResults = []
+        
+        let lon = result.geometry.coordinates[0]
+        let lat = result.geometry.coordinates[1]
+        let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        
+        self.region = MKCoordinateRegion(
+            center: coordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+        )
+    }
+    
+    func useCurrentLocation() {
+        isFetchingLocation = true
+        isEditingLocation = false
+        let status = locationManager.authorizationStatus
+        
+        if status == .notDetermined {
+            locationManager.requestWhenInUseAuthorization()
+        } else if status == .authorizedWhenInUse || status == .authorizedAlways {
+            locationManager.requestLocation()
+        } else {
+            DispatchQueue.main.async { self.isFetchingLocation = false }
+        }
+    }
+    
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        Task { @MainActor in
+            if status == .authorizedWhenInUse || status == .authorizedAlways {
+                if isFetchingLocation {
+                    manager.requestLocation()
+                }
+            } else if status != .notDetermined {
+                self.isFetchingLocation = false
+            }
+        }
+    }
+    
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.first else { return }
+        
+        Task { @MainActor in
+            self.region = MKCoordinateRegion(
+                center: location.coordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+            )
+            self.fetchAddress(from: location.coordinate)
+        }
+    }
+    
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor in
+            self.isFetchingLocation = false
+        }
+    }
+    
+    func updateLocationFromMap(coordinate: CLLocationCoordinate2D) {
+        if !isEditingLocation {
+            fetchAddress(from: coordinate)
+        }
+    }
+    
+    private func fetchAddress(from coordinate: CLLocationCoordinate2D) {
+        self.isFetchingLocation = true
+        Task { @MainActor in
+            do {
+                if let address = try await locationService.fetchAddress(from: coordinate) {
+                    self.locationAddress = address
+                }
+            } catch {
+                // handle error silently
+            }
+            self.isFetchingLocation = false
+        }
+    }
+    
+    // MARK: - Bengkel CRUD
     
     func registerBengkel(name: String, address: String) async -> Bool {
         isLoading = true
         errorMessage = nil
         successMessage = nil
         
-        guard let session = try? await supabase.auth.session else {
+        guard let session = try? await authService.getCurrentSession() else {
             self.errorMessage = "You must be logged in to register a Bengkel."
             isLoading = false
             return false
         }
         let uid = session.user.id.uuidString.lowercased()
         
-        var lat: Double = 0.0
-        var lon: Double = 0.0
-        
-        do {
-            let request = MKLocalSearch.Request()
-            request.naturalLanguageQuery = address
-            
-            let search = MKLocalSearch(request: request)
-            let response = try await search.start()
-            
-            if let coordinate = response.mapItems.first?.location.coordinate {
-                lat = coordinate.latitude
-                lon = coordinate.longitude
-            } else {
-                self.errorMessage = "Could not find coordinates for this address. Please be more specific."
-                isLoading = false
-                return false
-            }
-        } catch {
-            self.errorMessage = "Address lookup failed: \(error.localizedDescription)"
-            isLoading = false
-            return false
-        }
+        // Coordinates come from region.center (set by map/search picker)
+        let lat = region.center.latitude
+        let lon = region.center.longitude
         
         let newBengkel = Bengkel(
             id: nil,
@@ -75,7 +182,7 @@ class BengkelViewModel: ObservableObject {
         )
         
         do {
-            try await supabase.from("bengkels").insert(newBengkel).execute()
+            try await bengkelRepository.insertBengkel(newBengkel)
             self.successMessage = "Bengkel submitted for review! You will be notified once approved."
             isLoading = false
             return true
@@ -91,13 +198,7 @@ class BengkelViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            let fetchedBengkel: Bengkel = try await supabase.from("bengkels")
-                .select()
-                .eq("provider_uid", value: uid)
-                .single()
-                .execute()
-                .value
-            
+            let fetchedBengkel = try await bengkelRepository.fetchBengkel(providerUid: uid)
             self.myBengkel = fetchedBengkel
         } catch {
             self.errorMessage = "Failed to load Bengkel: \(error.localizedDescription)"
@@ -108,27 +209,16 @@ class BengkelViewModel: ObservableObject {
     func updateBengkel(bengkelId: String, name: String, address: String) async -> Bool {
         isLoading = true
         errorMessage = nil
+        
+        let payload = BengkelUpdatePayload(
+            name: name,
+            address: address,
+            latitude: region.center.latitude,
+            longitude: region.center.longitude
+        )
+        
         do {
-            let request = MKLocalSearch.Request()
-            request.naturalLanguageQuery = address
-            let search = MKLocalSearch(request: request)
-            let response = try await search.start()
-            
-            guard let coordinate = response.mapItems.first?.location.coordinate else {
-                self.errorMessage = "Could not find coordinates for this address."
-                isLoading = false
-                return false
-            }
-            
-            let updateData = BengkelUpdateRequest(
-                name: name,
-                address: address,
-                latitude: coordinate.latitude,
-                longitude: coordinate.longitude
-            )
-            
-            try await supabase.from("bengkels").update(updateData).eq("id", value: bengkelId).execute()
-            
+            try await bengkelRepository.updateBengkel(bengkelId: bengkelId, payload: payload)
             isLoading = false
             return true
         } catch {
@@ -142,9 +232,9 @@ class BengkelViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         do {
-            _ = try await supabase.auth.signIn(email: email, password: password)
+            _ = try await authService.signIn(email: email, password: password)
             
-            try await supabase.from("bengkels").delete().eq("id", value: bengkelId).execute()
+            try await bengkelRepository.deleteBengkel(bengkelId: bengkelId)
             
             self.myBengkel = nil
             isLoading = false
@@ -155,6 +245,8 @@ class BengkelViewModel: ObservableObject {
             return false
         }
     }
+
+    // MARK: - Bengkel Services CRUD
 
     func addService(bengkelId: String, serviceType: ServiceType, isActive: Bool) async -> Bool {
         isLoading = true
@@ -174,7 +266,8 @@ class BengkelViewModel: ObservableObject {
             
             currentBengkel.offeredServices.append(newService)
             
-            try await supabase.from("bengkels").update(currentBengkel).eq("id", value: bengkelId).execute()
+            let payload = BengkelServicesUpdatePayload(offered_services: currentBengkel.offeredServices)
+            try await bengkelRepository.updateServices(bengkelId: bengkelId, payload: payload)
             
             self.myBengkel = currentBengkel
             
@@ -198,7 +291,8 @@ class BengkelViewModel: ObservableObject {
                 currentBengkel.offeredServices[index].serviceType = serviceType
                 currentBengkel.offeredServices[index].isActive = isActive
                 
-                try await supabase.from("bengkels").update(currentBengkel).eq("id", value: bengkelId).execute()
+                let payload = BengkelServicesUpdatePayload(offered_services: currentBengkel.offeredServices)
+                try await bengkelRepository.updateServices(bengkelId: bengkelId, payload: payload)
                 
                 self.myBengkel = currentBengkel
             }
@@ -221,7 +315,8 @@ class BengkelViewModel: ObservableObject {
             
             currentBengkel.offeredServices.removeAll { $0.id == serviceId }
             
-            try await supabase.from("bengkels").update(currentBengkel).eq("id", value: bengkelId).execute()
+            let payload = BengkelServicesUpdatePayload(offered_services: currentBengkel.offeredServices)
+            try await bengkelRepository.updateServices(bengkelId: bengkelId, payload: payload)
             
             self.myBengkel = currentBengkel
             

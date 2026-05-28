@@ -19,32 +19,623 @@ xcodebuild -project MbengkelIn.xcodeproj -scheme MbengkelIn \
 
 The project has 6 targets: the `MbengkelIn` iOS app, a `MbengkelInWatchOS Watch App` scheme, and four test targets (`MbengkelInUnitTests`, `MbengkelInUITests`, and the two watchOS test bundles). **All of these are currently empty Xcode template stubs** — the watchOS app and every test file are unmodified scaffolding, so all real code lives in the `MbengkelIn/` app target. There is no lint config and no CI.
 
-The Supabase URL and publishable key are hard-coded at the top of `MbengkelIn/MbengkelInApp.swift` as a module-level `let supabase = SupabaseClient(...)` — every ViewModel imports that global directly rather than receiving a client via init.
+The Supabase URL and publishable key are hard-coded at the top of `MbengkelIn/MbengkelInApp.swift` as a module-level `let supabase = SupabaseClient(...)` — every Repository and Service imports that global directly rather than receiving a client via init.
 
-## Architecture
+---
 
-MVVM with SwiftUI. Three layers under `MbengkelIn/`:
+## Architecture (Layered MVVM)
 
-- `Models/` — `Codable` structs that map 1:1 to Supabase Postgres tables: `User` (`users`), `Bengkel` (`bengkels`), `Vehicle` (`vehicles`), `BengkelService`. `PhotonSearchResponse` decodes the Photon geocoding API (OpenStreetMap) used by the order flow.
-- `ViewModels/` — one `@MainActor`-isolated `ObservableObject` per domain: `AuthViewModel`, `ProfileViewModel`, `VehicleViewModel`, `BengkelViewModel`, `OrderViewModel`. Each owns its async Supabase calls (`supabase.from("…").select/insert/update/delete().execute()`) and publishes `isLoading` / `errorMessage` / `successMessage` for the views to bind to.
-- `Views/` split into `Pages/` (full screens grouped by feature: `Authentication`, `Dashboard`, `Profile`, `Bengkel`, `Order`, `Temp Placeholder`) and `Components/` (`Components/Features/<Feature>/...` for feature-scoped reusable views, plus shared atoms at the root of `Components/`).
+This project uses a **layered MVVM** architecture. All layers live under `MbengkelIn/`:
 
-### App entry & session flow
+```mermaid
+graph LR
+    V["View"] --> VM["ViewModel"]
+    VM --> S["Service"]
+    VM --> R["Repository"]
+    S --> API["External API (Photon OSM)"]
+    R --> DB["Supabase DB"]
+    DTO["DTOs"] -.-> R
+    DTO -.-> VM
+    M["Model"] -.-> R
+    M -.-> VM
+```
 
-`MbengkelInApp` → `ContentView` owns the single `@StateObject AuthViewModel`. `ContentView` gates on `authViewModel.userSession`: when nil it shows `LoginView`; when present it shows a 4-tab `TabView` (Dashboard / Payment / History / Profile). Payment and History are placeholders in `Views/Pages/Temp Placeholder/`.
+| Layer | Folder | Role | Depends On |
+|-------|--------|------|------------|
+| **Model** | `Models/` | Domain entity structs matching DB schema (`Codable + Identifiable`) | Foundation |
+| **DTO** | `Models/DTOs/` | `Encodable`/`Decodable` payloads for insert/update/response — **never** inline structs in ViewModels | Models |
+| **Protocol** | `Protocols/` | Shared behavior contracts (e.g. `LocationSearchable`) | Models |
+| **Repository** | `Repositories/` | Single-purpose Supabase **database** CRUD calls (`supabase.from("table")`) | DTOs, Models, `supabase` global |
+| **Service** | `Services/` | External API / SDK calls **not** tied to a Supabase table (Auth SDK, Storage, Photon OSM) | DTOs, `supabase` global |
+| **ViewModel** | `ViewModels/` | Orchestrates Repository + Service; holds `@Published` UI state; **never** calls `supabase` directly | Repositories, Services, DTOs, Models |
+| **View** | `Views/` | SwiftUI views — Pages (full screens) and Components (reusable) | ViewModels |
 
-`AuthViewModel` also exposes `appMode: AppMode { .customer, .bengkel }`. The Dashboard switches its content based on this mode — the same logged-in user can toggle between using the app as a customer and managing their bengkel. Bengkel-side screens (`RegisterBengkelView`, `UpdateBengkelView`, `BengkelDashboardView`, `BengkelServiceFormView`, `BengkelProfileView`) all assume `appMode == .bengkel`.
+### Key Rules
 
-### Supabase usage conventions
+1. **ViewModels never touch `supabase` directly** — all DB operations go through a Repository, all SDK/API operations go through a Service.
+2. **No inline `Encodable` structs in ViewModels** — always use a named DTO from `Models/DTOs/`.
+3. **Models are pure data** — `Codable + Identifiable` structs with `CodingKeys` for snake_case mapping. No business logic.
+4. **Repositories are stateless** — they receive parameters and return/throw. No `@Published` properties.
+5. **Services are stateless** — same as Repositories but for non-DB operations.
+6. **ViewModels are `@MainActor`** — all ViewModels are annotated `@MainActor` (either explicitly or via `NSObject` + `CLLocationManagerDelegate` pattern) and use `ObservableObject` with `@Published` properties.
 
-- Tables touched: `users`, `bengkels`, `vehicles`, plus the `avatars` Storage bucket.
-- The user PK is the Supabase `auth.user.id` UUID, lowercased (`uid = sessionUser.id.uuidString.lowercased()`) — match this whenever filtering by user id.
-- Sign-up writes `name` and `phone_number` into `auth.users.user_metadata`; `fetchUser()` then merges that metadata onto the row fetched from the `users` table (the `users` row is created by a Postgres trigger on signup — it is not inserted from the client).
-- Account deletion re-authenticates with password before deleting the `users` row, then signs out; the auth user itself is not deleted from the client.
+---
 
-### Order flow (maps & geocoding)
+## Supabase Usage Conventions
 
-`OrderView` + `Views/Components/Features/Order/*` implement workshop ordering with an in-app map. The map uses OpenStreetMap tiles (via `OrderMapView`) and the Photon API for place search (`LocationSearchView` → decoded by `PhotonSearchResponse`). No Apple MapKit search or Google Maps key is involved — keep new location features on the same Photon/OSM stack to avoid adding API keys.
+### Global Client
+
+```swift
+// MbengkelInApp.swift — module-level constant
+let supabase = SupabaseClient(
+  supabaseURL: URL(string: "https://nerrnpbopdfrdcfvjowx.supabase.co")!,
+  supabaseKey: "sb_publishable_..."
+)
+```
+
+All Repositories and Services reference this global directly.
+
+### User ID Convention
+
+The user PK is the Supabase `auth.user.id` UUID, **lowercased**:
+
+```swift
+let uid = session.user.id.uuidString.lowercased()
+```
+
+Always use `.lowercased()` when filtering by user ID.
+
+### Tables Touched
+
+| Table | Repository | Description |
+|-------|-----------|-------------|
+| `users` | `UserRepository` | User profile (name, profile image, balance, role) |
+| `vehicles` | `VehicleRepository` | Customer vehicles |
+| `bengkels` | `BengkelRepository` | Workshop records with JSONB `offered_services` |
+| `service_requests` | `OrderRepository` | Service/order requests |
+| `bids` | (inline in bidding VMs — not yet extracted) | Mechanic bid records |
+
+### Storage Buckets
+
+| Bucket | Service | Usage |
+|--------|---------|-------|
+| `avatars` | `StorageService` | Profile image uploads (`{uid}/profile.jpg`) |
+
+### Auth Conventions
+
+- Sign-up writes `name` and `phone_number` into `auth.users.user_metadata`.
+- `fetchUser()` merges metadata onto the row from the `users` table.
+- The `users` row is created by a **Postgres trigger on signup** — not inserted from the client.
+- Account deletion re-authenticates with password before deleting the `users` row, then signs out. The auth user itself is not deleted from the client.
+
+### Supabase Edge Functions
+
+| Function | Used By | Purpose |
+|----------|---------|---------|
+| `bidding` | `MechanicBiddingViewModel` | Fetches nearby orders (`ordersForMechanic`) and places bids (`placeBid`) |
+
+### Realtime Subscriptions
+
+Used in bidding ViewModels for live updates on `bids` and `service_requests` tables. Pattern:
+
+```swift
+let channel = supabase.channel("channel-name")
+let stream = channel.postgresChange(AnyAction.self, schema: "public", table: "tableName", filter: "...")
+Task {
+    await channel.subscribe()
+    for await _ in stream {
+        await self.refreshData()
+    }
+}
+```
+
+Polling fallback (3–5 second intervals) is always added alongside realtime for robustness.
+
+---
+
+## App Entry & Session Flow
+
+`MbengkelInApp` → `ContentView` owns the single `@StateObject AuthViewModel`.
+
+`ContentView` gates on `authViewModel.userSession`:
+- **nil** → shows `LoginView`
+- **non-nil** → shows a 4-tab `TabView`:
+  1. Dashboard
+  2. Payment (placeholder)
+  3. History (placeholder)
+  4. Profile
+
+`AuthViewModel` also exposes `appMode: AppMode { .customer, .bengkel }`. The Dashboard switches content based on this mode — the same logged-in user can toggle between customer and bengkel modes.
+
+---
+
+## Order Flow (Maps & Geocoding)
+
+**Stack**: OpenStreetMap tiles + Photon API (komoot.io) for geocoding. **No Apple MapKit search or Google Maps.**
+
+### Components:
+- `OrderMapView` — `UIViewRepresentable` wrapping `MKMapView` with OSM tile overlay
+- `LocationInputCard` — Tappable address display + "use current location" button (binding-based, reusable)
+- `LocationSearchView<VM: LocationSearchable>` — Generic search overlay driven by any `LocationSearchable` ViewModel
+- `LocationService` — Photon API calls: `searchOSM(query:coordinate:)` and `fetchAddress(from:)`
+
+### `LocationSearchable` Protocol
+
+Defines the shared contract for any ViewModel that supports the map + search address picker:
+
+```swift
+@MainActor
+protocol LocationSearchable: ObservableObject {
+    var locationAddress: String { get set }
+    var isEditingLocation: Bool { get set }
+    var isFetchingLocation: Bool { get }
+    var searchResults: [PhotonSearchFeature] { get set }
+    var region: MKCoordinateRegion { get set }
+
+    func useCurrentLocation()
+    func selectSearchResult(_ result: PhotonSearchFeature)
+    func updateLocationFromMap(coordinate: CLLocationCoordinate2D)
+}
+```
+
+Both `OrderViewModel` and `BengkelViewModel` conform to this protocol.
+
+### Location ViewModel Pattern
+
+ViewModels with map support follow this pattern:
+1. Inherit `NSObject`, conform to `CLLocationManagerDelegate` + `LocationSearchable`
+2. Own a `CLLocationManager` + `LocationService`
+3. Debounce `$locationAddress` via Combine (400ms) for live search
+4. Implement GPS flow: `useCurrentLocation()` → authorization check → `requestLocation()` → delegate callback → reverse geocode
+5. Implement `updateLocationFromMap(coordinate:)` → reverse geocode via `LocationService.fetchAddress(from:)`
+
+---
+
+## Directory Structure
+
+```
+MbengkelIn/
+├── MbengkelInApp.swift              # @main, global supabase client, AppDelegate
+├── ContentView.swift                # Session gate → Login or TabView
+│
+├── Models/
+│   ├── User.swift                   # users table
+│   ├── Vehicle.swift                # vehicles table
+│   ├── Bengkel.swift                # bengkels table (with JSONB offeredServices)
+│   ├── BengkelService.swift         # ServiceType enum + BengkelService struct
+│   ├── Bid.swift                    # bids table (with embedded bengkel)
+│   ├── NearbyMechanic.swift         # bengkels + distance from RPC
+│   ├── NearbyOrder.swift            # service_requests + distance from RPC
+│   ├── PhotonSearchResponse.swift   # Photon OSM geocoding response
+│   └── DTOs/
+│       ├── AuthDTOs.swift           # SignUpRequest, ProfileUpdatePayload, ProfileImageUpdatePayload
+│       ├── VehicleDTOs.swift        # VehicleUpdatePayload
+│       ├── BengkelDTOs.swift        # BengkelUpdatePayload, BengkelServicesUpdatePayload
+│       └── OrderDTOs.swift          # ServiceRequestPayload, CreatedServiceRequest, bidding DTOs
+│
+├── Protocols/
+│   └── LocationSearchable.swift     # Shared protocol for map+search ViewModels
+│
+├── Repositories/
+│   ├── UserRepository.swift         # CRUD on users table
+│   ├── VehicleRepository.swift      # CRUD on vehicles table
+│   ├── BengkelRepository.swift      # CRUD on bengkels table
+│   └── OrderRepository.swift        # Create service_requests
+│
+├── Services/
+│   ├── AuthService.swift            # Supabase Auth SDK wrapper
+│   ├── StorageService.swift         # Supabase Storage wrapper (avatars)
+│   └── LocationService.swift        # Photon OSM search + reverse geocode
+│
+├── ViewModels/
+│   ├── AuthViewModel.swift          # Login, signup, session, user fetch, password reset, delete
+│   ├── ProfileViewModel.swift       # Update profile, upload avatar
+│   ├── VehicleViewModel.swift       # CRUD vehicles
+│   ├── BengkelViewModel.swift       # CRUD bengkel + LocationSearchable + services CRUD
+│   ├── OrderViewModel.swift         # Create order + LocationSearchable
+│   ├── CustomerBiddingViewModel.swift  # Customer-side bidding + realtime
+│   └── MechanicBiddingViewModel.swift  # Mechanic-side bidding + realtime
+│
+└── Views/
+    ├── Components/
+    │   ├── LoadingOverlay.swift      # LoadingPhase enum + overlay view + extension
+    │   ├── StatBox.swift             # Metric display card
+    │   └── Features/
+    │       ├── AuthAndProfile/
+    │       │   ├── CustomInputField.swift    # Icon + TextField/SecureField
+    │       │   ├── ActionRow.swift           # Tappable row with chevron
+    │       │   ├── DangerRow.swift           # Destructive action row
+    │       │   └── VehicleCardRow.swift      # Vehicle list item with edit/delete
+    │       ├── Bengkel/
+    │       │   └── Dashboard/
+    │       │       └── StarRatingView.swift  # Fractional star rating
+    │       └── Order/
+    │           ├── OrderMapView.swift        # UIViewRepresentable OSM map
+    │           ├── LocationInputCard.swift   # Address display + current location btn
+    │           ├── LocationSearchView.swift  # Generic<VM: LocationSearchable> search overlay
+    │           ├── PrimaryButton.swift       # Full-width CTA button
+    │           ├── ServicePill.swift         # Selectable service chip
+    │           └── Bid/
+    │               ├── BidReceivedCard.swift
+    │               ├── BiddingEmptyState.swift
+    │               ├── DistanceBadge.swift
+    │               ├── MechanicCard.swift
+    │               ├── OrderRequestCard.swift
+    │               └── PlaceBidSheet.swift
+    │
+    ├── Pages/
+    │   ├── Authentication/
+    │   │   ├── LoginView.swift
+    │   │   └── RegistrationView.swift
+    │   ├── Dashboard/
+    │   │   └── DashboardView.swift          # Switches customer/bengkel mode
+    │   ├── Profile/
+    │   │   ├── ProfileView.swift
+    │   │   ├── UpdateProfileView.swift
+    │   │   └── VehicleFormView.swift
+    │   ├── Bengkel/
+    │   │   ├── RegisterBengkelView.swift     # Map picker + register
+    │   │   ├── UpdateBengkelView.swift       # Map picker + edit
+    │   │   ├── BengkelDashboardView.swift
+    │   │   ├── BengkelProfileView.swift
+    │   │   └── BengkelServiceFormView.swift
+    │   ├── Order/
+    │   │   ├── OrderView.swift              # Map picker + service selection + create order
+    │   │   └── Bid/
+    │   │       ├── CustomerBiddingView.swift
+    │   │       └── MechanicBiddingView.swift
+    │   └── Temp Placeholder/
+    │       └── PaymentPlaceholderView.swift
+    │
+    ├── History/                              # Empty — placeholder
+    └── Payment/                             # Empty — placeholder
+```
+
+---
+
+## Coding Conventions & Patterns
+
+### Model Pattern
+
+Every model follows this exact structure:
+
+```swift
+import Foundation
+
+struct ModelName: Codable, Identifiable {
+    var id: String?            // Optional for insert (server-generated)
+    var foreignKeyId: String   // camelCase in Swift
+    var fieldName: String
+    var createdAt: Date?       // Optional, server-managed
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case foreignKeyId = "foreign_key_id"   // snake_case for DB
+        case fieldName = "field_name"
+        case createdAt = "created_at"
+    }
+}
+```
+
+**Rules**:
+- All properties are `var` (not `let`) — needed for mutation after fetch
+- Use `CodingKeys` to map camelCase Swift → snake_case Postgres
+- `id` and `createdAt` are optional for inserts
+- `Identifiable` conformance via `id`
+
+### DTO Pattern
+
+```swift
+import Foundation
+
+// Purpose comment explaining which Repository/Service uses it
+struct PayloadName: Encodable {
+    let field_name: String     // snake_case to match DB column directly
+}
+```
+
+**Rules**:
+- DTOs use `let` (immutable after construction)
+- Field names are **snake_case** (matching DB columns directly) — no CodingKeys needed
+- Insert payloads use the Model type directly; update payloads use dedicated DTOs
+- Request DTOs that don't go to DB can use camelCase (e.g. `SignUpRequest`)
+
+### Repository Pattern
+
+```swift
+import Foundation
+import Supabase
+
+class RepositoryName {
+    func fetchItem(filterParam: String) async throws -> ModelType {
+        return try await supabase.from("table_name")
+            .select()
+            .eq("column", value: filterParam)
+            .single()
+            .execute()
+            .value
+    }
+
+    func insertItem(_ item: ModelType) async throws {
+        try await supabase.from("table_name")
+            .insert(item)
+            .execute()
+    }
+
+    func updateItem(itemId: String, payload: PayloadType) async throws {
+        try await supabase.from("table_name")
+            .update(payload)
+            .eq("id", value: itemId)
+            .execute()
+    }
+
+    func deleteItem(itemId: String) async throws {
+        try await supabase.from("table_name")
+            .delete()
+            .eq("id", value: itemId)
+            .execute()
+    }
+}
+```
+
+**Rules**:
+- One repository per DB table
+- Methods are `async throws` — no error handling here (ViewModel handles it)
+- Use the global `supabase` client directly
+- Return decoded values using `.value` (Supabase Swift SDK auto-decoding)
+- For single records: `.single().execute().value`
+- For arrays: `.execute().value` (returns `[ModelType]`)
+
+### Service Pattern
+
+```swift
+import Foundation
+import Supabase
+
+class ServiceName {
+    func performAction(param: ParamType) async throws -> ReturnType {
+        // Call external API or Supabase SDK (not .from("table"))
+    }
+}
+```
+
+**Rules**:
+- Same stateless pattern as Repository
+- Used for: Auth SDK calls, Storage uploads, external HTTP APIs (Photon)
+- Never calls `supabase.from("table")` — that's a Repository's job
+
+### ViewModel Pattern
+
+```swift
+import SwiftUI
+import Combine
+import Supabase
+
+@MainActor
+class FeatureViewModel: ObservableObject {
+    // Published UI state
+    @Published var items: [Item] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    @Published var successMessage: String?
+
+    // Private dependencies
+    private let authService = AuthService()
+    private let itemRepository = ItemRepository()
+
+    func fetchItems() async {
+        guard let session = try? await authService.getCurrentSession() else { return }
+        let uid = session.user.id.uuidString.lowercased()
+
+        do {
+            let fetched = try await itemRepository.fetchItems(userId: uid)
+            self.items = fetched
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+    }
+
+    func createItem(...) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+
+        // ... validate & build payload
+
+        do {
+            try await itemRepository.insertItem(newItem)
+            await fetchItems()    // refresh list
+            isLoading = false
+            return true
+        } catch {
+            self.errorMessage = error.localizedDescription
+            isLoading = false
+            return false
+        }
+    }
+}
+```
+
+**Rules**:
+- Always `@MainActor`
+- Dependencies instantiated as `private let` properties
+- Get current session via `authService.getCurrentSession()`
+- Mutating operations return `Bool` for success/failure
+- Always set `isLoading = true` at start, `false` at end
+- Always clear `errorMessage = nil` at start of operations
+- Error handling: catch → assign `self.errorMessage = error.localizedDescription`
+- After mutations, re-fetch to refresh the list
+- Never reference `supabase` directly — always go through Repository/Service
+
+### View Pattern
+
+```swift
+import SwiftUI
+
+struct FeatureView: View {
+    @StateObject private var viewModel = FeatureViewModel()    // owns
+    // OR
+    @ObservedObject var viewModel: FeatureViewModel            // received
+
+    var body: some View {
+        // ... UI
+    }
+}
+```
+
+**Rules**:
+- Use `@StateObject` when the View creates the ViewModel
+- Use `@ObservedObject` when receiving from parent
+- `AuthViewModel` is always received (created once in `ContentView`)
+- Feature-specific ViewModels are typically created with `@StateObject`
+
+### UI Component Conventions
+
+- **Background colors**: `Color(.systemGray6)` for cards/inputs, `Color(.systemBackground)` for backgrounds
+- **Corner radius**: 12pt for cards/inputs, 16pt for buttons, 20pt for modals
+- **Shadows**: `Color.black.opacity(0.05), radius: 5–10` for subtle elevation
+- **Primary color**: `.primary` for text and dark buttons, `.primary.opacity(0.9)` for button backgrounds
+- **Button style**: Full-width with `Color.primary.opacity(0.9)` background, `Color(.systemBackground)` text
+- **Loading**: Use `LoadingOverlay` with `LoadingPhase` enum for full-screen loading states
+- **Language**: UI text is in **Indonesian** (Bahasa Indonesia)
+
+### File Header
+
+```swift
+//
+//  FileName.swift
+//  MbengkelIn
+//
+//  Created by Author Name on DD/MM/YY.
+//
+```
+
+---
+
+## Refactoring Guide: Adapting Another App to This Style
+
+When refactoring a similar app to match MbengkelIn's architecture:
+
+### Step 1: Identify Models
+- Find all `Codable` structs that map to DB tables
+- Ensure they follow the Model pattern (see above)
+- Place in `Models/`
+
+### Step 2: Create DTOs
+- For each ViewModel that has inline `Encodable` structs, extract them to `Models/DTOs/{Feature}DTOs.swift`
+- Insert payloads: use the Model directly (or a dedicated DTO if the insert has fewer fields)
+- Update payloads: always a dedicated DTO with only the updatable fields
+
+### Step 3: Create Repositories
+- For each DB table, create `Repositories/{Table}Repository.swift`
+- Move all `supabase.from("table")` calls from ViewModels into the Repository
+- Each method: `async throws`, no error handling, no `@Published` state
+
+### Step 4: Create Services
+- For auth operations: `Services/AuthService.swift` wrapping `supabase.auth.*`
+- For storage: `Services/StorageService.swift` wrapping `supabase.storage.*`
+- For external APIs: `Services/LocationService.swift` etc.
+- Move all SDK calls from ViewModels into Services
+
+### Step 5: Create Protocols (if needed)
+- If multiple ViewModels share the same interface (e.g., location search), create a protocol in `Protocols/`
+- Make the shared View generic over the protocol
+
+### Step 6: Refactor ViewModels
+- Replace all direct `supabase` calls with Repository/Service calls
+- Remove inline `Encodable` structs → use DTOs
+- Ensure `@MainActor` annotation
+- Get session via `authService.getCurrentSession()` instead of `supabase.auth.session`
+
+### Step 7: Update Views
+- If any View was tightly coupled to a specific ViewModel, make it generic over a protocol
+- Ensure Views only reference ViewModels, never Repositories/Services directly
+
+### Execution Order
+1. DTOs (pure data, no dependencies)
+2. Protocols (needed before VMs)
+3. Repositories (depend on DTOs + Models)
+4. Services (depend on DTOs)
+5. ViewModels (depend on everything above)
+6. Views (if any need generics)
+
+---
+
+## Supabase Database Schema Reference
+
+### `users` table
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID (PK) | Matches `auth.users.id` |
+| `name` | text | |
+| `profile_image_url` | text? | |
+| `balance` | double | |
+| `role` | text | |
+
+### `vehicles` table
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID (PK) | Server-generated |
+| `customer_id` | UUID (FK→users) | |
+| `manufacturer` | text | |
+| `model` | text | |
+| `year` | int | |
+| `license_plate` | text | |
+| `color` | text | |
+| `created_at` | timestamp | |
+
+### `bengkels` table
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID (PK) | Server-generated |
+| `provider_uid` | UUID (FK→users) | |
+| `name` | text | |
+| `address` | text | |
+| `latitude` | double | |
+| `longitude` | double | |
+| `status` | text | "Pending" or "Verified" |
+| `offered_services` | JSONB | Array of `BengkelService` |
+| `average_rating` | double | |
+| `total_reviews` | int | |
+| `created_at` | timestamp | |
+
+### `service_requests` table
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID (PK) | Server-generated |
+| `customer_id` | UUID (FK→users) | |
+| `customer_name` | text? | |
+| `service_type` / `description` | text? | |
+| `is_emergency` | bool | |
+| `latitude` | double | |
+| `longitude` | double | |
+| `price` | int? | |
+| `status` | text | "To Do", "On Progress", etc. |
+| `bengkel_id` | UUID? (FK→bengkels) | Set when bid accepted |
+| `created_at` | timestamp | |
+
+### `bids` table
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID (PK) | Server-generated |
+| `service_request_id` | UUID (FK→service_requests) | |
+| `provider_uid` | UUID (FK→users) | |
+| `bengkel_id` | UUID (FK→bengkels) | |
+| `price` | int | |
+| `notes` | text? | |
+| `status` | text | "Pending", "Accepted", "Rejected", "AutoRejected" |
+| `created_at` | timestamp | |
+
+---
+
+## Known Patterns Not Yet Fully Extracted
+
+The bidding ViewModels (`CustomerBiddingViewModel`, `MechanicBiddingViewModel`) still contain direct `supabase.from()` calls. These have not yet been extracted into Repositories because the bidding system is complex and uses realtime subscriptions + edge functions. A future refactor should:
+
+1. Create `BidRepository` for bid CRUD operations
+2. Create `BiddingService` for edge function calls
+3. Extract realtime subscription setup into a reusable helper
+
+---
 
 <!-- generate-docs -->
 ## API Documentation

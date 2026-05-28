@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import MapKit
 
 struct UpdateBengkelView: View {
     @ObservedObject var bengkelViewModel: BengkelViewModel
@@ -15,33 +16,94 @@ struct UpdateBengkelView: View {
     @Environment(\.dismiss) var dismiss
     
     @State private var name: String = ""
-    @State private var address: String = ""
     
     var body: some View {
-        ZStack {
-            Color(.systemGroupedBackground).ignoresSafeArea()
+        ZStack(alignment: .bottom) {
+            // Map with center pin (reuse OrderMapView)
+            ZStack {
+                OrderMapView(
+                    region: $bengkelViewModel.region,
+                    isEditing: bengkelViewModel.isEditingLocation,
+                    onRegionChange: { coordinate in
+                        bengkelViewModel.updateLocationFromMap(coordinate: coordinate)
+                    }
+                )
+                .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    Image(systemName: "mappin")
+                        .font(.system(size: 40, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    Circle()
+                        .fill(Color.primary.opacity(0.3))
+                        .frame(width: 12, height: 12)
+                        .scaleEffect(x: 2, y: 1)
+                        .padding(.top, -2)
+                }
+                .padding(.bottom, 40)
+            }
             
-            ScrollView {
-                VStack(spacing: 16) {
-                    
-                    Image(systemName: "building.2.crop.circle.fill")
-                        .resizable()
-                        .frame(width: 100, height: 100)
-                        .foregroundColor(Color.primary.opacity(0.8))
-                        .padding(.vertical)
-                    
-                    CustomInputField(iconName: "building.2", placeholder: "Bengkel Name", text: $name)
-                    
-                    CustomInputField(iconName: "map", placeholder: "Full Address", text: $address)
+            // Back button
+            VStack {
+                HStack {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .font(.title2)
+                            .foregroundColor(.primary)
+                            .padding()
+                            .background(Color(.systemBackground))
+                            .clipShape(Circle())
+                            .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
+                    }
+                    Spacer()
+                }
+                .padding(.top, 0)
+                .padding(.leading, 20)
+                
+                Spacer()
+            }
+            
+            // Bottom sheet: location input + name input + save button
+            VStack(spacing: 0) {
+                LocationInputCard(
+                    address: $bengkelViewModel.locationAddress,
+                    isFocused: $bengkelViewModel.isEditingLocation,
+                    isFetchingLocation: bengkelViewModel.isFetchingLocation,
+                    onCurrentLocationTapped: bengkelViewModel.useCurrentLocation
+                )
+                
+                VStack(alignment: .leading, spacing: 16) {
+                    // Bengkel Name Input
+                    HStack {
+                        Image(systemName: "building.2")
+                            .foregroundColor(.primary)
+                            .font(.title2)
+                        
+                        TextField("Bengkel Name", text: $name)
+                            .font(.body)
+                            .foregroundColor(.primary)
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
                     
                     if let errorMessage = bengkelViewModel.errorMessage {
-                        Text(errorMessage).foregroundColor(.red).font(.footnote)
+                        Text(errorMessage)
+                            .foregroundColor(.red)
+                            .font(.footnote)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
                     }
                     
+                    // Save button
                     Button {
                         Task {
                             guard let id = bengkel.id else { return }
-                            let success = await bengkelViewModel.updateBengkel(bengkelId: id, name: name, address: address)
+                            let success = await bengkelViewModel.updateBengkel(bengkelId: id, name: name, address: bengkelViewModel.locationAddress)
                             
                             if success {
                                 if let uid = authViewModel.currentUser?.id {
@@ -51,34 +113,48 @@ struct UpdateBengkelView: View {
                             }
                         }
                     } label: {
-                        Text("Save Changes")
-                            .font(.headline)
-                            .foregroundColor(Color(.systemBackground))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 55)
-                            .background(Color.primary.opacity(0.8))
-                            .cornerRadius(12)
-                            .shadow(color: Color.primary.opacity(0.15), radius: 10, x: 0, y: 5)
+                        HStack {
+                            if bengkelViewModel.isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: Color(.systemBackground)))
+                            }
+                            Text("Save Changes")
+                                .font(.headline)
+                        }
+                        .foregroundColor(Color(.systemBackground))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 55)
+                        .background(Color.primary.opacity(0.8))
+                        .cornerRadius(12)
+                        .shadow(color: Color.primary.opacity(0.15), radius: 10, x: 0, y: 5)
                     }
-                    .padding(.top, 10)
-                    .disabled(bengkelViewModel.isLoading || name.isEmpty || address.isEmpty)
+                    .disabled(bengkelViewModel.isLoading || name.isEmpty || bengkelViewModel.locationAddress.isEmpty)
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
                 }
-                .padding()
+                .padding(.top, 16)
+                .background(Color(.systemBackground))
             }
+            .opacity(bengkelViewModel.isEditingLocation ? 0 : 1)
+            .disabled(bengkelViewModel.isEditingLocation)
             
-            if bengkelViewModel.isLoading {
-                ProgressView("Updating...")
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(10)
-                    .shadow(radius: 10)
+            // Search overlay
+            if bengkelViewModel.isEditingLocation {
+                LocationSearchView(viewModel: bengkelViewModel)
+                    .transition(.move(edge: .bottom))
+                    .zIndex(2)
             }
         }
-        .navigationTitle("Edit Bengkel")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(true)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: bengkelViewModel.isEditingLocation)
         .onAppear {
             self.name = bengkel.name
-            self.address = bengkel.address
+            bengkelViewModel.locationAddress = bengkel.address
+            bengkelViewModel.region = MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: bengkel.latitude, longitude: bengkel.longitude),
+                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+            )
         }
     }
 }
