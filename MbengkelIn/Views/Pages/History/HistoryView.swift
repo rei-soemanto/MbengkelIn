@@ -15,7 +15,7 @@ struct HistoryView: View {
             VStack(spacing: 0) {
                 if authViewModel.currentUser?.role == "PROVIDER" {
                     Picker("App Mode", selection: $authViewModel.appMode) {
-                        Text("Customer").tag(AppMode.customer)
+                        Text("Pelanggan").tag(AppMode.customer)
                         Text("Bengkel").tag(AppMode.bengkel)
                     }
                     .pickerStyle(.segmented)

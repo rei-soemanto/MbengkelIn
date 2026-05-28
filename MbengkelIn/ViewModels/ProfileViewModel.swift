@@ -25,7 +25,7 @@ class ProfileViewModel: ObservableObject {
         successMessage = nil
         
         guard let session = try? await authService.getCurrentSession() else {
-            self.errorMessage = "User not authenticated."
+            self.errorMessage = "Pengguna belum terautentikasi."
             isLoading = false
             return false
         }
@@ -36,7 +36,7 @@ class ProfileViewModel: ObservableObject {
         do {
             try await userRepository.updateProfile(uid: uid, payload: payload)
             
-            self.successMessage = "Profile updated successfully!"
+            self.successMessage = "Profil berhasil diperbarui!"
             isLoading = false
             return true
             
@@ -53,7 +53,7 @@ class ProfileViewModel: ObservableObject {
         
         do {
             guard let session = try? await authService.getCurrentSession() else {
-                self.errorMessage = "You must be logged in to upload an image."
+                self.errorMessage = "Anda harus masuk untuk mengunggah gambar."
                 isLoading = false
                 return false
             }
@@ -64,12 +64,12 @@ class ProfileViewModel: ObservableObject {
             let payload = ProfileImageUpdatePayload(profile_image_url: publicURLString)
             try await userRepository.updateProfileImageUrl(uid: uid, payload: payload)
             
-            self.successMessage = "Profile picture updated successfully!"
+            self.successMessage = "Foto profil berhasil diperbarui!"
             isLoading = false
             return true
             
         } catch {
-            self.errorMessage = "Failed to upload image: \(error.localizedDescription)"
+            self.errorMessage = "Gagal mengunggah gambar: \(error.localizedDescription)"
             isLoading = false
             return false
         }

@@ -59,7 +59,7 @@ struct RegisterBengkelView: View {
                                 .foregroundColor(.primary)
                                 .font(.title2)
 
-                            TextField("Bengkel Name", text: $bengkelName)
+                            TextField("Nama Bengkel", text: $bengkelName)
                                 .font(.body)
                                 .foregroundColor(.primary)
                         }
@@ -79,7 +79,7 @@ struct RegisterBengkelView: View {
                         HStack(alignment: .top, spacing: 12) {
                             Image(systemName: "info.circle")
                                 .foregroundColor(.blue)
-                            Text("Your application will be manually reviewed by our team. Once your role is updated to Provider, you will gain access to the Bengkel Dashboard.")
+                            Text("Pengajuan Anda akan ditinjau secara manual oleh tim kami. Setelah peran Anda diperbarui menjadi Penyedia, Anda akan mendapatkan akses ke Dasbor Bengkel.")
                                 .font(.caption)
                                 .foregroundColor(.gray)
                         }
@@ -101,7 +101,7 @@ struct RegisterBengkelView: View {
                                     ProgressView()
                                         .progressViewStyle(CircularProgressViewStyle(tint: Color(.systemBackground)))
                                 }
-                                Text("Submit for Approval")
+                                Text("Kirim untuk Persetujuan")
                                     .font(.headline)
                             }
                             .foregroundColor(Color(.systemBackground))

@@ -60,7 +60,7 @@ struct UpdateProfileView: View {
                             }
                         }
                     } label: {
-                        Text("Update Profile")
+                        Text("Perbarui Profil")
                             .font(.headline)
                             .foregroundColor(Color(.systemBackground))
                             .frame(maxWidth: .infinity)
@@ -83,7 +83,7 @@ struct UpdateProfileView: View {
                     .shadow(radius: 10)
             }
         }
-        .navigationTitle("Edit Profile")
+        .navigationTitle("Ubah Profil")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             self.name = authViewModel.currentUser?.name ?? ""

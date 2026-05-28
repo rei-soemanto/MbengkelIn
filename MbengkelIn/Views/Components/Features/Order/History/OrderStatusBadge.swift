@@ -22,7 +22,7 @@ struct OrderStatusBadge: View {
 
     private var label: String {
         switch status {
-        case "To Do": return "Mencari Mekanik"
+        case "To Do": return "Mencari Bengkel"
         case "On Progress": return "Berlangsung"
         case "Done": return "Selesai"
         case "Cancelled": return "Dibatalkan"

@@ -158,7 +158,7 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
         successMessage = nil
         
         guard let session = try? await authService.getCurrentSession() else {
-            self.errorMessage = "You must be logged in to register a Bengkel."
+            self.errorMessage = "Anda harus masuk untuk mendaftarkan Bengkel."
             isLoading = false
             return false
         }
@@ -184,7 +184,7 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
         
         do {
             try await bengkelRepository.insertBengkel(newBengkel)
-            self.successMessage = "Bengkel submitted for review! You will be notified once approved."
+            self.successMessage = "Bengkel diajukan untuk ditinjau! Anda akan diberi tahu setelah disetujui."
             isLoading = false
             return true
         } catch {
@@ -260,7 +260,7 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
             let fetchedBengkel = try await bengkelRepository.fetchBengkel(providerUid: uid)
             self.myBengkel = fetchedBengkel
         } catch {
-            self.errorMessage = "Failed to load Bengkel: \(error.localizedDescription)"
+            self.errorMessage = "Gagal memuat Bengkel: \(error.localizedDescription)"
         }
         isLoading = false
     }
@@ -313,7 +313,7 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
         
         do {
             guard var currentBengkel = self.myBengkel else {
-                self.errorMessage = "Bengkel data not found."
+                self.errorMessage = "Data bengkel tidak ditemukan."
                 isLoading = false
                 return false
             }

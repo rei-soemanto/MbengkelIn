@@ -63,7 +63,7 @@ struct OrderDetailView: View {
                 Divider()
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Rating")
+                        Text("Penilaian")
                             .foregroundColor(.secondary)
                         Spacer()
                         StarRatingView(rating: Double(rating))

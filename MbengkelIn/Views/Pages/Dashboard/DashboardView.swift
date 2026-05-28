@@ -16,7 +16,7 @@ struct DashboardView: View {
             VStack(spacing: 0) {
                 if authViewModel.currentUser?.role == "PROVIDER" {
                     Picker("App Mode", selection: $authViewModel.appMode) {
-                        Text("Customer").tag(AppMode.customer)
+                        Text("Pelanggan").tag(AppMode.customer)
                         Text("Bengkel").tag(AppMode.bengkel)
                     }
                     .pickerStyle(.segmented)
@@ -51,7 +51,7 @@ struct DashboardView: View {
                                     HStack {
                                         Image(systemName: "wrench.and.screwdriver.fill")
                                             .font(.largeTitle)
-                                        Text("Create Order")
+                                        Text("Buat Pesanan")
                                             .font(.title)
                                             .fontWeight(.bold)
                                     }
@@ -63,10 +63,10 @@ struct DashboardView: View {
                                     .shadow(color: Color.primary.opacity(0.15), radius: 10, x: 0, y: 5)
                                 }
 
-                NavigationLink(destination: Text("Payment Placeholder")) {
+                NavigationLink(destination: Text("Pembayaran Sementara")) {
                     HStack {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("My Balance")
+                            Text("Saldo Saya")
                                 .font(.subheadline)
                                 .foregroundColor(Color(.systemBackground).opacity(0.8))
                             
@@ -95,7 +95,7 @@ struct DashboardView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Latest Orders")
+                    Text("Pesanan Terbaru")
                         .font(.title2)
                         .fontWeight(.bold)
                     
@@ -104,7 +104,7 @@ struct DashboardView: View {
                             Image(systemName: "doc.text.magnifyingglass")
                                 .font(.largeTitle)
                                 .foregroundColor(.gray)
-                            Text("No order yet")
+                            Text("Belum ada pesanan")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
                         }
@@ -114,7 +114,7 @@ struct DashboardView: View {
                         .cornerRadius(12)
                     } else {
                         ForEach(recentOrders.prefix(3), id: \.self) { order in
-                            Text("Order Data Here")
+                            Text("Data Pesanan di Sini")
                         }
                     }
                 }

@@ -27,7 +27,7 @@ struct ProfileView: View {
             VStack(spacing: 0) {
                 if authViewModel.currentUser?.role == "PROVIDER" {
                     Picker("App Mode", selection: $authViewModel.appMode) {
-                        Text("Customer").tag(AppMode.customer)
+                        Text("Pelanggan").tag(AppMode.customer)
                         Text("Bengkel").tag(AppMode.bengkel)
                     }
                     .pickerStyle(.segmented)
@@ -40,7 +40,7 @@ struct ProfileView: View {
                     BengkelProfileView(authViewModel: authViewModel)
                 }
             }
-            .navigationTitle(authViewModel.appMode == .customer || authViewModel.currentUser?.role != "PROVIDER" ? "Profile" : "Bengkel Profile")
+            .navigationTitle(authViewModel.appMode == .customer || authViewModel.currentUser?.role != "PROVIDER" ? "Profile" : "Profil Bengkel")
             .navigationBarTitleDisplayMode(.inline)
             
             .task {
@@ -54,16 +54,16 @@ struct ProfileView: View {
             }
             
             .alert("Delete Account", isPresented: $showDeleteAlert) {
-                SecureField("Enter your password", text: $passwordForDeletion)
-                Button("Cancel", role: .cancel) { passwordForDeletion = "" }
-                Button("Delete", role: .destructive) {
+                SecureField("Masukkan kata sandi Anda", text: $passwordForDeletion)
+                Button("Batal", role: .cancel) { passwordForDeletion = "" }
+                Button("Hapus", role: .destructive) {
                     Task {
                         await authViewModel.deleteAccount(password: passwordForDeletion)
                         passwordForDeletion = ""
                     }
                 }
             } message: {
-                Text("This action cannot be undone. Please enter your password to confirm.")
+                Text("Tindakan ini tidak dapat dibatalkan. Masukkan kata sandi Anda untuk konfirmasi.")
             }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
@@ -169,7 +169,7 @@ struct ProfileView: View {
                     
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
-                            Text("My Vehicles").font(.headline)
+                            Text("Kendaraan Saya").font(.headline)
                             Spacer()
                             NavigationLink(destination: VehicleFormView(vehicleViewModel: vehicleViewModel)) {
                                 Image(systemName: "plus.circle.fill").font(.title2).foregroundColor(Color.primary.opacity(0.9))
@@ -177,7 +177,7 @@ struct ProfileView: View {
                         }
                         
                         if vehicleViewModel.userVehicles.isEmpty {
-                            Text("No vehicles added yet.")
+                            Text("Belum ada kendaraan ditambahkan.")
                                 .foregroundColor(.gray)
                                 .font(.subheadline)
                                 .padding(.vertical, 10)
@@ -204,7 +204,7 @@ struct ProfileView: View {
                     }
                     
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("App Settings")
+                        Text("Pengaturan Aplikasi")
                             .font(.headline)
                         
                         HStack {
@@ -222,7 +222,7 @@ struct ProfileView: View {
                     .padding(.top, 10)
                     
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Danger Zone")
+                        Text("Zona Berbahaya")
                             .font(.headline)
                             .foregroundColor(.red)
                         

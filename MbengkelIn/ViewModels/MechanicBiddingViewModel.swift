@@ -11,10 +11,17 @@ class MechanicBiddingViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var successMessage: String?
 
+    // Drives the in-app modal that pops when a brand-new order arrives.
+    @Published var newOrderAlert: NearbyOrder?
+    // Set when a pending bid is lost because the customer picked another bengkel.
+    @Published var lostBidAlert: String?
+
     private var realtimeChannel: RealtimeChannelV2?
     private let notificationService = NotificationService()
     private var knownOrderIds: Set<String> = []
+    private var bidStatusById: [String: String] = [:]
     private var didInitialLoad = false
+    private var hasStarted = false
     private var providerUid: String?
 
 
@@ -28,6 +35,8 @@ class MechanicBiddingViewModel: ObservableObject {
     }
 
     func start() async {
+        if hasStarted { return }
+        hasStarted = true
         isLoading = true
         errorMessage = nil
         notificationService.requestAuthorization()
@@ -45,6 +54,7 @@ class MechanicBiddingViewModel: ObservableObject {
         } catch {
             self.errorMessage = error.localizedDescription
             isLoading = false
+            hasStarted = false
             return
         }
         await loadOrders()
@@ -125,6 +135,21 @@ class MechanicBiddingViewModel: ObservableObject {
                 .execute()
                 .value
 
+            // Detect bids the customer rejected by choosing another bengkel.
+            // A pending bid flipping to AutoRejected means we lost the job.
+            if didInitialLoad {
+                for bid in allMyBids where bid.status.lowercased() == "autorejected" {
+                    if bidStatusById[bid.id] == "pending" {
+                        notificationService.notifyNewOrder(
+                            title: "Order diambil bengkel lain",
+                            body: "Pelanggan memilih tawaran bengkel lain untuk order ini."
+                        )
+                        self.lostBidAlert = "Pelanggan memilih tawaran bengkel lain. Tawaran Anda tidak terpilih."
+                    }
+                }
+            }
+            bidStatusById = Dictionary(allMyBids.map { ($0.id, $0.status.lowercased()) }, uniquingKeysWith: { _, new in new })
+
             let rejectedRequestIds = Set(allMyBids.filter { $0.status.lowercased() == "rejected" || $0.status.lowercased() == "autorejected" }.map { $0.serviceRequestId })
             self.myPendingBids = allMyBids.filter { $0.status.lowercased() == "pending" }
 
@@ -140,6 +165,7 @@ class MechanicBiddingViewModel: ObservableObject {
                         title: "Order baru di sekitar!",
                         body: "\(order.description ?? order.serviceType ?? "Permintaan servis") • \(meters) m"
                     )
+                    self.newOrderAlert = order
                 }
             }
             knownOrderIds = currentIds
@@ -153,6 +179,11 @@ class MechanicBiddingViewModel: ObservableObject {
 
     func placeBid(order: NearbyOrder, price: Int, notes: String) async {
         guard let bengkel = myBengkel, let bengkelId = bengkel.id else { return }
+        let floor = order.price ?? 0
+        guard price >= floor, price > 0 else {
+            self.errorMessage = "Tawaran tidak boleh di bawah harga pelanggan (Rp\(floor))."
+            return
+        }
         isLoading = true
         errorMessage = nil
         successMessage = nil

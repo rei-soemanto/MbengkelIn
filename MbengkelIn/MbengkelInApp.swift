@@ -11,7 +11,12 @@ import Supabase
 
 let supabase = SupabaseClient(
   supabaseURL: URL(string: "https://nerrnpbopdfrdcfvjowx.supabase.co")!,
-  supabaseKey: "sb_publishable_1SEf55NC7aq6FRlGxnBjbQ_vtJRWFav"
+  supabaseKey: "sb_publishable_1SEf55NC7aq6FRlGxnBjbQ_vtJRWFav",
+  options: SupabaseClientOptions(
+    auth: SupabaseClientOptions.AuthOptions(
+      emitLocalSessionAsInitialSession: true
+    )
+  )
 )
 
 import UserNotifications

@@ -73,7 +73,7 @@ struct OrderView: View {
 
                         if viewModel.estimatedPrice > 0 {
                             HStack {
-                                Text("Estimated Cost")
+                                Text("Perkiraan Biaya")
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                 Spacer()
@@ -85,7 +85,7 @@ struct OrderView: View {
                         }
 
                         PrimaryButton(
-                            title: "Cari Mechanic",
+                            title: "Cari Bengkel",
                             iconName: "wrench.and.screwdriver.fill",
                             action: viewModel.createOrder
                         )

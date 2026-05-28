@@ -9,29 +9,24 @@ import SwiftUI
 
 struct BengkelDashboardView: View {
     @ObservedObject var authViewModel: AuthViewModel
-    
+
     @StateObject private var bengkelViewModel = BengkelViewModel()
-    
-    @State private var hasActiveJob: Bool = false
+    @StateObject private var mechanicViewModel = MechanicBiddingViewModel()
+
     @State private var todaysEarnings: Double = 0.0
-    @State private var pendingRequestsCount: Int = 1
-    
-    @State private var incomingJobTitle: String = "Flat Tire - Honda Brio"
-    @State private var incomingJobDistance: Double = 2.4
-    @State private var activeJobTitle: String = "Fixing Flat Tire - Honda Brio"
-    @State private var activeJobStatus: String = "Job is currently in progress..."
-    
+    @State private var selectedOrder: NearbyOrder?
+
     var realShopRating: Double {
         bengkelViewModel.myBengkel?.averageRating ?? 0.0
     }
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                
+
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Provider Dashboard")
+                        Text("Dasbor Penyedia")
                             .font(.title3)
                             .foregroundColor(.gray)
                         Text(bengkelViewModel.myBengkel?.name ?? "Manage Your Shop")
@@ -40,12 +35,12 @@ struct BengkelDashboardView: View {
                     }
                     Spacer()
                 }
-                
+
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Shop Rating")
+                    Text("Penilaian Bengkel")
                         .font(.subheadline)
                         .foregroundColor(.gray)
-                    
+
                     if bengkelViewModel.isLoading && bengkelViewModel.myBengkel == nil {
                         ProgressView()
                     } else {
@@ -53,12 +48,12 @@ struct BengkelDashboardView: View {
                             Text(String(format: "%.1f", realShopRating))
                                 .font(.title)
                                 .fontWeight(.bold)
-                            
+
                             StarRatingView(rating: realShopRating)
-                            
+
                             Spacer()
-                            
-                            Text("(\(bengkelViewModel.myBengkel?.totalReviews ?? 0) Reviews)")
+
+                            Text("(\(bengkelViewModel.myBengkel?.totalReviews ?? 0) Ulasan)")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
                         }
@@ -68,22 +63,22 @@ struct BengkelDashboardView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(.systemGray6))
                 .cornerRadius(12)
-                
+
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Today's Earnings")
+                    Text("Pendapatan Hari Ini")
                         .font(.subheadline)
                         .foregroundColor(.gray)
-                    
+
                     HStack {
                         Image(systemName: "banknote.fill")
                             .foregroundColor(.green)
                             .font(.title2)
-                        
+
                         Text(formatToRupiah(todaysEarnings))
                             .font(.title)
                             .fontWeight(.bold)
                             .foregroundColor(.primary)
-                        
+
                         Spacer()
                     }
                 }
@@ -91,8 +86,8 @@ struct BengkelDashboardView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(.systemGray6))
                 .cornerRadius(12)
-                
-                NavigationLink(destination: MechanicBiddingView()) {
+
+                NavigationLink(destination: MechanicBiddingView(viewModel: mechanicViewModel)) {
                     HStack {
                         Image(systemName: "list.bullet.rectangle.portrait.fill")
                             .font(.title2)
@@ -110,100 +105,50 @@ struct BengkelDashboardView: View {
 
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
-                        Text(hasActiveJob ? "Current Active Job" : "Incoming Requests")
+                        Text("Permintaan Masuk")
                             .font(.title2)
                             .fontWeight(.bold)
-                        
+
                         Spacer()
-                        
-                        if !hasActiveJob && pendingRequestsCount > 0 {
-                            Text("\(pendingRequestsCount) Pending")
+
+                        if !mechanicViewModel.orders.isEmpty {
+                            Text("\(mechanicViewModel.orders.count) Pending")
                                 .font(.subheadline)
                                 .foregroundColor(.red)
                                 .fontWeight(.semibold)
                         }
                     }
-                    
-                    if hasActiveJob {
+
+                    if mechanicViewModel.orders.isEmpty {
                         VStack(spacing: 12) {
-                            Image(systemName: "wrench.and.screwdriver.fill")
+                            Image(systemName: "checkmark.circle.fill")
                                 .font(.largeTitle)
-                                .foregroundColor(.blue)
-                                .padding(.bottom, 4)
-                            
-                            Text(activeJobTitle)
-                                .font(.headline)
-                            
-                            Text(activeJobStatus)
+                                .foregroundColor(.gray)
+                            Text("Tidak ada permintaan masuk")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
-                            
-                            Button("Finish Job") {
-                                // ADD LOGIC TO FINISH JOB
-                                withAnimation {
-                                    hasActiveJob = false
-                                    if pendingRequestsCount > 0 {
-                                        pendingRequestsCount -= 1
-                                    }
-                                    todaysEarnings += 150000
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.green)
-                            .padding(.top, 12)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
+                        .padding(.vertical, 30)
                         .background(Color(.systemGray6))
                         .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.blue.opacity(0.3), lineWidth: 2)
-                        )
-                        
                     } else {
-                        if pendingRequestsCount > 0 {
-                            VStack(spacing: 12) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.orange)
-                                    .padding(.bottom, 4)
-                                
-                                Text(incomingJobTitle)
-                                    .font(.headline)
-                                
-                                Text(String(format: "Distance: %.1f km away", incomingJobDistance))
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                                
-                                Button("Accept Job Offer") {
-                                    //ADD LOGIC TO BID PRICE
-                                    withAnimation { hasActiveJob = true }
+                        ForEach(mechanicViewModel.orders.prefix(3)) { order in
+                            let pendingBid = mechanicViewModel.myPendingBids.first(where: { $0.serviceRequestId == order.id })
+                            OrderRequestCard(
+                                order: order,
+                                pendingBid: pendingBid,
+                                onBid: { selectedOrder = order },
+                                onAutoReject: {
+                                    if let bid = pendingBid {
+                                        Task { await mechanicViewModel.rejectBid(bid) }
+                                    }
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .padding(.top, 12)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 24)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(12)
-                        } else {
-                            VStack(spacing: 12) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.gray)
-                                Text("No incoming requests")
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 30)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(12)
+                            )
                         }
                     }
                 }
-                
+
                 Spacer()
             }
             .padding()
@@ -212,12 +157,40 @@ struct BengkelDashboardView: View {
             if let uid = authViewModel.currentUser?.id {
                 await bengkelViewModel.startWatching(uid: uid)
             }
+            await mechanicViewModel.start()
         }
         .onDisappear {
             bengkelViewModel.stopWatching()
         }
+        .sheet(item: $selectedOrder) { order in
+            PlaceBidSheet(minPrice: order.price ?? 0) { price, notes in
+                Task { await mechanicViewModel.placeBid(order: order, price: price, notes: notes) }
+            }
+        }
+        .sheet(item: $mechanicViewModel.newOrderAlert) { order in
+            IncomingJobModal(
+                order: order,
+                onBid: {
+                    mechanicViewModel.newOrderAlert = nil
+                    selectedOrder = order
+                },
+                onDismiss: { mechanicViewModel.newOrderAlert = nil }
+            )
+            .presentationDetents([.medium])
+        }
+        .alert(
+            "Order Diambil",
+            isPresented: Binding(
+                get: { mechanicViewModel.lostBidAlert != nil },
+                set: { if !$0 { mechanicViewModel.lostBidAlert = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { mechanicViewModel.lostBidAlert = nil }
+        } message: {
+            Text(mechanicViewModel.lostBidAlert ?? "")
+        }
     }
-    
+
     private func formatToRupiah(_ amount: Double) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency

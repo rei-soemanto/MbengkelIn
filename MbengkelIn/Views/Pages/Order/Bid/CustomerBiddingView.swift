@@ -25,7 +25,7 @@ struct CustomerBiddingView: View {
             }
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle(viewModel.isSearching ? "Mencari Mekanik" : "Atur Tawaran Anda")
+        .navigationTitle(viewModel.isSearching ? "Mencari Bengkel" : "Atur Tawaran Anda")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             inputPrice = viewModel.customerBidPrice
@@ -140,7 +140,7 @@ struct CustomerBiddingView: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(12)
 
-                    Text("Mechanic akan menawarkan jasanya berdasarkan harga awal yang Anda tentukan. Semakin bersaing harga Anda, semakin cepat mechanic merespons.")
+                    Text("Bengkel akan menawarkan jasanya berdasarkan harga awal yang Anda tentukan. Semakin bersaing harga Anda, semakin cepat bengkel merespons.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .lineSpacing(4)
@@ -193,7 +193,7 @@ struct CustomerBiddingView: View {
                 }) {
                     HStack {
                         Image(systemName: "wrench.and.screwdriver.fill")
-                        Text("Temukan Mekanik")
+                        Text("Temukan Bengkel")
                             .fontWeight(.bold)
                     }
                     .foregroundColor(Color(.systemBackground))
@@ -261,10 +261,10 @@ struct CustomerBiddingView: View {
                                 )
                             
                             VStack(spacing: 8) {
-                                Text("Mencari Mechanic Terbaik...")
+                                Text("Mencari Bengkel Terbaik...")
                                     .font(.headline)
                                     .fontWeight(.bold)
-                                Text("Menunggu mechanic terdekat di sekitar 5km memberikan penawaran terbaik mereka. Mohon tunggu sebentar.")
+                                Text("Menunggu bengkel terdekat di sekitar 5km memberikan penawaran terbaik mereka. Mohon tunggu sebentar.")
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                     .multilineTextAlignment(.center)

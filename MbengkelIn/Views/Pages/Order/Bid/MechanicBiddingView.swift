@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MechanicBiddingView: View {
-    @StateObject private var viewModel = MechanicBiddingViewModel()
+    @ObservedObject var viewModel: MechanicBiddingViewModel
     @State private var selectedOrder: NearbyOrder?
 
     var body: some View {
@@ -44,7 +44,7 @@ struct MechanicBiddingView: View {
         .refreshable { await viewModel.loadOrders() }
         .task { await viewModel.start() }
         .sheet(item: $selectedOrder) { order in
-            PlaceBidSheet { price, notes in
+            PlaceBidSheet(minPrice: order.price ?? 0) { price, notes in
                 Task { await viewModel.placeBid(order: order, price: price, notes: notes) }
             }
         }
@@ -53,6 +53,6 @@ struct MechanicBiddingView: View {
 
 #Preview {
     NavigationStack {
-        MechanicBiddingView()
+        MechanicBiddingView(viewModel: MechanicBiddingViewModel())
     }
 }

@@ -57,7 +57,7 @@ struct OrderTrackingView: View {
             }
             infoCard
         }
-        .navigationTitle("Mechanic Menuju Lokasi")
+        .navigationTitle("Bengkel Menuju Lokasi")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
     }

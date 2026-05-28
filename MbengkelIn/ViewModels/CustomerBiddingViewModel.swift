@@ -166,6 +166,14 @@ class CustomerBiddingViewModel: ObservableObject {
                 .eq("id", value: bid.id)
                 .execute()
 
+            // Reject every other bid on this request so the losing bengkels
+            // have the order removed and get alerted (realtime on their side).
+            try await supabase.from("bids")
+                .update(BidStatusUpdate(status: "AutoRejected"))
+                .eq("service_request_id", value: serviceRequestId)
+                .neq("id", value: bid.id)
+                .execute()
+
             try await supabase.from("service_requests")
                 .update(BengkelUpdate(bengkel_id: bid.bengkelId, status: "On Progress"))
                 .eq("id", value: serviceRequestId)

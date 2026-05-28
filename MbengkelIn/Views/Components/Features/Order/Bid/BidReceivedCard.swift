@@ -32,7 +32,7 @@ struct BidReceivedCard: View {
                     .clipShape(Circle())
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(bid.bengkel?.name ?? "Mekanik Terdekat")
+                    Text(bid.bengkel?.name ?? "Bengkel Terdekat")
                         .font(.headline)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)

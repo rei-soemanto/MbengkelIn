@@ -68,7 +68,7 @@ class AuthViewModel: ObservableObject {
             
             try await authService.signOut()
             self.userSession = nil
-            self.successMessage = "Registration successful! Please check your email to activate account."
+            self.successMessage = "Pendaftaran berhasil! Silakan periksa email Anda untuk mengaktifkan akun."
             
         } catch {
             self.errorMessage = error.localizedDescription
@@ -100,7 +100,7 @@ class AuthViewModel: ObservableObject {
         guard let email = currentUser?.email else { return }
         do {
             try await authService.resetPassword(email: email)
-            self.successMessage = "Password reset email sent. Please check your inbox."
+            self.successMessage = "Email reset kata sandi terkirim. Silakan periksa kotak masuk Anda."
         } catch {
             self.errorMessage = error.localizedDescription
         }

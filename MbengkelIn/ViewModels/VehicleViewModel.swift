@@ -27,7 +27,7 @@ class VehicleViewModel: ObservableObject {
             let fetchedVehicles = try await vehicleRepository.fetchVehicles(customerId: uid)
             self.userVehicles = fetchedVehicles
         } catch {
-            print("Failed to fetch vehicles: \(error)")
+            print("Gagal memuat kendaraan: \(error)")
         }
     }
     
@@ -81,7 +81,7 @@ class VehicleViewModel: ObservableObject {
             try await vehicleRepository.updateVehicle(vehicleId: vehicleId, payload: payload)
                 
             await fetchVehicles()
-            self.successMessage = "Vehicle updated successfully!"
+            self.successMessage = "Kendaraan berhasil diperbarui!"
             isLoading = false
             return true
         } catch {
@@ -96,7 +96,7 @@ class VehicleViewModel: ObservableObject {
             try await vehicleRepository.deleteVehicle(vehicleId: vehicleId)
             await fetchVehicles()
         } catch {
-            print("Failed to delete vehicle: \(error)")
+            print("Gagal menghapus kendaraan: \(error)")
         }
     }
 }

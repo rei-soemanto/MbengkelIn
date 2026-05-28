@@ -61,7 +61,7 @@ struct UpdateBengkelView: View {
                                 .foregroundColor(.primary)
                                 .font(.title2)
 
-                            TextField("Bengkel Name", text: $name)
+                            TextField("Nama Bengkel", text: $name)
                                 .font(.body)
                                 .foregroundColor(.primary)
                         }
@@ -96,7 +96,7 @@ struct UpdateBengkelView: View {
                                     ProgressView()
                                         .progressViewStyle(CircularProgressViewStyle(tint: Color(.systemBackground)))
                                 }
-                                Text("Save Changes")
+                                Text("Simpan Perubahan")
                                     .font(.headline)
                             }
                             .foregroundColor(Color(.systemBackground))

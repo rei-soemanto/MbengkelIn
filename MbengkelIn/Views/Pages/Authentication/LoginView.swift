@@ -35,7 +35,7 @@ struct LoginView: View {
                             .font(.largeTitle)
                             .fontWeight(.bold)
                         
-                        Text("Professional roadside assistance and mechanical services at your fingertips.")
+                        Text("Bantuan darurat di jalan dan layanan bengkel profesional dalam genggaman Anda.")
                             .font(.subheadline)
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
@@ -68,7 +68,7 @@ struct LoginView: View {
                     Button {
                         Task { await authViewModel.login(email: email, password: password) }
                     } label: {
-                        Text("Sign In")
+                        Text("Masuk")
                             .font(.headline)
                             .foregroundColor(Color(.systemBackground))
                             .frame(maxWidth: .infinity)
@@ -82,9 +82,9 @@ struct LoginView: View {
                     
                     NavigationLink(destination: RegistrationView(authViewModel: authViewModel)) {
                         HStack(spacing: 4) {
-                            Text("Don't have an account?")
+                            Text("Belum punya akun?")
                                 .foregroundColor(.gray)
-                            Text("Sign Up")
+                            Text("Daftar")
                                 .fontWeight(.bold)
                                 .foregroundColor(Color.primary.opacity(0.9))
                         }

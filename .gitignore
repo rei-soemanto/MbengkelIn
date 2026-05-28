@@ -1,3 +1,6 @@
+# /restart-all build output
+build/
+
 .build/api-docs/
 .build/docs/
 .build/symbol-graphs-raw/

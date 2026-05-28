@@ -36,7 +36,7 @@ struct RegistrationView: View {
                         .font(.largeTitle)
                         .fontWeight(.bold)
                     
-                    Text("Professional roadside assistance and mechanical services at your fingertips.")
+                    Text("Bantuan darurat di jalan dan layanan bengkel profesional dalam genggaman Anda.")
                         .font(.subheadline)
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
@@ -71,7 +71,7 @@ struct RegistrationView: View {
                         }
                     }
                 } label: {
-                    Text("Sign Up")
+                    Text("Daftar")
                         .font(.headline)
                         .foregroundColor(Color(.systemBackground))
                         .frame(maxWidth: .infinity)
@@ -86,9 +86,9 @@ struct RegistrationView: View {
                 
                 Button { dismiss() } label: {
                     HStack(spacing: 4) {
-                        Text("Already have an account?")
+                        Text("Sudah punya akun?")
                             .foregroundColor(.gray)
-                        Text("Sign In")
+                        Text("Masuk")
                             .fontWeight(.bold)
                             .foregroundColor(Color.primary.opacity(0.9))
                     }

@@ -15,15 +15,15 @@ struct PaymentPlaceholderView: View {
             Image(systemName: "creditcard")
                 .font(.system(size: 50))
                 .foregroundColor(.blue)
-            Text("Payment Management")
+            Text("Manajemen Pembayaran")
                 .font(.title2)
                 .fontWeight(.semibold)
                 .padding(.top)
-            Text("Top-up and balance history will be built by Bryan.")
+            Text("Riwayat top up dan saldo akan dibuat oleh Bryan.")
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
                 .padding()
         }
-        .navigationTitle("Payment")
+        .navigationTitle("Pembayaran")
     }
 }
