@@ -34,7 +34,6 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
     private let locationManager = CLLocationManager()
     private var cancellables = Set<AnyCancellable>()
     private var realtimeChannel: RealtimeChannelV2?
-    private var pollingTask: Task<Void, Never>?
     
     override init() {
         super.init()
@@ -205,7 +204,7 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
     }
 
     // Loads the bengkel once, then keeps its status (e.g. Pending -> Verified)
-    // live via a realtime subscription + polling fallback. Avoids needing a relog.
+    // live via a realtime subscription. Avoids needing a relog.
     func startWatching(uid: String) async {
         await fetchMyBengkel(uid: uid)
         startRealtimeSubscription(uid: uid)
@@ -232,23 +231,6 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
             }
         }
 
-        startPolling(uid: uid)
-    }
-
-    private func startPolling(uid: String) {
-        stopPolling()
-        pollingTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
-                guard !Task.isCancelled else { break }
-                await self?.refreshBengkelQuietly(uid: uid)
-            }
-        }
-    }
-
-    private func stopPolling() {
-        pollingTask?.cancel()
-        pollingTask = nil
     }
 
     func stopWatching() {
@@ -258,7 +240,6 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
             }
             realtimeChannel = nil
         }
-        stopPolling()
     }
 
     // Background refresh that does NOT toggle isLoading (prevents spinner flicker).

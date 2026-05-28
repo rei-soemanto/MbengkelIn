@@ -116,7 +116,7 @@ Always use `.lowercased()` when filtering by user ID.
 
 ### Realtime Subscriptions
 
-Used in bidding ViewModels for live updates on `bids` and `service_requests` tables. Pattern:
+All live updates use a **true Supabase Realtime connection** (`postgresChange`). **Do NOT use polling** — never add `Task.sleep` refresh loops, timers, or "poll every N seconds" fallbacks. If data is not updating live, fix the realtime prerequisites below rather than reaching for a poll.
 
 ```swift
 let channel = supabase.channel("channel-name")
@@ -129,7 +129,11 @@ Task {
 }
 ```
 
-Polling fallback (3–5 second intervals) is always added alongside realtime for robustness.
+**For realtime to actually deliver events, BOTH must hold:**
+1. **Publication** — the table must be in the `supabase_realtime` publication: `alter publication supabase_realtime add table public.<table>;`
+2. **RLS** — Realtime enforces RLS per subscriber, so the subscribing user must be able to `SELECT` the changed rows. If a user must receive rows they don't own (e.g. a mechanic receiving other customers' open orders), add a policy that grants that read.
+
+Always tear down channels on view `.onDisappear` / VM `deinit` via `supabase.removeChannel(channel)`.
 
 ---
 

@@ -12,7 +12,6 @@ class MechanicBiddingViewModel: ObservableObject {
     @Published var successMessage: String?
 
     private var realtimeChannel: RealtimeChannelV2?
-    private var pollingTask: Task<Void, Never>?
     private let notificationService = NotificationService()
     private var knownOrderIds: Set<String> = []
     private var didInitialLoad = false
@@ -88,24 +87,6 @@ class MechanicBiddingViewModel: ObservableObject {
             }
         }
         
-        // Add polling as a robust fallback
-        startPolling()
-    }
-
-    private func startPolling() {
-        stopPolling()
-        pollingTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
-                guard !Task.isCancelled else { break }
-                await self?.loadOrders()
-            }
-        }
-    }
-
-    private func stopPolling() {
-        pollingTask?.cancel()
-        pollingTask = nil
     }
 
     func stopRealtimeSubscription() {
@@ -115,7 +96,6 @@ class MechanicBiddingViewModel: ObservableObject {
             }
             realtimeChannel = nil
         }
-        stopPolling()
     }
 
     func loadOrders() async {

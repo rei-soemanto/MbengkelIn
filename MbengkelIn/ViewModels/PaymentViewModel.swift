@@ -37,7 +37,6 @@ class PaymentViewModel: ObservableObject {
     private let paymentService = PaymentService()
 
     private var realtimeChannel: RealtimeChannelV2?
-    private var pollingTask: Task<Void, Never>?
 
     deinit {
         if let channel = realtimeChannel {
@@ -86,24 +85,6 @@ class PaymentViewModel: ObservableObject {
             }
         }
 
-        // Polling fallback (matches bidding VMs) for when realtime replication is off.
-        startPolling()
-    }
-
-    private func startPolling() {
-        stopPolling()
-        pollingTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
-                guard !Task.isCancelled else { break }
-                await self?.refresh()
-            }
-        }
-    }
-
-    private func stopPolling() {
-        pollingTask?.cancel()
-        pollingTask = nil
     }
 
     func stop() {
@@ -113,7 +94,6 @@ class PaymentViewModel: ObservableObject {
             }
             realtimeChannel = nil
         }
-        stopPolling()
     }
 
     func refresh() async {
@@ -219,19 +199,8 @@ class PaymentViewModel: ObservableObject {
     }
 
     // Called when the Midtrans WebView sheet is dismissed. The webhook credits
-    // the balance asynchronously, so poll a few times before refreshing.
+    // the balance asynchronously; the realtime topups subscription reflects it live.
     func paymentFlowFinished() async {
-        guard let orderId = currentOrderId else {
-            await refresh()
-            return
-        }
-        for _ in 0..<6 {
-            if let topup = try? await topupRepository.fetchTopup(orderId: orderId),
-               topup.status.lowercased() != "pending" {
-                break
-            }
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-        }
         currentOrderId = nil
         await refresh()
     }

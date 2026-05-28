@@ -21,7 +21,6 @@ class CustomerBiddingViewModel: ObservableObject {
     let longitude: Double
 
     private var realtimeChannel: RealtimeChannelV2?
-    private var pollingTask: Task<Void, Never>?
 
     let serviceMinPrices: [String: Int] = [
         "Engine": 100000,
@@ -126,24 +125,6 @@ class CustomerBiddingViewModel: ObservableObject {
             }
         }
         
-        // Add polling as a robust fallback in case database replication is disabled
-        startPolling()
-    }
-
-    private func startPolling() {
-        stopPolling()
-        pollingTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-                guard !Task.isCancelled else { break }
-                await self?.loadReceivedBids()
-            }
-        }
-    }
-
-    private func stopPolling() {
-        pollingTask?.cancel()
-        pollingTask = nil
     }
 
     func stopRealtimeSubscription() {
@@ -153,7 +134,6 @@ class CustomerBiddingViewModel: ObservableObject {
             }
             realtimeChannel = nil
         }
-        stopPolling()
     }
 
     func loadReceivedBids() async {

@@ -10,13 +10,4 @@ class TopupRepository {
             .execute()
             .value
     }
-
-    func fetchTopup(orderId: String) async throws -> Topup {
-        return try await supabase.from("topups")
-            .select()
-            .eq("order_id", value: orderId)
-            .single()
-            .execute()
-            .value
-    }
 }
