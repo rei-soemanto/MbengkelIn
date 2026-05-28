@@ -12,6 +12,8 @@ extension Int {
 struct PaymentView: View {
     @StateObject private var viewModel = PaymentViewModel()
     @State private var customAmount: String = ""
+    @State private var showBankSheet = false
+    @State private var showWithdrawSheet = false
 
     private var enteredAmount: Int { Int(customAmount) ?? 0 }
 
@@ -21,7 +23,9 @@ struct PaymentView: View {
                 VStack(spacing: 24) {
                     balanceCard
                     topUpSection
+                    withdrawSection
                     historySection
+                    withdrawalHistorySection
                 }
                 .padding()
             }
@@ -35,6 +39,12 @@ struct PaymentView: View {
                     Task { await viewModel.paymentFlowFinished() }
                 }
             }
+            .sheet(isPresented: $showBankSheet) {
+                BankDetailsView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showWithdrawSheet) {
+                WithdrawView(viewModel: viewModel)
+            }
             .loadingOverlay(phase: viewModel.isLoading ? .loading(message: "Memproses...") : .idle)
             .alert("Terjadi Kesalahan", isPresented: Binding(
                 get: { viewModel.errorMessage != nil },
@@ -43,6 +53,14 @@ struct PaymentView: View {
                 Button("OK", role: .cancel) { viewModel.errorMessage = nil }
             } message: {
                 Text(viewModel.errorMessage ?? "")
+            }
+            .alert("Berhasil", isPresented: Binding(
+                get: { viewModel.successMessage != nil },
+                set: { if !$0 { viewModel.successMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { viewModel.successMessage = nil }
+            } message: {
+                Text(viewModel.successMessage ?? "")
             }
         }
     }
@@ -106,6 +124,49 @@ struct PaymentView: View {
         }
     }
 
+    private var withdrawSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Tarik Saldo").font(.headline)
+
+            if viewModel.hasBankDetails {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(viewModel.bankName) — \(viewModel.bankAccountName)")
+                        .font(.subheadline)
+                    Text(viewModel.bankAccountNumber)
+                        .font(.caption).foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+
+                HStack(spacing: 12) {
+                    Button { showBankSheet = true } label: {
+                        Text("Ubah Rekening")
+                            .font(.subheadline).fontWeight(.semibold)
+                            .frame(maxWidth: .infinity).padding()
+                            .background(Color(.systemGray6)).foregroundColor(.primary)
+                            .cornerRadius(12)
+                    }
+                    Button { showWithdrawSheet = true } label: {
+                        Text("Tarik Saldo")
+                            .font(.subheadline).fontWeight(.semibold)
+                            .frame(maxWidth: .infinity).padding()
+                            .background(Color.primary.opacity(0.9)).foregroundColor(Color(.systemBackground))
+                            .cornerRadius(12)
+                    }
+                }
+            } else {
+                Button { showBankSheet = true } label: {
+                    Text("Atur Rekening Bank")
+                        .font(.headline).foregroundColor(Color(.systemBackground))
+                        .frame(maxWidth: .infinity).padding()
+                        .background(Color.primary.opacity(0.9)).cornerRadius(16)
+                }
+            }
+        }
+    }
+
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Riwayat Top Up").font(.headline)
@@ -127,6 +188,23 @@ struct PaymentView: View {
                     } else {
                         TopupHistoryRow(topup: topup)
                     }
+                }
+            }
+        }
+    }
+
+    private var withdrawalHistorySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Riwayat Penarikan").font(.headline)
+            if viewModel.withdrawals.isEmpty {
+                Text("Belum ada penarikan.")
+                    .foregroundColor(.secondary)
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
+            } else {
+                ForEach(viewModel.withdrawals) { withdrawal in
+                    WithdrawalHistoryRow(withdrawal: withdrawal)
                 }
             }
         }

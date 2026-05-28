@@ -32,6 +32,13 @@ class UserRepository {
             .execute()
     }
     
+    func updateBankDetails(uid: String, payload: BankDetailsUpdatePayload) async throws {
+        try await supabase.from("users")
+            .update(payload)
+            .eq("id", value: uid)
+            .execute()
+    }
+    
     func deleteUser(uid: String) async throws {
         try await supabase.from("users")
             .delete()

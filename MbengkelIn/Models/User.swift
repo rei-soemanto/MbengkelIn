@@ -15,6 +15,9 @@ struct User: Codable, Identifiable {
     var email: String?
     var phoneNumber: String?
     var role: String
+    var bankName: String?
+    var bankAccountNumber: String?
+    var bankAccountName: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -22,5 +25,8 @@ struct User: Codable, Identifiable {
         case profileImageUrl = "profile_image_url"
         case balance
         case role
+        case bankName = "bank_name"
+        case bankAccountNumber = "bank_account_number"
+        case bankAccountName = "bank_account_name"
     }
 }
