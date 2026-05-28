@@ -13,6 +13,9 @@ class MechanicBiddingViewModel: ObservableObject {
 
     private var realtimeChannel: RealtimeChannelV2?
     private var pollingTask: Task<Void, Never>?
+    private let notificationService = NotificationService()
+    private var knownOrderIds: Set<String> = []
+    private var didInitialLoad = false
 
 
     deinit {
@@ -27,6 +30,7 @@ class MechanicBiddingViewModel: ObservableObject {
     func start() async {
         isLoading = true
         errorMessage = nil
+        notificationService.requestAuthorization()
         do {
             let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
             let fetched: Bengkel = try await supabase.from("bengkels")
@@ -141,7 +145,23 @@ class MechanicBiddingViewModel: ObservableObject {
             self.myPendingBids = allMyBids.filter { $0.status.lowercased() == "pending" }
 
             // Filter out orders that have a rejected bid from this bengkel
-            self.orders = nearbyOrders.filter { !rejectedRequestIds.contains($0.id) }
+            let filteredOrders = nearbyOrders.filter { !rejectedRequestIds.contains($0.id) }
+
+            // Notify for orders that appeared after we started watching (not the first load).
+            let currentIds = Set(filteredOrders.map { $0.id })
+            if didInitialLoad {
+                for order in filteredOrders where !knownOrderIds.contains(order.id) {
+                    let meters = Int(order.distanceM ?? 0)
+                    notificationService.notifyNewOrder(
+                        title: "Order baru di sekitar!",
+                        body: "\(order.description ?? order.serviceType ?? "Permintaan servis") • \(meters) m"
+                    )
+                }
+            }
+            knownOrderIds = currentIds
+            didInitialLoad = true
+
+            self.orders = filteredOrders
         } catch {
             self.errorMessage = error.localizedDescription
         }
