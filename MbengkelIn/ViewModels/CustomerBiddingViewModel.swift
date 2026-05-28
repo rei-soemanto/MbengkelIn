@@ -19,6 +19,13 @@ class CustomerBiddingViewModel: ObservableObject {
     @Published var balance: Double = 0
     @Published var showRetryPrompt = false
     @Published var shouldDismiss = false
+    @Published var searchSecondsRemaining: Int = 0
+
+    var searchTotalSeconds: Int { Int(searchTimeoutSeconds) }
+    var searchProgress: Double {
+        guard searchTotalSeconds > 0 else { return 0 }
+        return Double(searchSecondsRemaining) / Double(searchTotalSeconds)
+    }
     let serviceType: ServiceType
     let latitude: Double
     let longitude: Double
@@ -131,10 +138,14 @@ class CustomerBiddingViewModel: ObservableObject {
         searchCountdownTask?.cancel()
         decisionCountdownTask?.cancel()
         guard bids.isEmpty, acceptedBid == nil else { return }
+        searchSecondsRemaining = searchTotalSeconds
         searchCountdownTask = Task { [weak self] in
             guard let self else { return }
-            try? await Task.sleep(nanoseconds: self.searchTimeoutSeconds * 1_000_000_000)
-            if Task.isCancelled { return }
+            while self.searchSecondsRemaining > 0 {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                if Task.isCancelled { return }
+                self.searchSecondsRemaining -= 1
+            }
             if self.bids.isEmpty && self.acceptedBid == nil && self.isSearching {
                 self.expireSearch()
             }

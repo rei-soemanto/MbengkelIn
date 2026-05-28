@@ -337,7 +337,44 @@ struct CustomerBiddingView: View {
             .refreshable {
                 await viewModel.refresh()
             }
+
+            if viewModel.bids.isEmpty {
+                countdownBar
+            }
         }
+    }
+
+    private var countdownBar: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Label("Mencari bengkel...", systemImage: "dot.radiowaves.left.and.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text(timeString(viewModel.searchSecondsRemaining))
+                    .font(.caption.monospacedDigit().bold())
+                    .foregroundColor(.primary)
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color(.systemGray5))
+                    Capsule()
+                        .fill(Color.primary.opacity(0.9))
+                        .frame(width: geo.size.width * viewModel.searchProgress)
+                        .animation(.linear(duration: 1), value: viewModel.searchProgress)
+                }
+            }
+            .frame(height: 8)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: -2)
+    }
+
+    private func timeString(_ seconds: Int) -> String {
+        String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 
     private func formatToRupiah(_ amount: Int) -> String {
