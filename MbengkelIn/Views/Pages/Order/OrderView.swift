@@ -11,6 +11,9 @@ import CoreLocation
 import PhotosUI
 
 struct OrderView: View {
+    // Pops the whole order flow back to Beranda (e.g. after a cancellation).
+    var popToRoot: () -> Void = {}
+
     @StateObject private var viewModel = OrderViewModel()
     @Environment(\.presentationMode) var presentationMode
 
@@ -130,7 +133,8 @@ struct OrderView: View {
                     serviceType: serviceType,
                     coordinate: viewModel.region.center,
                     tireCount: viewModel.pendingTireCount,
-                    photoUrls: viewModel.pendingPhotoUrls
+                    photoUrls: viewModel.pendingPhotoUrls,
+                    popToRoot: popToRoot
                 )
             }
         }

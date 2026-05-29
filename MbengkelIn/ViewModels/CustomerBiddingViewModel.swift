@@ -34,8 +34,12 @@ class CustomerBiddingViewModel: ObservableObject {
 
     private let searchTimeoutSeconds: UInt64 = 120
     private let decisionTimeoutSeconds: UInt64 = 10
+    // How long a received offer stays valid before it is auto-rejected.
+    private let bidDecisionWindowSeconds: TimeInterval = 120
     private var searchCountdownTask: Task<Void, Never>?
     private var decisionCountdownTask: Task<Void, Never>?
+    // Fires at the nearest pending-offer deadline to auto-reject overdue offers.
+    private var bidExpiryTask: Task<Void, Never>?
 
     private var realtimeChannel: RealtimeChannelV2?
     private let userRepository = UserRepository()
@@ -68,6 +72,7 @@ class CustomerBiddingViewModel: ObservableObject {
     deinit {
         searchCountdownTask?.cancel()
         decisionCountdownTask?.cancel()
+        bidExpiryTask?.cancel()
         if let channel = realtimeChannel {
             let client = supabase
             Task {
@@ -154,6 +159,8 @@ class CustomerBiddingViewModel: ObservableObject {
                 if Task.isCancelled { return }
                 self.searchSecondsRemaining -= 1
             }
+            if Task.isCancelled { return }
+            self.searchCountdownTask = nil
             if self.bids.isEmpty && self.acceptedBid == nil && self.isSearching {
                 self.expireSearch()
             }
@@ -183,6 +190,8 @@ class CustomerBiddingViewModel: ObservableObject {
         showRetryPrompt = false
         searchCountdownTask?.cancel()
         decisionCountdownTask?.cancel()
+        bidExpiryTask?.cancel()
+        bidExpiryTask = nil
         isSearching = false
     }
 
@@ -190,6 +199,8 @@ class CustomerBiddingViewModel: ObservableObject {
         showRetryPrompt = false
         searchCountdownTask?.cancel()
         decisionCountdownTask?.cancel()
+        bidExpiryTask?.cancel()
+        bidExpiryTask = nil
         stopRealtimeSubscription()
         if let id = serviceRequestId, bids.isEmpty {
             try? await orderRepository.deleteOrder(id: id)
@@ -258,10 +269,22 @@ class CustomerBiddingViewModel: ObservableObject {
             didLoadBidsOnce = true
 
             self.bids = pending
-            if !self.bids.isEmpty {
+            if pending.isEmpty {
+                // Offers drained (all rejected/expired): stop the deadline watcher
+                // and, if still searching, resume the search countdown so the flow
+                // keeps moving instead of freezing on a stuck timer.
+                bidExpiryTask?.cancel()
+                bidExpiryTask = nil
+                if isSearching, acceptedBid == nil, !showRetryPrompt, searchCountdownTask == nil {
+                    startSearchCountdown()
+                }
+            } else {
+                // Offers present: pause the search countdown, arm the auto-reject watcher.
                 searchCountdownTask?.cancel()
+                searchCountdownTask = nil
                 decisionCountdownTask?.cancel()
                 showRetryPrompt = false
+                scheduleBidExpiry()
             }
             if let accepted = fetched.first(where: { $0.status.lowercased() == "accepted" }) {
                 self.acceptedBid = accepted
@@ -354,5 +377,54 @@ class CustomerBiddingViewModel: ObservableObject {
         } catch {
             self.errorMessage = error.localizedDescription
         }
+    }
+
+    // Arms one timer that fires at the soonest pending-offer deadline.
+    private func scheduleBidExpiry() {
+        bidExpiryTask?.cancel()
+        let deadlines = bids.compactMap { bid -> Date? in
+            guard bid.status.lowercased() == "pending",
+                  let s = bid.createdAt, let created = Self.parseISODate(s) else { return nil }
+            return created.addingTimeInterval(bidDecisionWindowSeconds)
+        }
+        guard let next = deadlines.min() else { return }
+        let delay = max(0, next.timeIntervalSinceNow)
+        bidExpiryTask = Task { [weak self] in
+            if delay > 0 { try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
+            if Task.isCancelled { return }
+            await self?.expireOverdueBids()
+        }
+    }
+
+    // Auto-rejects every pending offer whose decision window has elapsed.
+    private func expireOverdueBids() async {
+        let now = Date()
+        let overdue = bids.filter { bid in
+            guard bid.status.lowercased() == "pending",
+                  let s = bid.createdAt, let created = Self.parseISODate(s) else { return false }
+            return now.timeIntervalSince(created) >= bidDecisionWindowSeconds
+        }
+        guard !overdue.isEmpty else { scheduleBidExpiry(); return } // woke early -> re-arm
+        for bid in overdue {
+            try? await supabase.from("bids")
+                .update(BidStatusUpdate(status: "Expired"))
+                .eq("id", value: bid.id)
+                .execute()
+        }
+        await loadReceivedBids() // re-arms watcher, or resumes search if none remain
+    }
+
+    // Supabase timestamps carry up to 6 fractional digits; add a strip-fallback.
+    static func parseISODate(_ s: String) -> Date? {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: s) { return d }
+        f.formatOptions = [.withInternetDateTime]
+        if let d = f.date(from: s) { return d }
+        if let r = s.range(of: #"\.\d+"#, options: .regularExpression) {
+            f.formatOptions = [.withInternetDateTime]
+            return f.date(from: s.replacingCharacters(in: r, with: ""))
+        }
+        return nil
     }
 }

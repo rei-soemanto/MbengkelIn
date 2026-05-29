@@ -14,9 +14,6 @@ struct ContentView: View {
     @State private var bidOrder: NearbyOrder?
     @Environment(\.scenePhase) private var scenePhase
 
-    // PROVIDER accounts can operate as either a customer or a bengkel. The mode
-    // is global (AuthViewModel.appMode) and toggled once here, above the tabs —
-    // the individual tabs no longer carry their own duplicated picker.
     private var isProvider: Bool { authViewModel.currentUser?.role == "PROVIDER" }
     private var isBengkelMode: Bool { isProvider && authViewModel.appMode == .bengkel }
 

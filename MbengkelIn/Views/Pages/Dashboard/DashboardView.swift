@@ -7,18 +7,32 @@
 
 import SwiftUI
 
+// Routes pushed onto the customer dashboard's navigation stack. Driving the
+// order flow through a path (rather than a plain NavigationLink) lets the
+// bidding screen pop all the way back to Beranda when an order is cancelled.
+enum DashboardRoute: Hashable {
+    case createOrder
+}
+
 struct DashboardView: View {
     @ObservedObject var authViewModel: AuthViewModel
     @ObservedObject var bengkelBiddingViewModel: BengkelBiddingViewModel
     @State private var recentOrders: [String] = []
-    
+    @State private var path = NavigationPath()
+
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             VStack(spacing: 0) {
                 if authViewModel.appMode == .customer || authViewModel.currentUser?.role != "PROVIDER" {
                     customerDashboard
                 } else {
                     BengkelDashboardView(authViewModel: authViewModel, bengkelBiddingViewModel: bengkelBiddingViewModel)
+                }
+            }
+            .navigationDestination(for: DashboardRoute.self) { route in
+                switch route {
+                case .createOrder:
+                    OrderView(popToRoot: { path = NavigationPath() })
                 }
             }
         }
@@ -39,7 +53,7 @@ struct DashboardView: View {
                     Spacer()
                 }
 
-                NavigationLink(destination: OrderView()) {
+                NavigationLink(value: DashboardRoute.createOrder) {
                                     HStack {
                                         Image(systemName: "wrench.and.screwdriver.fill")
                                             .font(.largeTitle)

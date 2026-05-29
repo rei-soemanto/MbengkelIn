@@ -102,9 +102,6 @@ struct ActiveBiddingView: View {
                     },
                     onReject: {
                         Task { await viewModel.rejectBid(bid) }
-                    },
-                    onExpire: {
-                        Task { await viewModel.expireBid(bid) }
                     }
                 )
                 .padding(.horizontal)

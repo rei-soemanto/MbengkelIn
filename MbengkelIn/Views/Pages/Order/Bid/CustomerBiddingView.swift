@@ -9,10 +9,13 @@ import SwiftUI
 import CoreLocation
 
 struct CustomerBiddingView: View {
-    @StateObject private var viewModel: CustomerBiddingViewModel
-    @Environment(\.dismiss) private var dismiss
+    // Pops the whole order flow back to Beranda when the order is cancelled.
+    var popToRoot: () -> Void = {}
 
-    init(serviceType: ServiceType, coordinate: CLLocationCoordinate2D, tireCount: Int = 1, photoUrls: [String] = []) {
+    @StateObject private var viewModel: CustomerBiddingViewModel
+
+    init(serviceType: ServiceType, coordinate: CLLocationCoordinate2D, tireCount: Int = 1, photoUrls: [String] = [], popToRoot: @escaping () -> Void = {}) {
+        self.popToRoot = popToRoot
         _viewModel = StateObject(wrappedValue: CustomerBiddingViewModel(
             serviceType: serviceType,
             latitude: coordinate.latitude,
@@ -78,7 +81,7 @@ struct CustomerBiddingView: View {
             Text("Pesanan akan dibatalkan otomatis dalam 10 detik jika tidak ada pilihan.")
         }
         .onChange(of: viewModel.shouldDismiss) { dismissNow in
-            if dismissNow { dismiss() }
+            if dismissNow { popToRoot() }
         }
     }
 }
