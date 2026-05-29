@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Supabase
 
 struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
@@ -46,6 +47,13 @@ struct ContentView: View {
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 Task { await bengkelBiddingViewModel.refreshOnForeground() }
+            }
+        }
+        .task(id: authViewModel.userSession?.id) {
+            if let uid = authViewModel.userSession?.id.uuidString.lowercased() {
+                WatchSessionManager.shared.startObserving(customerId: uid)
+            } else {
+                WatchSessionManager.shared.stop()
             }
         }
     }

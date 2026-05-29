@@ -74,4 +74,44 @@ class OrderRepository {
         .execute()
         .value
     }
+
+    // MARK: Watch companion support
+
+    func fetchActiveOrder(customerId: String) async throws -> NearbyOrder? {
+        let orders: [NearbyOrder] = try await supabase.from("service_requests")
+            .select()
+            .eq("customer_id", value: customerId)
+            .in("status", values: ["To Do", "On Progress", "Done"])
+            .order("created_at", ascending: false)
+            .limit(1)
+            .execute()
+            .value
+        return orders.first
+    }
+
+    func fetchPendingBids(serviceRequestId: String) async throws -> [Bid] {
+        return try await supabase.from("bids")
+            .select("*, bengkel:bengkels(*)")
+            .eq("service_request_id", value: serviceRequestId)
+            .eq("status", value: "Pending")
+            .order("price", ascending: true)
+            .execute()
+            .value
+    }
+
+    func acceptBid(serviceRequestId: String, bidId: String, bengkelId: String, price: Int) async throws {
+        try await supabase.from("bids")
+            .update(BidStatusUpdate(status: "Accepted"))
+            .eq("id", value: bidId)
+            .execute()
+        try await supabase.from("bids")
+            .update(BidStatusUpdate(status: "AutoRejected"))
+            .eq("service_request_id", value: serviceRequestId)
+            .neq("id", value: bidId)
+            .execute()
+        try await supabase.from("service_requests")
+            .update(AcceptOrderPayload(bengkel_id: bengkelId, status: "On Progress", price: price))
+            .eq("id", value: serviceRequestId)
+            .execute()
+    }
 }
