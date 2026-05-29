@@ -13,6 +13,7 @@ struct BengkelRouteView: View {
     let order: NearbyOrder
 
     @StateObject private var viewModel = BengkelRouteViewModel()
+    @StateObject private var chatWatch: ChatWatchViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var region: MKCoordinateRegion
     @State private var didFitBoth = false
@@ -22,6 +23,10 @@ struct BengkelRouteView: View {
         _region = State(initialValue: MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: order.latitude, longitude: order.longitude),
             span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+        ))
+        _chatWatch = StateObject(wrappedValue: ChatWatchViewModel(
+            serviceRequestId: order.id,
+            counterpartName: order.customerName ?? "Pelanggan"
         ))
     }
 
@@ -60,8 +65,12 @@ struct BengkelRouteView: View {
             }
         }
         .task { await viewModel.start(order: order) }
+        .task { await chatWatch.start() }
         .onChange(of: viewModel.bengkelCoordinate?.latitude) { _ in fitBothIfNeeded() }
-        .onDisappear { viewModel.stop() }
+        .onDisappear {
+            viewModel.stop()
+            chatWatch.stop()
+        }
     }
 
     private var pins: [TrackingPin] {
@@ -113,6 +122,9 @@ struct BengkelRouteView: View {
                 NavigationLink(destination: ChatView(serviceRequestId: order.id, title: order.customerName ?? "Pelanggan")) {
                     HStack {
                         Image(systemName: "message.fill")
+                            .overlay(alignment: .topTrailing) {
+                                UnreadBadge(count: chatWatch.unreadCount)
+                            }
                         Text("Chat dengan Pelanggan").fontWeight(.bold)
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -122,6 +134,7 @@ struct BengkelRouteView: View {
                     .background(Color.primary.opacity(0.9))
                     .cornerRadius(12)
                 }
+                .simultaneousGesture(TapGesture().onEnded { chatWatch.markAllRead() })
                 CompleteOrderButton(requestId: order.id, isCustomer: false)
             case "Done":
                 statusLine(text: "Pesanan selesai.", icon: "checkmark.seal.fill", color: .green)

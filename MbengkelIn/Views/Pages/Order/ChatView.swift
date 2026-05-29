@@ -38,6 +38,12 @@ struct ChatView: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .task { await viewModel.start() }
+        .onAppear { ChatPresence.shared.activeServiceRequestId = viewModel.serviceRequestId }
+        .onDisappear {
+            if ChatPresence.shared.activeServiceRequestId == viewModel.serviceRequestId {
+                ChatPresence.shared.activeServiceRequestId = nil
+            }
+        }
         .onChange(of: photoItem) { _, newItem in
             guard let newItem else { return }
             Task {

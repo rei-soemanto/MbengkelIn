@@ -14,6 +14,7 @@ struct OrderTrackingView: View {
     let customerCoordinate: CLLocationCoordinate2D
 
     @StateObject private var trackingViewModel = OrderTrackingViewModel()
+    @StateObject private var chatWatch: ChatWatchViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var region: MKCoordinateRegion
     @State private var showReviewSheet = false
@@ -26,6 +27,10 @@ struct OrderTrackingView: View {
             CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
         }
         _region = State(initialValue: .fitting(customerCoordinate, bengkelCoordinate))
+        _chatWatch = StateObject(wrappedValue: ChatWatchViewModel(
+            serviceRequestId: bid.serviceRequestId,
+            counterpartName: bid.bengkel?.name ?? "Bengkel"
+        ))
     }
 
     var body: some View {
@@ -38,7 +43,9 @@ struct OrderTrackingView: View {
             )
             TrackingInfoCard(
                 bid: bid,
-                isLive: trackingViewModel.providerCoordinate != nil
+                isLive: trackingViewModel.providerCoordinate != nil,
+                unreadCount: chatWatch.unreadCount,
+                onOpenChat: { chatWatch.markAllRead() }
             )
         }
         .navigationTitle("Bengkel Menuju Lokasi")
@@ -55,6 +62,7 @@ struct OrderTrackingView: View {
             }
         }
         .task { await trackingViewModel.start(serviceRequestId: bid.serviceRequestId) }
+        .task { await chatWatch.start() }
         .onChange(of: trackingViewModel.order?.status) { status in
             if status == "Done", !trackingViewModel.alreadyRated, !didPromptReview {
                 didPromptReview = true
@@ -64,7 +72,10 @@ struct OrderTrackingView: View {
         .sheet(isPresented: $showReviewSheet) {
             OrderReviewSheet(requestId: bid.serviceRequestId)
         }
-        .onDisappear { trackingViewModel.stop() }
+        .onDisappear {
+            trackingViewModel.stop()
+            chatWatch.stop()
+        }
     }
 
     private var liveBengkelCoordinate: CLLocationCoordinate2D? {

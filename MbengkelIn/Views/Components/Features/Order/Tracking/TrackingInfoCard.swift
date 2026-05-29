@@ -10,6 +10,8 @@ import SwiftUI
 struct TrackingInfoCard: View {
     let bid: Bid
     let isLive: Bool
+    var unreadCount: Int = 0
+    var onOpenChat: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -30,7 +32,11 @@ struct TrackingInfoCard: View {
                         .padding(12)
                         .background(Color(.systemGray6))
                         .clipShape(Circle())
+                        .overlay(alignment: .topTrailing) {
+                            UnreadBadge(count: unreadCount)
+                        }
                 }
+                .simultaneousGesture(TapGesture().onEnded { onOpenChat() })
             }
             Divider()
             HStack {
