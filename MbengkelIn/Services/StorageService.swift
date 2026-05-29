@@ -41,6 +41,18 @@ class StorageService {
         return publicURL.absoluteString
     }
 
+    func deleteOrderPhotos(urls: [String]) async throws {
+        let bucket = "order-photos"
+        let marker = "/\(bucket)/"
+        let paths = urls.compactMap { url -> String? in
+            guard let range = url.range(of: marker) else { return nil }
+            let path = String(url[range.upperBound...])
+            return path.isEmpty ? nil : path
+        }
+        guard !paths.isEmpty else { return }
+        _ = try await supabase.storage.from(bucket).remove(paths: paths)
+    }
+
     func uploadChatImage(serviceRequestId: String, data: Data) async throws -> String {
         let path = "\(serviceRequestId)/\(UUID().uuidString).jpg"
 

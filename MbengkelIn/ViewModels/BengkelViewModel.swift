@@ -40,7 +40,6 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
         
-        // Debounced search (identical pattern to OrderViewModel)
         $locationAddress
             .debounce(for: .milliseconds(400), scheduler: RunLoop.main)
             .removeDuplicates()
@@ -54,8 +53,6 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
             }
             .store(in: &cancellables)
     }
-    
-    // MARK: - Location Search (OSM Photon)
     
     private func searchOSM(query: String) {
         Task { @MainActor in
@@ -149,8 +146,6 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
             self.isFetchingLocation = false
         }
     }
-    
-    // MARK: - Bengkel CRUD
     
     func registerBengkel(name: String, address: String) async -> Bool {
         isLoading = true
@@ -304,8 +299,6 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
             return false
         }
     }
-
-    // MARK: - Bengkel Services CRUD
 
     func addService(bengkelId: String, serviceType: ServiceType, isActive: Bool) async -> Bool {
         isLoading = true

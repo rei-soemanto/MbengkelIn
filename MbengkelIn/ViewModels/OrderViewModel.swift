@@ -20,10 +20,10 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
     @Published var searchResults: [PhotonSearchFeature] = []
     @Published var errorMessage: String?
     @Published var tireCount: Int = 1
-    @Published var photoData: Data? = nil
+    @Published var photosData: [Data?] = [nil]
     @Published var pendingServiceType: ServiceType? = nil
     @Published var pendingTireCount: Int = 1
-    @Published var pendingPhotoUrl: String? = nil
+    @Published var pendingPhotoUrls: [String] = []
     @Published var navigateToBidding: Bool = false
     @Published var loadingPhase: LoadingPhase = .idle
 
@@ -161,12 +161,18 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
     func selectService(_ service: String) {
         selectedService = service
         tireCount = 1
-        photoData = nil
+        photosData = [nil]
         calculateEstimate()
     }
 
     func setTireCount(_ count: Int) {
-        tireCount = min(4, max(1, count))
+        let clamped = min(4, max(1, count))
+        tireCount = clamped
+        if photosData.count < clamped {
+            photosData.append(contentsOf: Array(repeating: nil, count: clamped - photosData.count))
+        } else if photosData.count > clamped {
+            photosData = Array(photosData.prefix(clamped))
+        }
         calculateEstimate()
     }
 
@@ -185,22 +191,29 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
             self.errorMessage = "Layanan tidak dikenali."
             return
         }
-        if requiresTireCount && photoData == nil {
-            self.errorMessage = "Mohon sertakan foto kondisi ban."
-            return
+        if requiresTireCount {
+            let provided = photosData.compactMap { $0 }
+            guard provided.count == tireCount else {
+                self.errorMessage = "Mohon sertakan \(tireCount) foto kondisi ban (satu per ban)."
+                return
+            }
         }
         self.errorMessage = nil
         loadingPhase = .loading(message: "Mengunggah foto...")
         Task { @MainActor in
             do {
-                var uploadedUrl: String? = nil
-                if let data = photoData {
+                var uploadedUrls: [String] = []
+                let datas = photosData.compactMap { $0 }
+                if !datas.isEmpty {
                     let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
-                    uploadedUrl = try await storageService.uploadOrderPhoto(uid: uid, data: data)
+                    for data in datas {
+                        let url = try await storageService.uploadOrderPhoto(uid: uid, data: data)
+                        uploadedUrls.append(url)
+                    }
                 }
                 self.pendingServiceType = serviceType
                 self.pendingTireCount = requiresTireCount ? tireCount : 1
-                self.pendingPhotoUrl = uploadedUrl
+                self.pendingPhotoUrls = uploadedUrls
                 self.loadingPhase = .idle
                 self.navigateToBidding = true
             } catch {

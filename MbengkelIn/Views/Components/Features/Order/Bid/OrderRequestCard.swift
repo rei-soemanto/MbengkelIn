@@ -57,19 +57,27 @@ struct OrderRequestCard: View {
         .background(Color.primary.opacity(0.08)).cornerRadius(8)
     }
 
+    private var photoUrls: [String] { order.photoUrls ?? [] }
+
     @ViewBuilder
     private var detailRow: some View {
-        if isTireService || order.photoUrl != nil {
-            HStack(spacing: 12) {
+        if isTireService || !photoUrls.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
                 if isTireService, let count = order.tireCount {
                     Label("\(count) ban", systemImage: "circle.dashed")
                         .font(.subheadline).fontWeight(.semibold).foregroundColor(.primary)
                 }
-                Spacer()
-                if let photoUrl = order.photoUrl {
-                    OrderPhotoThumbnail(photoUrl: photoUrl)
+                if !photoUrls.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(photoUrls, id: \.self) { url in
+                                OrderPhotoThumbnail(photoUrl: url)
+                            }
+                        }
+                    }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

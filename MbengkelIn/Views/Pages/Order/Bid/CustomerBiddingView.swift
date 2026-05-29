@@ -1,3 +1,10 @@
+//
+//  OrderTrackingView.swift
+//  MbengkelIn
+//
+//  Created by Bryan Fernando Dinata on 19/05/26.
+//
+
 import SwiftUI
 import CoreLocation
 
@@ -8,13 +15,13 @@ struct CustomerBiddingView: View {
     @State private var priceText: String = ""
     @State private var showError: Bool = false
 
-    init(serviceType: ServiceType, coordinate: CLLocationCoordinate2D, tireCount: Int = 1, photoUrl: String? = nil) {
+    init(serviceType: ServiceType, coordinate: CLLocationCoordinate2D, tireCount: Int = 1, photoUrls: [String] = []) {
         _viewModel = StateObject(wrappedValue: CustomerBiddingViewModel(
             serviceType: serviceType,
             latitude: coordinate.latitude,
             longitude: coordinate.longitude,
             tireCount: tireCount,
-            photoUrl: photoUrl
+            photoUrls: photoUrls
         ))
     }
 
@@ -84,7 +91,6 @@ struct CustomerBiddingView: View {
         }
     }
 
-    // MARK: - Loading Screen
     private var loadingScreen: some View {
         VStack(spacing: 20) {
             ProgressView()
@@ -96,7 +102,6 @@ struct CustomerBiddingView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Price Setup Screen
     private var priceSetupScreen: some View {
         ScrollView {
             VStack(spacing: 24) {

@@ -13,13 +13,11 @@ import PhotosUI
 struct OrderView: View {
     @StateObject private var viewModel = OrderViewModel()
     @Environment(\.presentationMode) var presentationMode
-    @State private var selectedPhoto: PhotosPickerItem?
     @State private var didRequestInitialLocation = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             VStack(spacing: 0) {
-                // ── Map (top, fully visible — never covered by the controls) ──
                 ZStack {
                     OrderMapView(
                         region: $viewModel.region,
@@ -29,8 +27,6 @@ struct OrderView: View {
                         }
                     )
 
-                    // Center marker: the ground dot sits exactly on the map center,
-                    // which is the coordinate that gets saved.
                     VStack(spacing: 0) {
                         Image(systemName: "mappin")
                             .font(.system(size: 40, weight: .bold))
@@ -47,7 +43,6 @@ struct OrderView: View {
                 }
                 .ignoresSafeArea(edges: .top)
 
-                // ── Controls (bottom panel, no overlap with the map) ──
                 VStack(spacing: 0) {
                     LocationInputCard(
                         address: $viewModel.locationAddress,
@@ -76,7 +71,7 @@ struct OrderView: View {
 
                         if viewModel.requiresTireCount {
                             tireCountSection
-                            photoSection
+                            TirePhotoGrid(count: viewModel.tireCount, photos: $viewModel.photosData)
                         }
 
                         if viewModel.estimatedPrice > 0 {
@@ -135,7 +130,7 @@ struct OrderView: View {
                     serviceType: serviceType,
                     coordinate: viewModel.region.center,
                     tireCount: viewModel.pendingTireCount,
-                    photoUrl: viewModel.pendingPhotoUrl
+                    photoUrls: viewModel.pendingPhotoUrls
                 )
             }
         }
@@ -153,18 +148,14 @@ struct OrderView: View {
                 viewModel.useCurrentLocation()
             }
         }
-        .onChange(of: selectedPhoto) { newItem in
-            Task {
-                if let data = try? await newItem?.loadTransferable(type: Data.self) {
-                    viewModel.photoData = data
-                }
-            }
-        }
     }
 
     private var isCreateDisabled: Bool {
         if viewModel.selectedService == nil { return true }
-        if viewModel.requiresTireCount && viewModel.photoData == nil { return true }
+        if viewModel.requiresTireCount {
+            let provided = viewModel.photosData.prefix(viewModel.tireCount).compactMap { $0 }
+            if provided.count < viewModel.tireCount { return true }
+        }
         return false
     }
 
@@ -184,38 +175,6 @@ struct OrderView: View {
                             .background(viewModel.tireCount == count ? Color.primary.opacity(0.9) : Color(.systemGray5))
                             .cornerRadius(12)
                     }
-                }
-            }
-        }
-        .padding(.horizontal)
-    }
-
-    private var photoSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Foto kondisi ban")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                if let data = viewModel.photoData, let uiImage = UIImage(data: data) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(height: 160)
-                        .frame(maxWidth: .infinity)
-                        .clipped()
-                        .cornerRadius(12)
-                } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "camera.fill")
-                            .font(.title2)
-                        Text("Tambahkan foto")
-                            .font(.subheadline)
-                    }
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 120)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(12)
                 }
             }
         }

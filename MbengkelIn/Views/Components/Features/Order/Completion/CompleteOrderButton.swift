@@ -1,7 +1,5 @@
 import SwiftUI
 
-// Dual-confirm completion control. Shown to both the customer and the provider;
-// the order only flips to "Done" once both sides have confirmed (server-enforced).
 struct CompleteOrderButton: View {
     @StateObject private var viewModel: OrderCompletionViewModel
 

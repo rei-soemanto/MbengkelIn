@@ -56,7 +56,6 @@ class OrderRepository {
         return bids.first
     }
 
-    // Marks the caller's side complete; status flips to "Done" only when both sides confirm.
     @discardableResult
     func markOrderCompleted(requestId: String) async throws -> NearbyOrder {
         return try await supabase.rpc(

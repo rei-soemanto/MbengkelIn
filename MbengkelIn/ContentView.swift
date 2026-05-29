@@ -9,8 +9,6 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
-    // Watches for incoming jobs at the root so a provider gets alerted on any
-    // tab (not just while the Bengkel dashboard is on screen).
     @StateObject private var bengkelBiddingViewModel = BengkelBiddingViewModel()
     @State private var bidOrder: NearbyOrder?
 
