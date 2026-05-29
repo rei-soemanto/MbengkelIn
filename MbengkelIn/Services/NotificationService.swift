@@ -29,5 +29,10 @@ class NotificationService {
             trigger: nil // deliver immediately
         )
         UNUserNotificationCenter.current().add(request)
+
+        // Mirror every notification the phone shows onto the paired Apple Watch.
+        Task { @MainActor in
+            WatchSessionManager.shared.forwardNotification(title: title, body: body)
+        }
     }
 }
