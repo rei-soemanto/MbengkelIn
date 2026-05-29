@@ -14,7 +14,7 @@ PROJECT="$PROJECT_DIR/MbengkelIn.xcodeproj"
 DERIVED="$PROJECT_DIR/build"
 
 # Devices to boot. Edit this list to change which 3 simulators start.
-DEVICES=("iPhone 17 Pro" "iPhone 16e" "iPhone Air")
+DEVICES=("iPhone 17 Pro" "iPhone 17e" "iPhone Air")
 # -------------------------------------------------------------------------
 
 echo "==> Shutting down all simulators"

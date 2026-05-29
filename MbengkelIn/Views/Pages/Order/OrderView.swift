@@ -69,7 +69,10 @@ struct OrderView: View {
                         }
 
                         if viewModel.requiresTireCount {
-                            tireCountSection
+                            TireCountSelector(
+                                selectedCount: viewModel.tireCount,
+                                onSelect: { viewModel.setTireCount($0) }
+                            )
                             TirePhotoGrid(count: viewModel.tireCount, photos: $viewModel.photosData)
                         }
 
@@ -101,7 +104,6 @@ struct OrderView: View {
                 .background(Color(.systemBackground))
             }
 
-            // Back button (sibling: stays within the safe area, clear of the status bar)
             Button(action: {
                 presentationMode.wrappedValue.dismiss()
             }) {
@@ -116,7 +118,6 @@ struct OrderView: View {
             .padding(.top, 8)
             .padding(.leading, 20)
 
-            // Address search overlay (covers everything while editing the location)
             if viewModel.isEditingLocation {
                 LocationSearchView(viewModel: viewModel)
                     .transition(.move(edge: .bottom))
@@ -142,9 +143,6 @@ struct OrderView: View {
             onStop: { viewModel.cancelLoading() }
         )
         .onAppear {
-            // Start every order fresh: clear stale state and re-acquire the
-            // current location so an order can't inherit a previous order's
-            // coordinate (or the hard-coded default).
             guard !viewModel.navigateToBidding else { return }
             viewModel.prepareForNewOrder()
             viewModel.useCurrentLocation()
@@ -159,28 +157,6 @@ struct OrderView: View {
             if provided.count < viewModel.tireCount { return true }
         }
         return false
-    }
-
-    private var tireCountSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Berapa ban yang bermasalah?")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            HStack(spacing: 12) {
-                ForEach(1...4, id: \.self) { count in
-                    Button(action: { viewModel.setTireCount(count) }) {
-                        Text("\(count)")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .foregroundColor(viewModel.tireCount == count ? Color(.systemBackground) : .primary)
-                            .background(viewModel.tireCount == count ? Color.primary.opacity(0.9) : Color(.systemGray5))
-                            .cornerRadius(12)
-                    }
-                }
-            }
-        }
-        .padding(.horizontal)
     }
 }
 

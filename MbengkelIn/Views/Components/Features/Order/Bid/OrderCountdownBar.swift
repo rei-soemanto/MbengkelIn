@@ -1,8 +1,6 @@
 import SwiftUI
 import Combine
 
-// Counts down the customer's 2-minute request window from `createdAt`.
-// Fires `onExpire` once when the window elapses.
 struct OrderCountdownBar: View {
     let createdAt: String?
     var onExpire: (() -> Void)? = nil

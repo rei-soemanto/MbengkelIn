@@ -9,14 +9,6 @@ import SwiftUI
 import MapKit
 import CoreLocation
 
-struct TrackingPin: Identifiable {
-    let id: String
-    let coordinate: CLLocationCoordinate2D
-    let label: String
-    let icon: String
-    let tint: Color
-}
-
 struct OrderTrackingView: View {
     let bid: Bid
     let customerCoordinate: CLLocationCoordinate2D
@@ -30,38 +22,24 @@ struct OrderTrackingView: View {
     init(bid: Bid, customerCoordinate: CLLocationCoordinate2D) {
         self.bid = bid
         self.customerCoordinate = customerCoordinate
-        let bLat = bid.bengkel?.latitude ?? customerCoordinate.latitude
-        let bLon = bid.bengkel?.longitude ?? customerCoordinate.longitude
-        let midLat = (customerCoordinate.latitude + bLat) / 2
-        let midLon = (customerCoordinate.longitude + bLon) / 2
-        let latSpan = abs(customerCoordinate.latitude - bLat) * 2.5 + 0.01
-        let lonSpan = abs(customerCoordinate.longitude - bLon) * 2.5 + 0.01
-        _region = State(initialValue: MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: midLat, longitude: midLon),
-            span: MKCoordinateSpan(latitudeDelta: latSpan, longitudeDelta: lonSpan)
-        ))
+        let bengkelCoordinate = bid.bengkel.map {
+            CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+        }
+        _region = State(initialValue: .fitting(customerCoordinate, bengkelCoordinate))
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            Map(coordinateRegion: $region, annotationItems: pins) { item in
-                MapAnnotation(coordinate: item.coordinate) {
-                    VStack(spacing: 2) {
-                        Image(systemName: item.icon)
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(10)
-                            .background(item.tint)
-                            .clipShape(Circle())
-                        Text(item.label)
-                            .font(.caption2.bold())
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Color(.systemBackground))
-                            .cornerRadius(6)
-                    }
-                }
-            }
-            infoCard
+            TrackingMapView(
+                region: $region,
+                customerCoordinate: customerCoordinate,
+                bengkelCoordinate: liveBengkelCoordinate,
+                bengkelName: bid.bengkel?.name ?? "Bengkel"
+            )
+            TrackingInfoCard(
+                bid: bid,
+                isLive: trackingViewModel.providerCoordinate != nil
+            )
         }
         .navigationTitle("Bengkel Menuju Lokasi")
         .navigationBarTitleDisplayMode(.inline)
@@ -78,8 +56,6 @@ struct OrderTrackingView: View {
         }
         .task { await trackingViewModel.start(serviceRequestId: bid.serviceRequestId) }
         .onChange(of: trackingViewModel.order?.status) { status in
-            // The order just settled to Done — prompt the customer for a review
-            // (once), unless they've already rated it.
             if status == "Done", !trackingViewModel.alreadyRated, !didPromptReview {
                 didPromptReview = true
                 showReviewSheet = true
@@ -91,78 +67,12 @@ struct OrderTrackingView: View {
         .onDisappear { trackingViewModel.stop() }
     }
 
-    private var infoCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "wrench.and.screwdriver.fill")
-                    .font(.title2).foregroundColor(.white)
-                    .padding(12).background(Color.primary).clipShape(Circle())
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(bid.bengkel?.name ?? "Bengkel").font(.headline.bold())
-                    Text(bid.bengkel?.address ?? "")
-                        .font(.caption).foregroundColor(.secondary).lineLimit(2)
-                }
-                Spacer()
-                NavigationLink(destination: ChatView(serviceRequestId: bid.serviceRequestId, title: bid.bengkel?.name ?? "Bengkel")) {
-                    Image(systemName: "message.fill")
-                        .font(.title3)
-                        .foregroundColor(.primary)
-                        .padding(12)
-                        .background(Color(.systemGray6))
-                        .clipShape(Circle())
-                }
-            }
-            Divider()
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Harga Disepakati").font(.caption)
-                        .foregroundColor(.secondary).textCase(.uppercase)
-                    Text(formatRupiah(bid.price)).font(.title3.bold())
-                }
-                Spacer()
-                Label(
-                    trackingViewModel.providerCoordinate == nil ? "Sedang menuju" : "Lokasi langsung",
-                    systemImage: trackingViewModel.providerCoordinate == nil ? "location.circle.fill" : "dot.radiowaves.left.and.right"
-                )
-                .font(.caption).foregroundColor(.green)
-            }
-            CompleteOrderButton(requestId: bid.serviceRequestId, isCustomer: true)
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: -2)
-    }
-
-    // Prefer the live published location; fall back to the bengkel's registered
-    // address coordinate before the first live fix arrives.
     private var liveBengkelCoordinate: CLLocationCoordinate2D? {
         if let live = trackingViewModel.providerCoordinate { return live }
         if let lat = bid.bengkel?.latitude, let lon = bid.bengkel?.longitude {
             return CLLocationCoordinate2D(latitude: lat, longitude: lon)
         }
         return nil
-    }
-
-    private var pins: [TrackingPin] {
-        var list = [TrackingPin(id: "you", coordinate: customerCoordinate,
-                                label: "Anda", icon: "person.fill", tint: .blue)]
-        if let coordinate = liveBengkelCoordinate {
-            list.append(TrackingPin(
-                id: "bengkel",
-                // A vehicle icon — the bengkel is en route, not a fixed workshop.
-                coordinate: coordinate,
-                label: bid.bengkel?.name ?? "Bengkel",
-                icon: "car.fill",
-                tint: .primary))
-        }
-        return list
-    }
-
-    private func formatRupiah(_ amount: Int) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .currency; f.currencyCode = "IDR"
-        f.locale = Locale(identifier: "id_ID"); f.maximumFractionDigits = 0
-        return f.string(from: NSNumber(value: amount)) ?? "Rp 0"
     }
 }
 

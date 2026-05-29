@@ -9,9 +9,6 @@ import SwiftUI
 import MapKit
 import CoreLocation
 
-// Bengkel-side route screen, opened right after placing an offer. Shows the
-// bengkel heading toward the customer; carries through to the active order
-// (chat + complete + live location) once the customer accepts.
 struct BengkelRouteView: View {
     let order: NearbyOrder
 
@@ -90,14 +87,7 @@ struct BengkelRouteView: View {
     private func fitBothIfNeeded() {
         guard !didFitBoth, let me = viewModel.bengkelCoordinate else { return }
         didFitBoth = true
-        let midLat = (me.latitude + customerCoordinate.latitude) / 2
-        let midLon = (me.longitude + customerCoordinate.longitude) / 2
-        let latSpan = abs(me.latitude - customerCoordinate.latitude) * 2.5 + 0.01
-        let lonSpan = abs(me.longitude - customerCoordinate.longitude) * 2.5 + 0.01
-        region = MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: midLat, longitude: midLon),
-            span: MKCoordinateSpan(latitudeDelta: latSpan, longitudeDelta: lonSpan)
-        )
+        region = .fitting(customerCoordinate, me)
     }
 
     @ViewBuilder
