@@ -11,14 +11,14 @@ struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
     // Watches for incoming jobs at the root so a provider gets alerted on any
     // tab (not just while the Bengkel dashboard is on screen).
-    @StateObject private var mechanicViewModel = MechanicBiddingViewModel()
+    @StateObject private var bengkelBiddingViewModel = BengkelBiddingViewModel()
     @State private var bidOrder: NearbyOrder?
 
     var body: some View {
         Group {
             if authViewModel.userSession != nil {
                 TabView {
-                    DashboardView(authViewModel: authViewModel, mechanicViewModel: mechanicViewModel)
+                    DashboardView(authViewModel: authViewModel, bengkelBiddingViewModel: bengkelBiddingViewModel)
                         .tabItem {
                             Label("Dashboard", systemImage: "house.fill")
                         }
@@ -40,35 +40,35 @@ struct ContentView: View {
                 }
                 .task(id: authViewModel.currentUser?.role) {
                     if authViewModel.currentUser?.role == "PROVIDER" {
-                        await mechanicViewModel.start()
+                        await bengkelBiddingViewModel.start()
                     }
                 }
-                .sheet(item: $mechanicViewModel.newOrderAlert) { order in
+                .sheet(item: $bengkelBiddingViewModel.newOrderAlert) { order in
                     IncomingJobModal(
                         order: order,
                         onBid: {
-                            mechanicViewModel.newOrderAlert = nil
+                            bengkelBiddingViewModel.newOrderAlert = nil
                             bidOrder = order
                         },
-                        onDismiss: { mechanicViewModel.newOrderAlert = nil }
+                        onDismiss: { bengkelBiddingViewModel.newOrderAlert = nil }
                     )
                     .presentationDetents([.medium])
                 }
                 .sheet(item: $bidOrder) { order in
                     PlaceBidSheet(minPrice: order.price ?? 0) { price, notes in
-                        Task { await mechanicViewModel.placeBid(order: order, price: price, notes: notes) }
+                        Task { await bengkelBiddingViewModel.placeBid(order: order, price: price, notes: notes) }
                     }
                 }
                 .alert(
                     "Order Diambil",
                     isPresented: Binding(
-                        get: { mechanicViewModel.lostBidAlert != nil },
-                        set: { if !$0 { mechanicViewModel.lostBidAlert = nil } }
+                        get: { bengkelBiddingViewModel.lostBidAlert != nil },
+                        set: { if !$0 { bengkelBiddingViewModel.lostBidAlert = nil } }
                     )
                 ) {
-                    Button("OK", role: .cancel) { mechanicViewModel.lostBidAlert = nil }
+                    Button("OK", role: .cancel) { bengkelBiddingViewModel.lostBidAlert = nil }
                 } message: {
-                    Text(mechanicViewModel.lostBidAlert ?? "")
+                    Text(bengkelBiddingViewModel.lostBidAlert ?? "")
                 }
             } else {
                 LoginView(authViewModel: authViewModel)

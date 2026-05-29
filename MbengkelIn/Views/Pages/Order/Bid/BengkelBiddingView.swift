@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct MechanicBiddingView: View {
-    @ObservedObject var viewModel: MechanicBiddingViewModel
+struct BengkelBiddingView: View {
+    @ObservedObject var viewModel: BengkelBiddingViewModel
     @State private var selectedOrder: NearbyOrder?
 
     var body: some View {
@@ -26,12 +26,8 @@ struct MechanicBiddingView: View {
                             onBid: {
                                 selectedOrder = order
                             },
-                            onAutoReject: {
-                                if let bid = pendingBid {
-                                    Task {
-                                        await viewModel.rejectBid(bid)
-                                    }
-                                }
+                            onExpire: {
+                                Task { await viewModel.handleExpiredOrder(order) }
                             }
                         )
                     }
@@ -53,6 +49,6 @@ struct MechanicBiddingView: View {
 
 #Preview {
     NavigationStack {
-        MechanicBiddingView(viewModel: MechanicBiddingViewModel())
+        BengkelBiddingView(viewModel: BengkelBiddingViewModel())
     }
 }

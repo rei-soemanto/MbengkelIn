@@ -3,7 +3,7 @@ import Combine
 import Supabase
 
 @MainActor
-class MechanicBiddingViewModel: ObservableObject {
+class BengkelBiddingViewModel: ObservableObject {
     @Published var orders: [NearbyOrder] = []
     @Published var myBengkel: Bengkel?
     @Published var myPendingBids: [Bid] = []
@@ -205,6 +205,17 @@ class MechanicBiddingViewModel: ObservableObject {
             self.errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    // When an order's 2-minute window elapses, drop it locally and reject any
+    // bid we placed on it. The customer also deletes/expires the row server-side.
+    @MainActor
+    func handleExpiredOrder(_ order: NearbyOrder) async {
+        orders.removeAll { $0.id == order.id }
+        knownOrderIds.remove(order.id)
+        if let bid = myPendingBids.first(where: { $0.serviceRequestId == order.id }) {
+            await rejectBid(bid)
+        }
     }
 
     func rejectBid(_ bid: Bid) async {

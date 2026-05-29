@@ -10,7 +10,7 @@ import SwiftUI
 struct BengkelDashboardView: View {
     @ObservedObject var authViewModel: AuthViewModel
     // Shared with ContentView so watching/notifications run regardless of tab.
-    @ObservedObject var mechanicViewModel: MechanicBiddingViewModel
+    @ObservedObject var bengkelBiddingViewModel: BengkelBiddingViewModel
 
     @StateObject private var bengkelViewModel = BengkelViewModel()
 
@@ -88,7 +88,7 @@ struct BengkelDashboardView: View {
                 .background(Color(.systemGray6))
                 .cornerRadius(12)
 
-                NavigationLink(destination: MechanicBiddingView(viewModel: mechanicViewModel)) {
+                NavigationLink(destination: BengkelBiddingView(viewModel: bengkelBiddingViewModel)) {
                     HStack {
                         Image(systemName: "list.bullet.rectangle.portrait.fill")
                             .font(.title2)
@@ -112,15 +112,15 @@ struct BengkelDashboardView: View {
 
                         Spacer()
 
-                        if !mechanicViewModel.orders.isEmpty {
-                            Text("\(mechanicViewModel.orders.count) Pending")
+                        if !bengkelBiddingViewModel.orders.isEmpty {
+                            Text("\(bengkelBiddingViewModel.orders.count) Pending")
                                 .font(.subheadline)
                                 .foregroundColor(.red)
                                 .fontWeight(.semibold)
                         }
                     }
 
-                    if mechanicViewModel.orders.isEmpty {
+                    if bengkelBiddingViewModel.orders.isEmpty {
                         VStack(spacing: 12) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.largeTitle)
@@ -134,16 +134,14 @@ struct BengkelDashboardView: View {
                         .background(Color(.systemGray6))
                         .cornerRadius(12)
                     } else {
-                        ForEach(mechanicViewModel.orders.prefix(3)) { order in
-                            let pendingBid = mechanicViewModel.myPendingBids.first(where: { $0.serviceRequestId == order.id })
+                        ForEach(bengkelBiddingViewModel.orders.prefix(3)) { order in
+                            let pendingBid = bengkelBiddingViewModel.myPendingBids.first(where: { $0.serviceRequestId == order.id })
                             OrderRequestCard(
                                 order: order,
                                 pendingBid: pendingBid,
                                 onBid: { selectedOrder = order },
-                                onAutoReject: {
-                                    if let bid = pendingBid {
-                                        Task { await mechanicViewModel.rejectBid(bid) }
-                                    }
+                                onExpire: {
+                                    Task { await bengkelBiddingViewModel.handleExpiredOrder(order) }
                                 }
                             )
                         }
@@ -164,7 +162,7 @@ struct BengkelDashboardView: View {
         }
         .sheet(item: $selectedOrder) { order in
             PlaceBidSheet(minPrice: order.price ?? 0) { price, notes in
-                Task { await mechanicViewModel.placeBid(order: order, price: price, notes: notes) }
+                Task { await bengkelBiddingViewModel.placeBid(order: order, price: price, notes: notes) }
             }
         }
     }
@@ -180,11 +178,11 @@ struct BengkelDashboardView: View {
 }
 
 #Preview ("Light Mode") {
-    BengkelDashboardView(authViewModel: AuthViewModel(), mechanicViewModel: MechanicBiddingViewModel())
+    BengkelDashboardView(authViewModel: AuthViewModel(), bengkelBiddingViewModel: BengkelBiddingViewModel())
         .preferredColorScheme(.light)
 }
 
 #Preview ("Dark Mode") {
-    BengkelDashboardView(authViewModel: AuthViewModel(), mechanicViewModel: MechanicBiddingViewModel())
+    BengkelDashboardView(authViewModel: AuthViewModel(), bengkelBiddingViewModel: BengkelBiddingViewModel())
         .preferredColorScheme(.dark)
 }
