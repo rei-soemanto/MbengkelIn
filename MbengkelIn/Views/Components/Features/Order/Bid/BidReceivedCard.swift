@@ -80,7 +80,7 @@ struct BidReceivedCard: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text(formatToRupiah(bid.price))
+                    Text(Rupiah.format(bid.price))
                         .font(.headline)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
@@ -212,15 +212,6 @@ struct BidReceivedCard: View {
         }
         formatter.formatOptions = [.withInternetDateTime]
         return formatter.date(from: dateString)
-    }
-
-    private func formatToRupiah(_ amount: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "IDR"
-        formatter.locale = Locale(identifier: "id_ID")
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: NSNumber(value: amount)) ?? "Rp 0"
     }
 }
 

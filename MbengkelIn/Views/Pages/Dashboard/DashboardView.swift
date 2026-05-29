@@ -62,7 +62,7 @@ struct DashboardView: View {
                                 .font(.subheadline)
                                 .foregroundColor(Color(.systemBackground).opacity(0.8))
                             
-                            Text(formatToRupiah(authViewModel.currentUser?.balance ?? 0.0))
+                            Text(Rupiah.format(authViewModel.currentUser?.balance ?? 0.0))
                                 .font(.title)
                                 .fontWeight(.bold)
                                 .foregroundColor(Color(.systemBackground))
@@ -116,15 +116,6 @@ struct DashboardView: View {
             }
             .padding()
         }
-    }
-    
-    private func formatToRupiah(_ amount: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "IDR"
-        formatter.locale = Locale(identifier: "id_ID")
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: NSNumber(value: amount)) ?? "Rp 0"
     }
 }
 

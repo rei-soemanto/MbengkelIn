@@ -6,6 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MbengkelIn is a SwiftUI iOS app (university MAD ALP project) that connects vehicle owners with motor/car workshops ("bengkel"). It is a single Xcode project — no Swift Package Manager manifest, no CocoaPods, no fastlane. The only third-party dependency is `supabase-swift`, wired via Xcode's package manager (see `MbengkelIn.xcodeproj/project.pbxproj`). A project-local `.mcp.json` also wires the Supabase MCP server (project ref `nerrnpbopdfrdcfvjowx`) for schema/log access.
 
+The backend is also versioned in-repo under `supabase/`:
+- `supabase/migrations/*.sql` — SQL migrations: tables, RLS policies, `SECURITY DEFINER` RPCs, status enums, and triggers. These target the remote project; there is no local Supabase stack wired up.
+- `supabase/functions/` — Deno edge functions (`payment`, `midtrans-webhook`, plus `_shared/midtrans.ts`).
+- `scripts/restart-all.sh` — multi-simulator build/install/launch helper (see Build / Run).
+
 ## Build / Run
 
 Open in Xcode and run the `MbengkelIn` scheme on an iOS Simulator:
@@ -16,6 +21,8 @@ open MbengkelIn.xcodeproj
 xcodebuild -project MbengkelIn.xcodeproj -scheme MbengkelIn \
   -destination 'platform=iOS Simulator,name=iPhone 15' build
 ```
+
+The bundle id is `com.reisoemanto.MbengkelIn`. `scripts/restart-all.sh` (also exposed as the `/restart-all` skill) shuts down all simulators, boots three devices, builds once into `build/` (`-derivedDataPath`), then installs + relaunches the app on all three — useful for testing multi-user flows (customer ↔ bengkel, bidding, chat) side by side.
 
 The project has 6 targets: the `MbengkelIn` iOS app, a `MbengkelInWatchOS Watch App` scheme, and four test targets (`MbengkelInUnitTests`, `MbengkelInUITests`, and the two watchOS test bundles). **All of these are currently empty Xcode template stubs** — the watchOS app and every test file are unmodified scaffolding, so all real code lives in the `MbengkelIn/` app target. There is no lint config and no CI.
 
@@ -89,17 +96,23 @@ Always use `.lowercased()` when filtering by user ID.
 
 | Table | Repository | Description |
 |-------|-----------|-------------|
-| `users` | `UserRepository` | User profile (name, profile image, balance, role) |
+| `users` | `UserRepository` | User profile (name, profile image, balance, role, bank details) |
 | `vehicles` | `VehicleRepository` | Customer vehicles |
 | `bengkels` | `BengkelRepository` | Workshop records with JSONB `offered_services` |
-| `service_requests` | `OrderRepository` | Service/order requests |
-| `bids` | (inline in bidding VMs — not yet extracted) | Mechanic bid records |
+| `service_requests` | `OrderRepository` | Service/order requests (create, fetch, delete, ratings, `mark_order_completed` RPC) |
+| `bids` | `OrderRepository.fetchAcceptedBid` + inline in bidding VMs | Mechanic bid records (bid CRUD not yet fully extracted) |
+| `chat_messages` | `ChatRepository` | Per-order chat between customer and bengkel |
+| `order_locations` | `OrderLocationRepository` | Live location of assigned bengkel during an in-progress order |
+| `topups` | `TopupRepository` | Balance top-up transactions (written by edge functions, read-own by client) |
+| `withdrawals` | `WithdrawalRepository` | Payout requests (created via `request_withdrawal` RPC) |
 
 ### Storage Buckets
 
 | Bucket | Service | Usage |
 |--------|---------|-------|
 | `avatars` | `StorageService` | Profile image uploads (`{uid}/profile.jpg`) |
+| `order-photos` | `StorageService` | Order photos, e.g. flat-tire photos (`{uid}/{uuid}.jpg`); deleted on order cancel |
+| `chat-images` | `StorageService` | Images sent in order chat (`{serviceRequestId}/{uuid}.jpg`) |
 
 ### Auth Conventions
 
@@ -112,7 +125,11 @@ Always use `.lowercased()` when filtering by user ID.
 
 | Function | Used By | Purpose |
 |----------|---------|---------|
-| `bidding` | `MechanicBiddingViewModel` | Fetches nearby orders (`ordersForMechanic`) and places bids (`placeBid`) |
+| `bidding` | `BengkelBiddingViewModel` | Fetches nearby orders (`ordersForMechanic`) and places bids (`placeBid`) — invoked via `supabase.functions.invoke` |
+| `payment` | `PaymentService.createTopup` | Creates a Midtrans Snap transaction for a balance top-up; returns a redirect/snap URL |
+| `midtrans-webhook` | (Midtrans → Supabase) | Receives Midtrans settlement callbacks; verifies signature and credits balance via `increment_user_balance` |
+
+**Server-side RPCs (`SECURITY DEFINER`, defined in `supabase/migrations/`):** `mark_order_completed`, `increment_user_balance`, `request_withdrawal`, `reject_withdrawal`, and the `nearby_*` distance functions. Money-moving logic (balance hold/credit/refund) lives in these RPCs/triggers — never trust client-passed user ids; they use `auth.uid()`.
 
 ### Realtime Subscriptions
 
@@ -131,7 +148,11 @@ Task {
 
 **For realtime to actually deliver events, BOTH must hold:**
 1. **Publication** — the table must be in the `supabase_realtime` publication: `alter publication supabase_realtime add table public.<table>;`
-2. **RLS** — Realtime enforces RLS per subscriber, so the subscribing user must be able to `SELECT` the changed rows. If a user must receive rows they don't own (e.g. a mechanic receiving other customers' open orders), add a policy that grants that read.
+2. **RLS** — Realtime enforces RLS per subscriber, so the subscribing user must be able to `SELECT` the changed rows. If a user must receive rows they don't own (e.g. a mechanic receiving other customers' open orders), add a policy that grants that read. Example: `service_requests` has an `authenticated`-role policy allowing SELECT of open, unassigned requests (`status = 'To Do' and bengkel_id is null`) so mechanics get new-order events instantly without polling the edge function.
+
+Tables currently published to `supabase_realtime` include `service_requests`, `bids`, `chat_messages`, `order_locations`, `topups`, `withdrawals`, and `bengkels`. Filtered UPDATE/DELETE events need `replica identity full` on the table so the row columns are present for the subscription filter to match.
+
+Realtime channel subscriptions are set up **inside ViewModels** (e.g. `ChatViewModel`, `OrderTrackingViewModel`, `CustomerBiddingViewModel`, `BengkelBiddingViewModel`). This is the one accepted place a ViewModel references `supabase` directly (for `.channel` / `.functions.invoke`); all table CRUD still goes through a Repository.
 
 Always tear down channels on view `.onDisappear` / VM `deinit` via `supabase.removeChannel(channel)`.
 

@@ -75,7 +75,7 @@ struct BengkelDashboardView: View {
                             .foregroundColor(.green)
                             .font(.title2)
 
-                        Text(formatToRupiah(todaysEarnings))
+                        Text(Rupiah.format(todaysEarnings))
                             .font(.title)
                             .fontWeight(.bold)
                             .foregroundColor(.primary)
@@ -151,15 +151,6 @@ struct BengkelDashboardView: View {
                 Task { await bengkelBiddingViewModel.placeBid(order: order, price: price, notes: notes) }
             }
         }
-    }
-
-    private func formatToRupiah(_ amount: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "IDR"
-        formatter.locale = Locale(identifier: "id_ID")
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: NSNumber(value: amount)) ?? "Rp 0"
     }
 }
 
