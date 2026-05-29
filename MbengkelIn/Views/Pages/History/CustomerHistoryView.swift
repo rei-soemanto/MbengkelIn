@@ -18,7 +18,7 @@ struct CustomerHistoryView: View {
             .refreshable { await viewModel.loadOrders() }
             .navigationDestination(isPresented: detailBinding) {
                 if let order = viewModel.detailOrder {
-                    OrderDetailView(order: order)
+                    OrderDetailView(order: order, isCustomer: true)
                 }
             }
             .navigationDestination(isPresented: trackingBinding) {

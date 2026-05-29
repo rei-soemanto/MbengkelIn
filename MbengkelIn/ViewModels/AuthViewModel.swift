@@ -19,6 +19,7 @@ class AuthViewModel: ObservableObject {
     @Published var userSession: Supabase.User?
     @Published var currentUser: User?
     @Published var isLoading = false
+    @Published var isInitializing = true
     @Published var errorMessage: String?
     @Published var successMessage: String?
     
@@ -29,6 +30,7 @@ class AuthViewModel: ObservableObject {
 
     init() {
         Task {
+            defer { self.isInitializing = false }
             do {
                 let session = try await authService.getCurrentSession()
                 self.userSession = session.user

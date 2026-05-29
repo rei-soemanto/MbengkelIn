@@ -13,15 +13,6 @@ struct HistoryView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if authViewModel.currentUser?.role == "PROVIDER" {
-                    Picker("App Mode", selection: $authViewModel.appMode) {
-                        Text("Pelanggan").tag(AppMode.customer)
-                        Text("Bengkel").tag(AppMode.bengkel)
-                    }
-                    .pickerStyle(.segmented)
-                    .padding()
-                }
-
                 if authViewModel.appMode == .customer || authViewModel.currentUser?.role != "PROVIDER" {
                     CustomerHistoryView()
                 } else {

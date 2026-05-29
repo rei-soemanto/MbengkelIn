@@ -21,6 +21,7 @@ struct OrderTrackingView: View {
     let bid: Bid
     let customerCoordinate: CLLocationCoordinate2D
 
+    @StateObject private var trackingViewModel = OrderTrackingViewModel()
     @State private var region: MKCoordinateRegion
 
     init(bid: Bid, customerCoordinate: CLLocationCoordinate2D) {
@@ -62,6 +63,8 @@ struct OrderTrackingView: View {
         .navigationTitle("Bengkel Menuju Lokasi")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .task { await trackingViewModel.start(serviceRequestId: bid.serviceRequestId) }
+        .onDisappear { trackingViewModel.stop() }
     }
 
     private var infoCard: some View {
@@ -93,8 +96,11 @@ struct OrderTrackingView: View {
                     Text(formatRupiah(bid.price)).font(.title3.bold())
                 }
                 Spacer()
-                Label("Sedang menuju", systemImage: "location.circle.fill")
-                    .font(.caption).foregroundColor(.green)
+                Label(
+                    trackingViewModel.providerCoordinate == nil ? "Sedang menuju" : "Lokasi langsung",
+                    systemImage: trackingViewModel.providerCoordinate == nil ? "location.circle.fill" : "dot.radiowaves.left.and.right"
+                )
+                .font(.caption).foregroundColor(.green)
             }
             CompleteOrderButton(requestId: bid.serviceRequestId, isCustomer: true)
         }
@@ -103,13 +109,23 @@ struct OrderTrackingView: View {
         .shadow(color: .black.opacity(0.05), radius: 10, y: -2)
     }
 
+    // Prefer the live published location; fall back to the bengkel's registered
+    // address coordinate before the first live fix arrives.
+    private var liveBengkelCoordinate: CLLocationCoordinate2D? {
+        if let live = trackingViewModel.providerCoordinate { return live }
+        if let lat = bid.bengkel?.latitude, let lon = bid.bengkel?.longitude {
+            return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        }
+        return nil
+    }
+
     private var pins: [TrackingPin] {
         var list = [TrackingPin(id: "you", coordinate: customerCoordinate,
                                 label: "Anda", icon: "person.fill", tint: .blue)]
-        if let lat = bid.bengkel?.latitude, let lon = bid.bengkel?.longitude {
+        if let coordinate = liveBengkelCoordinate {
             list.append(TrackingPin(
                 id: "bengkel",
-                coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                coordinate: coordinate,
                 label: bid.bengkel?.name ?? "Bengkel",
                 icon: "wrench.and.screwdriver.fill",
                 tint: .primary))

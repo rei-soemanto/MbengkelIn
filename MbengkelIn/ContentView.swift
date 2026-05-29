@@ -12,67 +12,126 @@ struct ContentView: View {
     @StateObject private var bengkelBiddingViewModel = BengkelBiddingViewModel()
     @State private var bidOrder: NearbyOrder?
 
+    // PROVIDER accounts can operate as either a customer or a bengkel. The mode
+    // is global (AuthViewModel.appMode) and toggled once here, above the tabs —
+    // the individual tabs no longer carry their own duplicated picker.
+    private var isProvider: Bool { authViewModel.currentUser?.role == "PROVIDER" }
+    private var isBengkelMode: Bool { isProvider && authViewModel.appMode == .bengkel }
+
     var body: some View {
         Group {
-            if authViewModel.userSession != nil {
-                TabView {
-                    DashboardView(authViewModel: authViewModel, bengkelBiddingViewModel: bengkelBiddingViewModel)
-                        .tabItem {
-                            Label("Dashboard", systemImage: "house.fill")
+            if authViewModel.isInitializing {
+                SplashView()
+            } else if authViewModel.userSession != nil {
+                VStack(spacing: 0) {
+                    if isProvider {
+                        Picker("App Mode", selection: $authViewModel.appMode) {
+                            Text("Pelanggan").tag(AppMode.customer)
+                            Text("Bengkel").tag(AppMode.bengkel)
                         }
-                    
-                    PaymentView()
-                        .tabItem {
-                            Label("Payment", systemImage: "creditcard.fill")
-                        }
-                    
-                    HistoryView(authViewModel: authViewModel)
-                        .tabItem {
-                            Label("History", systemImage: "clock.fill")
-                        }
-                    
-                    ProfileView(authViewModel: authViewModel)
-                        .tabItem {
-                            Label("Profile", systemImage: "person.fill")
-                        }
-                }
-                .task(id: authViewModel.currentUser?.role) {
-                    if authViewModel.currentUser?.role == "PROVIDER" {
-                        await bengkelBiddingViewModel.start()
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .background(Color(.systemBackground))
                     }
-                }
-                .sheet(item: $bengkelBiddingViewModel.newOrderAlert) { order in
-                    IncomingJobModal(
-                        order: order,
-                        onBid: {
-                            bengkelBiddingViewModel.newOrderAlert = nil
-                            bidOrder = order
-                        },
-                        onDismiss: { bengkelBiddingViewModel.newOrderAlert = nil }
-                    )
-                    .presentationDetents([.medium])
-                }
-                .sheet(item: $bidOrder) { order in
-                    PlaceBidSheet(minPrice: order.price ?? 0) { price, notes in
-                        Task { await bengkelBiddingViewModel.placeBid(order: order, price: price, notes: notes) }
-                    }
-                }
-                .alert(
-                    "Order Diambil",
-                    isPresented: Binding(
-                        get: { bengkelBiddingViewModel.lostBidAlert != nil },
-                        set: { if !$0 { bengkelBiddingViewModel.lostBidAlert = nil } }
-                    )
-                ) {
-                    Button("OK", role: .cancel) { bengkelBiddingViewModel.lostBidAlert = nil }
-                } message: {
-                    Text(bengkelBiddingViewModel.lostBidAlert ?? "")
+
+                    mainTabView
                 }
             } else {
                 LoginView(authViewModel: authViewModel)
             }
         }
         .tint(.primary)
+    }
+
+    private var mainTabView: some View {
+        TabView {
+            DashboardView(authViewModel: authViewModel, bengkelBiddingViewModel: bengkelBiddingViewModel)
+                .tabItem {
+                    Label(
+                        isBengkelMode ? "Bengkel" : "Beranda",
+                        systemImage: isBengkelMode ? "wrench.and.screwdriver.fill" : "house.fill"
+                    )
+                }
+
+            PaymentView()
+                .tabItem {
+                    Label(
+                        isBengkelMode ? "Pendapatan" : "Saldo",
+                        systemImage: isBengkelMode ? "banknote.fill" : "creditcard.fill"
+                    )
+                }
+
+            HistoryView(authViewModel: authViewModel)
+                .tabItem {
+                    Label(
+                        isBengkelMode ? "Pesanan" : "Riwayat",
+                        systemImage: isBengkelMode ? "list.bullet.rectangle.portrait.fill" : "clock.fill"
+                    )
+                }
+
+            ProfileView(authViewModel: authViewModel)
+                .tabItem {
+                    Label(
+                        "Profil",
+                        systemImage: isBengkelMode ? "person.crop.square.fill" : "person.fill"
+                    )
+                }
+        }
+        .task(id: authViewModel.currentUser?.role) {
+            if authViewModel.currentUser?.role == "PROVIDER" {
+                await bengkelBiddingViewModel.start()
+            }
+        }
+        .sheet(item: $bengkelBiddingViewModel.newOrderAlert) { order in
+            IncomingJobModal(
+                order: order,
+                onBid: {
+                    bengkelBiddingViewModel.newOrderAlert = nil
+                    bidOrder = order
+                },
+                onDismiss: { bengkelBiddingViewModel.newOrderAlert = nil }
+            )
+            .presentationDetents([.medium])
+        }
+        .sheet(item: $bidOrder) { order in
+            PlaceBidSheet(minPrice: order.price ?? 0) { price, notes in
+                Task { await bengkelBiddingViewModel.placeBid(order: order, price: price, notes: notes) }
+            }
+        }
+        .alert(
+            "Order Diambil",
+            isPresented: Binding(
+                get: { bengkelBiddingViewModel.lostBidAlert != nil },
+                set: { if !$0 { bengkelBiddingViewModel.lostBidAlert = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { bengkelBiddingViewModel.lostBidAlert = nil }
+        } message: {
+            Text(bengkelBiddingViewModel.lostBidAlert ?? "")
+        }
+    }
+}
+
+struct SplashView: View {
+    var body: some View {
+        ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                Image(systemName: "wrench.and.screwdriver.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.primary)
+
+                Text("MbengkelIn")
+                    .font(.title.bold())
+                    .foregroundStyle(.primary)
+
+                ProgressView()
+                    .padding(.top, 8)
+            }
+        }
     }
 }
 

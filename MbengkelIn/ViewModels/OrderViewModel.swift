@@ -27,12 +27,20 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
     @Published var navigateToBidding: Bool = false
     @Published var loadingPhase: LoadingPhase = .idle
 
+    // True only once a *real* location has been resolved for this order — via
+    // GPS, a map drag, or a search selection. Guards against silently creating
+    // an order at the hard-coded default coordinate (or a coordinate left over
+    // from a previous order), which is the root cause of far-away matches.
+    @Published var hasResolvedLocation: Bool = false
+
     var requiresTireCount: Bool {
         selectedService == "Ban Gembos" || selectedService == "Ban Pecah"
     }
 
+    static let defaultCenter = CLLocationCoordinate2D(latitude: -7.2845, longitude: 112.6315)
+
     @Published var region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: -7.2845, longitude: 112.6315),
+        center: OrderViewModel.defaultCenter,
         span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
     )
     
@@ -94,6 +102,7 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
             center: coordinate,
             span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
         )
+        self.hasResolvedLocation = true
     }
     
     func useCurrentLocation() {
@@ -129,6 +138,7 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
                 center: location.coordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
             )
+            self.hasResolvedLocation = true
         }
         
         fetchAddress(from: location.coordinate)
@@ -140,8 +150,31 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
     
     func updateLocationFromMap(coordinate: CLLocationCoordinate2D) {
         if !isEditingLocation {
+            // A user-driven map pan is a genuine location choice.
+            hasResolvedLocation = true
             fetchAddress(from: coordinate)
         }
+    }
+
+    // Reset all per-order state so each new order starts from a clean slate and
+    // must re-resolve its location. Call when the order form appears.
+    func prepareForNewOrder() {
+        selectedService = nil
+        estimatedPrice = 0
+        tireCount = 1
+        photosData = [nil]
+        pendingServiceType = nil
+        pendingTireCount = 1
+        pendingPhotoUrls = []
+        navigateToBidding = false
+        hasResolvedLocation = false
+        locationAddress = ""
+        searchResults = []
+        isEditingLocation = false
+        region = MKCoordinateRegion(
+            center: OrderViewModel.defaultCenter,
+            span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
+        )
     }
     
     private func fetchAddress(from coordinate: CLLocationCoordinate2D) {
@@ -187,6 +220,10 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
 
     func createOrder() {
         guard let service = selectedService, !locationAddress.isEmpty else { return }
+        guard hasResolvedLocation else {
+            self.errorMessage = "Tentukan lokasi kamu dulu (gunakan lokasi saat ini, geser peta, atau cari alamat)."
+            return
+        }
         guard let serviceType = ServiceType(rawValue: service) else {
             self.errorMessage = "Layanan tidak dikenali."
             return

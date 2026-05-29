@@ -38,6 +38,13 @@ struct StartSearchPayload: Encodable {
     let price: Int
 }
 
+// Customer rating of a completed order. Writing `rating` fires a Postgres
+// trigger that recomputes the bengkel's average_rating / total_reviews.
+struct RatingPayload: Encodable {
+    let rating: Int
+    let review: String?
+}
+
 // Mechanic Bidding DTOs
 struct OrdersRequest: Encodable {
     let action: String
@@ -60,4 +67,13 @@ struct PlaceBidRequest: Encodable {
 
 struct PlaceBidResponse: Decodable {
     let bid: Bid
+}
+
+// Upsert payload for the assigned bengkel's live location while an order is
+// in progress (order_locations table).
+struct OrderLocationPayload: Encodable {
+    let service_request_id: String
+    let provider_uid: String
+    let latitude: Double
+    let longitude: Double
 }

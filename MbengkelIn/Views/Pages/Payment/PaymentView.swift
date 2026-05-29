@@ -23,6 +23,9 @@ struct PaymentView: View {
     @State private var showWithdrawSheet = false
 
     private var enteredAmount: Int { Int(customAmount) ?? 0 }
+    private var isAmountValid: Bool {
+        enteredAmount >= viewModel.minTopupAmount && enteredAmount <= viewModel.maxTopupAmount
+    }
 
     var body: some View {
         NavigationStack {
@@ -116,6 +119,10 @@ struct PaymentView: View {
             .background(Color(.systemGray6))
             .cornerRadius(12)
 
+            Text("Min \(viewModel.minTopupAmount.rupiah) — Maks \(viewModel.maxTopupAmount.rupiah)")
+                .font(.caption)
+                .foregroundColor(enteredAmount > viewModel.maxTopupAmount ? .red : .secondary)
+
             Button {
                 Task { await viewModel.startTopup(amount: enteredAmount) }
             } label: {
@@ -124,10 +131,10 @@ struct PaymentView: View {
                     .foregroundColor(Color(.systemBackground))
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.primary.opacity(enteredAmount >= 10000 ? 0.9 : 0.3))
+                    .background(Color.primary.opacity(isAmountValid ? 0.9 : 0.3))
                     .cornerRadius(16)
             }
-            .disabled(enteredAmount < 10000)
+            .disabled(!isAmountValid)
         }
     }
 

@@ -13,7 +13,6 @@ import PhotosUI
 struct OrderView: View {
     @StateObject private var viewModel = OrderViewModel()
     @Environment(\.presentationMode) var presentationMode
-    @State private var didRequestInitialLocation = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -143,15 +142,18 @@ struct OrderView: View {
             onStop: { viewModel.cancelLoading() }
         )
         .onAppear {
-            if !didRequestInitialLocation {
-                didRequestInitialLocation = true
-                viewModel.useCurrentLocation()
-            }
+            // Start every order fresh: clear stale state and re-acquire the
+            // current location so an order can't inherit a previous order's
+            // coordinate (or the hard-coded default).
+            guard !viewModel.navigateToBidding else { return }
+            viewModel.prepareForNewOrder()
+            viewModel.useCurrentLocation()
         }
     }
 
     private var isCreateDisabled: Bool {
         if viewModel.selectedService == nil { return true }
+        if !viewModel.hasResolvedLocation { return true }
         if viewModel.requiresTireCount {
             let provided = viewModel.photosData.prefix(viewModel.tireCount).compactMap { $0 }
             if provided.count < viewModel.tireCount { return true }

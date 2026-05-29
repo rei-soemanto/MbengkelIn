@@ -56,6 +56,14 @@ class OrderRepository {
         return bids.first
     }
 
+    func submitRating(requestId: String, rating: Int, review: String?) async throws {
+        let payload = RatingPayload(rating: rating, review: review)
+        try await supabase.from("service_requests")
+            .update(payload)
+            .eq("id", value: requestId)
+            .execute()
+    }
+
     @discardableResult
     func markOrderCompleted(requestId: String) async throws -> NearbyOrder {
         return try await supabase.rpc(

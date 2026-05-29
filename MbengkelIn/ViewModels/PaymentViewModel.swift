@@ -26,6 +26,11 @@ class PaymentViewModel: ObservableObject {
 
     let presetAmounts: [Int] = [25000, 50000, 100000, 200000, 500000]
 
+    // Keep these in sync with the `payment` edge function
+    // (supabase/functions/payment/index.ts) amount validation.
+    let minTopupAmount = 10_000
+    let maxTopupAmount = 10_000_000
+
     var hasBankDetails: Bool {
         !bankAccountNumber.isEmpty && !bankName.isEmpty && !bankAccountName.isEmpty
     }
@@ -37,6 +42,12 @@ class PaymentViewModel: ObservableObject {
     private let paymentService = PaymentService()
 
     private var realtimeChannel: RealtimeChannelV2?
+
+    // Track which top-ups have already settled as "success" so we can alert
+    // exactly once when a new one lands (via the realtime subscription) without
+    // re-alerting for history already on screen at first load.
+    private var knownSuccessTopupIds: Set<String> = []
+    private var didLoadTopupsOnce = false
 
     deinit {
         if let channel = realtimeChannel {
@@ -109,16 +120,40 @@ class PaymentViewModel: ObservableObject {
             self.bankName = fetchedUser.bankName ?? ""
             self.bankAccountNumber = fetchedUser.bankAccountNumber ?? ""
             self.bankAccountName = fetchedUser.bankAccountName ?? ""
-            self.topups = try await topupHistory
+
+            let fetchedTopups = try await topupHistory
+            detectSuccessfulTopups(fetchedTopups)
+            self.topups = fetchedTopups
             self.withdrawals = try await withdrawalHistory
         } catch {
             self.errorMessage = error.localizedDescription
         }
     }
 
+    // Surface a "Top up berhasil!" alert the moment a top-up settles to success.
+    private func detectSuccessfulTopups(_ fetched: [Topup]) {
+        let successIds = Set(
+            fetched
+                .filter { $0.status.lowercased() == "success" }
+                .compactMap { $0.id }
+        )
+        if didLoadTopupsOnce {
+            let newlySettled = successIds.subtracting(knownSuccessTopupIds)
+            if !newlySettled.isEmpty {
+                self.successMessage = "Top up berhasil! Saldo Anda telah diperbarui."
+            }
+        }
+        knownSuccessTopupIds = successIds
+        didLoadTopupsOnce = true
+    }
+
     func startTopup(amount: Int) async {
-        guard amount >= 10000 else {
-            self.errorMessage = "Minimal top up Rp10.000"
+        guard amount >= minTopupAmount else {
+            self.errorMessage = "Minimal top up \(minTopupAmount.rupiah)"
+            return
+        }
+        guard amount <= maxTopupAmount else {
+            self.errorMessage = "Maksimal top up \(maxTopupAmount.rupiah)"
             return
         }
         isLoading = true

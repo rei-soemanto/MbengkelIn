@@ -88,22 +88,6 @@ struct BengkelDashboardView: View {
                 .background(Color(.systemGray6))
                 .cornerRadius(12)
 
-                NavigationLink(destination: BengkelBiddingView(viewModel: bengkelBiddingViewModel)) {
-                    HStack {
-                        Image(systemName: "list.bullet.rectangle.portrait.fill")
-                            .font(.title2)
-                        Text("Lihat Order Masuk")
-                            .font(.headline)
-                            .fontWeight(.bold)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                    }
-                    .foregroundColor(Color(.systemBackground))
-                    .padding()
-                    .background(Color.primary.opacity(0.9))
-                    .cornerRadius(12)
-                }
-
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
                         Text("Permintaan Masuk")
@@ -134,7 +118,7 @@ struct BengkelDashboardView: View {
                         .background(Color(.systemGray6))
                         .cornerRadius(12)
                     } else {
-                        ForEach(bengkelBiddingViewModel.orders.prefix(3)) { order in
+                        ForEach(bengkelBiddingViewModel.orders) { order in
                             let pendingBid = bengkelBiddingViewModel.myPendingBids.first(where: { $0.serviceRequestId == order.id })
                             OrderRequestCard(
                                 order: order,
