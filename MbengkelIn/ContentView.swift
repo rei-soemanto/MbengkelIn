@@ -99,6 +99,11 @@ struct ContentView: View {
                 Task { await bengkelBiddingViewModel.placeBid(order: order, price: price, notes: notes) }
             }
         }
+        .fullScreenCover(item: $bengkelBiddingViewModel.activeBengkelOrder) { order in
+            NavigationStack {
+                BengkelRouteView(order: order)
+            }
+        }
         .alert(
             "Order Diambil",
             isPresented: Binding(
@@ -109,6 +114,28 @@ struct ContentView: View {
             Button("OK", role: .cancel) { bengkelBiddingViewModel.lostBidAlert = nil }
         } message: {
             Text(bengkelBiddingViewModel.lostBidAlert ?? "")
+        }
+        .alert(
+            "Waktu Order Habis",
+            isPresented: Binding(
+                get: { bengkelBiddingViewModel.expiredBidAlert != nil },
+                set: { if !$0 { bengkelBiddingViewModel.expiredBidAlert = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { bengkelBiddingViewModel.expiredBidAlert = nil }
+        } message: {
+            Text(bengkelBiddingViewModel.expiredBidAlert ?? "")
+        }
+        .alert(
+            "Tawaran Ditolak",
+            isPresented: Binding(
+                get: { bengkelBiddingViewModel.rejectedBidAlert != nil },
+                set: { if !$0 { bengkelBiddingViewModel.rejectedBidAlert = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { bengkelBiddingViewModel.rejectedBidAlert = nil }
+        } message: {
+            Text(bengkelBiddingViewModel.rejectedBidAlert ?? "")
         }
     }
 }

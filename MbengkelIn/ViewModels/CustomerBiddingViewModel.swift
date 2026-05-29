@@ -41,6 +41,9 @@ class CustomerBiddingViewModel: ObservableObject {
     private let userRepository = UserRepository()
     private let orderRepository = OrderRepository()
     private let storageService = StorageService()
+    private let notificationService = NotificationService()
+    private var knownBidIds: Set<String> = []
+    private var didLoadBidsOnce = false
 
     let serviceMinPrices: [String: Int] = [
         "Aki Kering": 60000,
@@ -81,6 +84,7 @@ class CustomerBiddingViewModel: ObservableObject {
 
         isStartingSearch = true
         errorMessage = nil
+        notificationService.requestAuthorization()
         loadingPhase = .loading(message: "Membuat pesanan...")
         do {
             let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
@@ -239,7 +243,21 @@ class CustomerBiddingViewModel: ObservableObject {
                 .order("price", ascending: true)
                 .execute()
                 .value
-            self.bids = fetched.filter { $0.status.lowercased() == "pending" }
+            let pending = fetched.filter { $0.status.lowercased() == "pending" }
+
+            // Push a notification for each offer that arrived since the last load.
+            if didLoadBidsOnce {
+                for bid in pending where !knownBidIds.contains(bid.id) {
+                    notificationService.notifyNewOrder(
+                        title: "Tawaran baru masuk!",
+                        body: "\(bid.bengkel?.name ?? "Sebuah bengkel") menawar Rp\(bid.price)."
+                    )
+                }
+            }
+            knownBidIds = Set(pending.map { $0.id })
+            didLoadBidsOnce = true
+
+            self.bids = pending
             if !self.bids.isEmpty {
                 searchCountdownTask?.cancel()
                 decisionCountdownTask?.cancel()
@@ -322,10 +340,13 @@ class CustomerBiddingViewModel: ObservableObject {
         isLoading = false
     }
 
-    func autoRejectBid(_ bid: Bid) async {
+    // The offer's response window elapsed without the customer deciding. This is
+    // a timeout (status "Expired") — distinct from "AutoRejected", which means
+    // the customer accepted a different bengkel.
+    func expireBid(_ bid: Bid) async {
         do {
             try await supabase.from("bids")
-                .update(BidStatusUpdate(status: "AutoRejected"))
+                .update(BidStatusUpdate(status: "Expired"))
                 .eq("id", value: bid.id)
                 .execute()
 

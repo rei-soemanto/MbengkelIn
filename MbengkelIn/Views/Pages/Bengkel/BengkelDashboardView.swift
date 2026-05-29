@@ -120,13 +120,15 @@ struct BengkelDashboardView: View {
                     } else {
                         ForEach(bengkelBiddingViewModel.orders) { order in
                             let pendingBid = bengkelBiddingViewModel.myPendingBids.first(where: { $0.serviceRequestId == order.id })
+                            let wasRejected = bengkelBiddingViewModel.myRejectedBids.contains(where: { $0.serviceRequestId == order.id })
                             OrderRequestCard(
                                 order: order,
                                 pendingBid: pendingBid,
                                 onBid: { selectedOrder = order },
                                 onExpire: {
                                     Task { await bengkelBiddingViewModel.handleExpiredOrder(order) }
-                                }
+                                },
+                                wasRejected: wasRejected
                             )
                         }
                     }

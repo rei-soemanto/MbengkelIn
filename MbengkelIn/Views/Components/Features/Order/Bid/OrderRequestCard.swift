@@ -6,6 +6,8 @@ struct OrderRequestCard: View {
     let onBid: () -> Void
     // Fired once when the customer's 2-minute request window elapses.
     var onExpire: (() -> Void)? = nil
+    // True when our previous offer on this order was declined by the customer.
+    var wasRejected: Bool = false
 
     private var priceLabel: String { order.price.map { "Rp\($0)" } ?? "-" }
     private var isTireService: Bool {
@@ -19,6 +21,7 @@ struct OrderRequestCard: View {
             serviceChip
             detailRow
             OrderCountdownBar(createdAt: order.createdAt, onExpire: onExpire)
+            if wasRejected && pendingBid == nil { deniedNote }
             bottomRow
         }
         .padding()
@@ -81,6 +84,17 @@ struct OrderRequestCard: View {
         }
     }
 
+    private var deniedNote: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "xmark.circle.fill")
+            Text("Tawaran sebelumnya ditolak. Ajukan harga lain.")
+        }
+        .font(.caption).fontWeight(.semibold).foregroundColor(.red)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .background(Color.red.opacity(0.08)).cornerRadius(8)
+    }
+
     private var bottomRow: some View {
         HStack {
             Text(priceLabel).font(.headline).fontWeight(.bold)
@@ -93,7 +107,7 @@ struct OrderRequestCard: View {
                 .font(.subheadline).fontWeight(.semibold).foregroundColor(.secondary)
             } else {
                 Button(action: onBid) {
-                    Text("Tawar")
+                    Text(wasRejected ? "Tawar Lagi" : "Tawar")
                         .font(.subheadline).fontWeight(.bold)
                         .foregroundColor(Color(.systemBackground))
                         .padding(.horizontal, 20).padding(.vertical, 10)

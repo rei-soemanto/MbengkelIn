@@ -22,7 +22,10 @@ struct OrderTrackingView: View {
     let customerCoordinate: CLLocationCoordinate2D
 
     @StateObject private var trackingViewModel = OrderTrackingViewModel()
+    @Environment(\.dismiss) private var dismiss
     @State private var region: MKCoordinateRegion
+    @State private var showReviewSheet = false
+    @State private var didPromptReview = false
 
     init(bid: Bid, customerCoordinate: CLLocationCoordinate2D) {
         self.bid = bid
@@ -63,7 +66,28 @@ struct OrderTrackingView: View {
         .navigationTitle("Bengkel Menuju Lokasi")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .fontWeight(.semibold)
+                }
+            }
+        }
         .task { await trackingViewModel.start(serviceRequestId: bid.serviceRequestId) }
+        .onChange(of: trackingViewModel.order?.status) { status in
+            // The order just settled to Done — prompt the customer for a review
+            // (once), unless they've already rated it.
+            if status == "Done", !trackingViewModel.alreadyRated, !didPromptReview {
+                didPromptReview = true
+                showReviewSheet = true
+            }
+        }
+        .sheet(isPresented: $showReviewSheet) {
+            OrderReviewSheet(requestId: bid.serviceRequestId)
+        }
         .onDisappear { trackingViewModel.stop() }
     }
 
@@ -125,9 +149,10 @@ struct OrderTrackingView: View {
         if let coordinate = liveBengkelCoordinate {
             list.append(TrackingPin(
                 id: "bengkel",
+                // A vehicle icon — the bengkel is en route, not a fixed workshop.
                 coordinate: coordinate,
                 label: bid.bengkel?.name ?? "Bengkel",
-                icon: "wrench.and.screwdriver.fill",
+                icon: "car.fill",
                 tint: .primary))
         }
         return list

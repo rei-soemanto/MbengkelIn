@@ -15,8 +15,19 @@ class BengkelBiddingViewModel: ObservableObject {
     @Published var newOrderAlert: NearbyOrder?
     // Set when a pending bid is lost because the customer picked another bengkel.
     @Published var lostBidAlert: String?
+    // Set when an order's response window simply elapsed (timeout, not a loss).
+    @Published var expiredBidAlert: String?
+    // The order screen the bengkel is currently taken into — set after placing
+    // an offer (route map) and when the customer accepts (carries through to the
+    // active order). Drives the full-screen route view.
+    @Published var activeBengkelOrder: NearbyOrder?
+    // Set when the customer declines our offer — we can re-bid a different amount.
+    @Published var rejectedBidAlert: String?
+    // Orders where our latest bid was declined (kept visible so we can re-bid).
+    @Published var myRejectedBids: [Bid] = []
 
     private var realtimeChannel: RealtimeChannelV2?
+    private let orderRepository = OrderRepository()
     private let notificationService = NotificationService()
     private var knownOrderIds: Set<String> = []
     private var bidStatusById: [String: String] = [:]
@@ -137,24 +148,57 @@ class BengkelBiddingViewModel: ObservableObject {
 
             // Detect bids the customer rejected by choosing another bengkel.
             // A pending bid flipping to AutoRejected means we lost the job.
+            // A pending bid changing state tells us why we no longer have the job:
+            //  - "autorejected": the customer accepted a different bengkel (taken)
+            //  - "expired": the response window elapsed with no decision (timeout)
+            // These are distinct events with distinct messages.
             if didInitialLoad {
-                for bid in allMyBids where bid.status.lowercased() == "autorejected" {
-                    if bidStatusById[bid.id] == "pending" {
+                for bid in allMyBids where bidStatusById[bid.id] == "pending" {
+                    switch bid.status.lowercased() {
+                    case "accepted":
+                        notificationService.notifyNewOrder(
+                            title: "Tawaran diterima!",
+                            body: "Pelanggan menerima tawaran Anda. Order otomatis dibuka."
+                        )
+                        // If the bengkel is already on this order's route screen,
+                        // it updates in place via its own realtime subscription.
+                        if self.activeBengkelOrder == nil,
+                           let order = try? await self.orderRepository.fetchOrder(id: bid.serviceRequestId) {
+                            self.activeBengkelOrder = order
+                        }
+                    case "autorejected":
                         notificationService.notifyNewOrder(
                             title: "Order diambil bengkel lain",
                             body: "Pelanggan memilih tawaran bengkel lain untuk order ini."
                         )
                         self.lostBidAlert = "Pelanggan memilih tawaran bengkel lain. Tawaran Anda tidak terpilih."
+                    case "expired":
+                        notificationService.notifyNewOrder(
+                            title: "Waktu order habis",
+                            body: "Pelanggan tidak menanggapi tepat waktu. Order kedaluwarsa."
+                        )
+                        self.expiredBidAlert = "Waktu order telah habis. Order kedaluwarsa karena pelanggan tidak menanggapi tepat waktu."
+                    case "rejected":
+                        notificationService.notifyNewOrder(
+                            title: "Tawaran ditolak",
+                            body: "Pelanggan menolak tawaran Anda. Anda bisa menawar ulang dengan harga lain."
+                        )
+                        self.rejectedBidAlert = "Pelanggan menolak tawaran Anda. Order masih terbuka — silakan ajukan harga lain."
+                    default:
+                        break
                     }
                 }
             }
             bidStatusById = Dictionary(allMyBids.map { ($0.id, $0.status.lowercased()) }, uniquingKeysWith: { _, new in new })
 
-            let rejectedRequestIds = Set(allMyBids.filter { $0.status.lowercased() == "rejected" || $0.status.lowercased() == "autorejected" }.map { $0.serviceRequestId })
+            // "autorejected" (taken by another) and "expired" (timed out) are
+            // terminal — drop those orders. A plain "rejected" (the customer
+            // declined our price) keeps the order so we can re-bid.
+            let terminalRequestIds = Set(allMyBids.filter { ["autorejected", "expired"].contains($0.status.lowercased()) }.map { $0.serviceRequestId })
             self.myPendingBids = allMyBids.filter { $0.status.lowercased() == "pending" }
+            self.myRejectedBids = allMyBids.filter { $0.status.lowercased() == "rejected" }
 
-            // Filter out orders that have a rejected bid from this bengkel
-            let filteredOrders = nearbyOrders.filter { !rejectedRequestIds.contains($0.id) }
+            let filteredOrders = nearbyOrders.filter { !terminalRequestIds.contains($0.id) }
 
             // Notify for orders that appeared after we started watching (not the first load).
             let currentIds = Set(filteredOrders.map { $0.id })
@@ -200,6 +244,8 @@ class BengkelBiddingViewModel: ObservableObject {
                 options: FunctionInvokeOptions(body: body)
             )
             self.successMessage = "Tawaran terkirim."
+            // Take the bengkel to the live route-to-customer screen.
+            self.activeBengkelOrder = order
             await loadOrders()
         } catch {
             self.errorMessage = error.localizedDescription
@@ -214,7 +260,21 @@ class BengkelBiddingViewModel: ObservableObject {
         orders.removeAll { $0.id == order.id }
         knownOrderIds.remove(order.id)
         if let bid = myPendingBids.first(where: { $0.serviceRequestId == order.id }) {
-            await rejectBid(bid)
+            await expireBid(bid)
+        }
+    }
+
+    // The order's response window elapsed: mark our bid "Expired" (timeout),
+    // not "Rejected"/"AutoRejected".
+    func expireBid(_ bid: Bid) async {
+        do {
+            try await supabase.from("bids")
+                .update(BidStatusUpdate(status: "Expired"))
+                .eq("id", value: bid.id)
+                .execute()
+            await loadOrders()
+        } catch {
+            self.errorMessage = error.localizedDescription
         }
     }
 

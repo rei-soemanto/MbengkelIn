@@ -1,96 +1,119 @@
 import SwiftUI
 import Combine
+import CoreLocation
 
 struct BidReceivedCard: View {
     let bid: Bid
+    // Customer's order location, used to show how far each bengkel is.
+    var customerCoordinate: CLLocationCoordinate2D? = nil
     let onAccept: () -> Void
     let onReject: () -> Void
-    var onAutoReject: (() -> Void)? = nil
+    // Fired once when this offer's response window elapses (timeout, not a loss).
+    var onExpire: (() -> Void)? = nil
 
     @State private var timeRemaining: TimeInterval = 120
-    @State private var hasAutoRejected: Bool = false
+    @State private var hasExpired: Bool = false
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private var statusColor: Color {
         switch bid.status {
         case "Accepted": return .green
-        case "Rejected": return .red
+        case "Rejected", "Expired", "AutoRejected": return .red
         default: return .orange
         }
     }
 
+    // Straight-line distance from the customer to this bengkel, if known.
+    private var distanceMeters: Double? {
+        guard let customer = customerCoordinate,
+              let lat = bid.bengkel?.latitude,
+              let lon = bid.bengkel?.longitude else { return nil }
+        let from = CLLocation(latitude: customer.latitude, longitude: customer.longitude)
+        let to = CLLocation(latitude: lat, longitude: lon)
+        return from.distance(from: to)
+    }
+
+    private var isUrgent: Bool { timeRemaining <= 30 }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            // Workshop Profile Section
+            // Workshop profile + price
             HStack(alignment: .top, spacing: 12) {
-                // Avatar / Icon
                 Image(systemName: "wrench.and.screwdriver.fill")
                     .font(.system(size: 20))
                     .foregroundColor(.white)
                     .padding(12)
                     .background(Color.primary.opacity(0.85))
                     .clipShape(Circle())
-                
-                VStack(alignment: .leading, spacing: 4) {
+
+                VStack(alignment: .leading, spacing: 6) {
                     Text(bid.bengkel?.name ?? "Bengkel Terdekat")
                         .font(.headline)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
-                    
-                    if let rating = bid.bengkel?.averageRating, rating > 0 {
-                        HStack(spacing: 4) {
-                            Image(systemName: "star.fill")
-                                .foregroundColor(.amber)
-                                .font(.caption)
-                            Text(String(format: "%.1f", rating))
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                            Text("(\(bid.bengkel?.totalReviews ?? 0) ulasan)")
+
+                    HStack(spacing: 10) {
+                        if let rating = bid.bengkel?.averageRating, rating > 0 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "star.fill")
+                                    .foregroundColor(.amber)
+                                    .font(.caption)
+                                Text(String(format: "%.1f", rating))
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                Text("(\(bid.bengkel?.totalReviews ?? 0))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        } else {
+                            Text("Baru terdaftar")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                    } else {
-                        Text("Baru terdaftar")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+
+                        if let meters = distanceMeters {
+                            DistanceBadge(meters: meters)
+                        }
                     }
                 }
-                
+
                 Spacer()
-                
-                // Bid Price
+
                 VStack(alignment: .trailing, spacing: 4) {
                     Text(formatToRupiah(bid.price))
                         .font(.headline)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
-                    
-                    HStack(spacing: 6) {
-                        if bid.status == "Pending" && timeRemaining > 0 {
-                            HStack(spacing: 3) {
-                                Image(systemName: "timer")
-                                Text(formatTimeRemaining())
-                            }
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.red)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Color.red.opacity(0.1))
-                            .clipShape(Capsule())
-                        }
-                        
-                        Text(bid.status)
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(statusColor)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(statusColor.opacity(0.12))
-                            .clipShape(Capsule())
-                    }
+
+                    Text(statusLabel)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(statusColor)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(statusColor.opacity(0.12))
+                        .clipShape(Capsule())
                 }
             }
-            
-            // Notes Section
+
+            // Countdown on its own full-width row so it never gets squeezed.
+            if bid.status == "Pending" && timeRemaining > 0 {
+                HStack(spacing: 6) {
+                    Image(systemName: "timer")
+                    Text("Berakhir dalam")
+                        .font(.caption)
+                    Spacer()
+                    Text(formatTimeRemaining())
+                        .font(.subheadline.monospacedDigit())
+                        .fontWeight(.bold)
+                }
+                .foregroundColor(isUrgent ? .red : .secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background((isUrgent ? Color.red : Color.primary).opacity(0.08))
+                .cornerRadius(10)
+            }
+
+            // Notes
             if let notes = bid.notes, !notes.isEmpty {
                 Text(notes)
                     .font(.subheadline)
@@ -101,8 +124,8 @@ struct BidReceivedCard: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(8)
             }
-            
-            // Actions Section
+
+            // Actions
             if bid.status == "Pending" {
                 HStack(spacing: 12) {
                     Button(action: onReject) {
@@ -115,7 +138,7 @@ struct BidReceivedCard: View {
                             .background(Color.red.opacity(0.1))
                             .cornerRadius(12)
                     }
-                    
+
                     Button(action: onAccept) {
                         Text("Terima")
                             .font(.subheadline)
@@ -146,8 +169,19 @@ struct BidReceivedCard: View {
         }
     }
 
+    private var statusLabel: String {
+        switch bid.status {
+        case "Pending": return "Menunggu"
+        case "Accepted": return "Diterima"
+        case "Rejected": return "Ditolak"
+        case "Expired": return "Kedaluwarsa"
+        case "AutoRejected": return "Kedaluwarsa"
+        default: return bid.status
+        }
+    }
+
     private func updateCountdown() {
-        guard !hasAutoRejected else { return }
+        guard !hasExpired else { return }
         guard let createdAtStr = bid.createdAt,
               let createdDate = parseDate(createdAtStr) else {
             timeRemaining = 120
@@ -157,12 +191,8 @@ struct BidReceivedCard: View {
         let remaining = 120 - elapsed
         if remaining <= 0 {
             timeRemaining = 0
-            hasAutoRejected = true
-            if let autoReject = onAutoReject {
-                autoReject()
-            } else {
-                onReject()
-            }
+            hasExpired = true
+            onExpire?()
         } else {
             timeRemaining = remaining
         }
@@ -222,7 +252,7 @@ extension Color {
                 averageRating: 4.8,
                 totalReviews: 24
             )
-        ), onAccept: {}, onReject: {})
+        ), customerCoordinate: CLLocationCoordinate2D(latitude: -7.30, longitude: 112.65), onAccept: {}, onReject: {})
         .padding()
     }
     .background(Color(.systemGroupedBackground))

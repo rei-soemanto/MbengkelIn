@@ -10,16 +10,23 @@ import Combine
 import CoreLocation
 import Supabase
 
-// Customer-side: subscribes to the assigned bengkel's live location for an
-// in-progress order via Supabase Realtime and exposes the latest coordinate.
+// Customer-side: for an in-progress order, subscribes via Supabase Realtime to
+//  1) the assigned bengkel's live location (order_locations), and
+//  2) the order row itself (service_requests) — so the moment it settles to
+//     "Done" we can prompt the customer for a review.
 @MainActor
 class OrderTrackingViewModel: ObservableObject {
     @Published var providerCoordinate: CLLocationCoordinate2D?
     @Published var lastUpdated: String?
+    @Published var order: NearbyOrder?
 
-    private let repository = OrderLocationRepository()
+    private let locationRepository = OrderLocationRepository()
+    private let orderRepository = OrderRepository()
     private var channel: RealtimeChannelV2?
     private var serviceRequestId: String?
+
+    var status: String { order?.status ?? "On Progress" }
+    var alreadyRated: Bool { (order?.rating ?? 0) > 0 }
 
     deinit {
         if let channel = channel {
@@ -31,28 +38,47 @@ class OrderTrackingViewModel: ObservableObject {
     func start(serviceRequestId: String) async {
         self.serviceRequestId = serviceRequestId
 
-        // Seed with the latest known location, if any.
-        if let location = try? await repository.fetchLocation(serviceRequestId: serviceRequestId) {
+        // Seed with whatever is already known.
+        if let location = try? await locationRepository.fetchLocation(serviceRequestId: serviceRequestId) {
             apply(location)
         }
+        self.order = try? await orderRepository.fetchOrder(id: serviceRequestId)
 
         stop()
-        let channel = supabase.channel("order-location-\(serviceRequestId)")
+        let channel = supabase.channel("order-tracking-\(serviceRequestId)")
         self.channel = channel
 
-        let stream = channel.postgresChange(
+        let locationStream = channel.postgresChange(
             AnyAction.self,
             schema: "public",
             table: "order_locations",
             filter: "service_request_id=eq.\(serviceRequestId)"
         )
+        let orderStream = channel.postgresChange(
+            AnyAction.self,
+            schema: "public",
+            table: "service_requests",
+            filter: "id=eq.\(serviceRequestId)"
+        )
 
         Task { [weak self] in
             guard let self else { return }
             await channel.subscribe()
-            for await _ in stream {
-                if let location = try? await self.repository.fetchLocation(serviceRequestId: serviceRequestId) {
-                    self.apply(location)
+
+            Task { [weak self] in
+                for await _ in locationStream {
+                    guard let self else { return }
+                    if let location = try? await self.locationRepository.fetchLocation(serviceRequestId: serviceRequestId) {
+                        self.apply(location)
+                    }
+                }
+            }
+            Task { [weak self] in
+                for await _ in orderStream {
+                    guard let self else { return }
+                    if let updated = try? await self.orderRepository.fetchOrder(id: serviceRequestId) {
+                        self.order = updated
+                    }
                 }
             }
         }

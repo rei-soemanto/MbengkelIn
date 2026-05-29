@@ -326,13 +326,22 @@ struct CustomerBiddingView: View {
                             .padding(.top, 16)
                             
                             ForEach(viewModel.bids) { bid in
-                                BidReceivedCard(bid: bid, onAccept: {
-                                    Task { await viewModel.acceptBid(bid) }
-                                }, onReject: {
-                                    Task { await viewModel.rejectBid(bid) }
-                                }, onAutoReject: {
-                                    Task { await viewModel.autoRejectBid(bid) }
-                                })
+                                BidReceivedCard(
+                                    bid: bid,
+                                    customerCoordinate: CLLocationCoordinate2D(
+                                        latitude: viewModel.latitude,
+                                        longitude: viewModel.longitude
+                                    ),
+                                    onAccept: {
+                                        Task { await viewModel.acceptBid(bid) }
+                                    },
+                                    onReject: {
+                                        Task { await viewModel.rejectBid(bid) }
+                                    },
+                                    onExpire: {
+                                        Task { await viewModel.expireBid(bid) }
+                                    }
+                                )
                                 .padding(.horizontal)
                             }
                         }
