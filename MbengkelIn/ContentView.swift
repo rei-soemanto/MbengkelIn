@@ -11,6 +11,7 @@ struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
     @StateObject private var bengkelBiddingViewModel = BengkelBiddingViewModel()
     @State private var bidOrder: NearbyOrder?
+    @Environment(\.scenePhase) private var scenePhase
 
     // PROVIDER accounts can operate as either a customer or a bengkel. The mode
     // is global (AuthViewModel.appMode) and toggled once here, above the tabs —
@@ -42,6 +43,11 @@ struct ContentView: View {
             }
         }
         .tint(.primary)
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                Task { await bengkelBiddingViewModel.refreshOnForeground() }
+            }
+        }
     }
 
     private var mainTabView: some View {

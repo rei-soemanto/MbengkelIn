@@ -73,6 +73,15 @@ class BengkelBiddingViewModel: ObservableObject {
         isLoading = false
     }
 
+    // Called when the app returns to the foreground: realtime sockets can die
+    // while backgrounded, so reload missed orders and re-establish the channel.
+    func refreshOnForeground() async {
+        guard hasStarted else { return }
+        print("[BengkelRT] foreground refresh + resubscribe")
+        await loadOrders()
+        startRealtimeSubscription()
+    }
+
     func startRealtimeSubscription() {
         stopRealtimeSubscription()
         guard let uid = providerUid else { return }
@@ -98,16 +107,20 @@ class BengkelBiddingViewModel: ObservableObject {
 
         Task { [weak self] in
             guard let self = self else { return }
+            print("[BengkelRT] subscribing channel mechanic-bids-\(uid)")
             await channel.subscribe()
+            print("[BengkelRT] channel subscribed")
 
             Task { [weak self] in
                 for await _ in bidsStream {
+                    print("[BengkelRT] bids change received")
                     await self?.loadOrders()
                 }
             }
 
             Task { [weak self] in
                 for await _ in serviceRequestStream {
+                    print("[BengkelRT] service_requests change received")
                     await self?.loadOrders()
                 }
             }
@@ -216,7 +229,9 @@ class BengkelBiddingViewModel: ObservableObject {
             didInitialLoad = true
 
             self.orders = filteredOrders
+            print("[BengkelRT] loadOrders -> \(filteredOrders.count) nearby order(s), didInitialLoad=\(didInitialLoad)")
         } catch {
+            print("[BengkelRT] loadOrders error: \(error.localizedDescription)")
             self.errorMessage = error.localizedDescription
         }
     }

@@ -12,7 +12,8 @@ extension MKCoordinateRegion {
     static func fitting(
         _ first: CLLocationCoordinate2D,
         _ second: CLLocationCoordinate2D?,
-        defaultSpan: CLLocationDegrees = 0.02
+        defaultSpan: CLLocationDegrees = 0.02,
+        maxFitMeters: CLLocationDistance = 60_000
     ) -> MKCoordinateRegion {
         let firstValid = CLLocationCoordinate2DIsValid(first)
             && first.latitude.isFinite && first.longitude.isFinite
@@ -24,13 +25,21 @@ extension MKCoordinateRegion {
             )
         }
 
+        let firstCentered = MKCoordinateRegion(
+            center: first,
+            span: MKCoordinateSpan(latitudeDelta: defaultSpan, longitudeDelta: defaultSpan)
+        )
+
         guard let second = second,
               CLLocationCoordinate2DIsValid(second),
               second.latitude.isFinite, second.longitude.isFinite else {
-            return MKCoordinateRegion(
-                center: first,
-                span: MKCoordinateSpan(latitudeDelta: defaultSpan, longitudeDelta: defaultSpan)
-            )
+            return firstCentered
+        }
+
+        let separation = CLLocation(latitude: first.latitude, longitude: first.longitude)
+            .distance(from: CLLocation(latitude: second.latitude, longitude: second.longitude))
+        guard separation <= maxFitMeters else {
+            return firstCentered
         }
 
         let midLat = (first.latitude + second.latitude) / 2
