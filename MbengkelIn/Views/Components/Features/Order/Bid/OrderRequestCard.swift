@@ -19,6 +19,11 @@ struct OrderRequestCard: View {
             header
             if order.isEmergency == true { emergencyBadge }
             serviceChip
+            if let info = order.vehicleInfo, !info.isEmpty {
+                Label(info, systemImage: "car.fill")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
             detailRow
             OrderCountdownBar(createdAt: order.createdAt, onExpire: onExpire)
             if wasRejected && pendingBid == nil { deniedNote }

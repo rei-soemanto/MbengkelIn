@@ -17,7 +17,8 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var successMessage: String?
-    
+    @Published var todaysEarnings: Double = 0
+
     // ── Location / Map state (same pattern as OrderViewModel) ──
     @Published var locationAddress: String = ""
     @Published var isEditingLocation: Bool = false
@@ -27,9 +28,10 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
         center: CLLocationCoordinate2D(latitude: -7.2845, longitude: 112.6315),
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
     )
-    
+
     private let authService = AuthService()
     private let bengkelRepository = BengkelRepository()
+    private let orderRepository = OrderRepository()
     private let locationService = LocationService()
     private let locationManager = CLLocationManager()
     private var cancellables = Set<AnyCancellable>()
@@ -202,7 +204,17 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
     // live via a realtime subscription. Avoids needing a relog.
     func startWatching(uid: String) async {
         await fetchMyBengkel(uid: uid)
+        await loadTodaysEarnings()
         startRealtimeSubscription(uid: uid)
+    }
+
+    @MainActor
+    func loadTodaysEarnings() async {
+        guard let bengkelId = myBengkel?.id else { return }
+        do {
+            self.todaysEarnings = try await orderRepository.fetchTodaysEarnings(bengkelId: bengkelId)
+        } catch {
+        }
     }
 
     private func startRealtimeSubscription(uid: String) {

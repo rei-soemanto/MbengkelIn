@@ -14,8 +14,8 @@ struct BengkelDashboardView: View {
 
     @StateObject private var bengkelViewModel = BengkelViewModel()
 
-    @State private var todaysEarnings: Double = 0.0
     @State private var selectedOrder: NearbyOrder?
+    @Environment(\.scenePhase) private var scenePhase
 
     var realShopRating: Double {
         bengkelViewModel.myBengkel?.averageRating ?? 0.0
@@ -75,7 +75,7 @@ struct BengkelDashboardView: View {
                             .foregroundColor(.green)
                             .font(.title2)
 
-                        Text(Rupiah.format(todaysEarnings))
+                        Text(Rupiah.format(bengkelViewModel.todaysEarnings))
                             .font(.title)
                             .fontWeight(.bold)
                             .foregroundColor(.primary)
@@ -142,6 +142,9 @@ struct BengkelDashboardView: View {
             if let uid = authViewModel.currentUser?.id {
                 await bengkelViewModel.startWatching(uid: uid)
             }
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active { Task { await bengkelViewModel.loadTodaysEarnings() } }
         }
         .onDisappear {
             bengkelViewModel.stopWatching()

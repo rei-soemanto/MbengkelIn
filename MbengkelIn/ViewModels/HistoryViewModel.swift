@@ -17,6 +17,7 @@ class HistoryViewModel: ObservableObject {
     @Published var errorMessage: String?
 
     @Published var detailOrder: NearbyOrder?
+    @Published var biddingOrder: NearbyOrder?
     @Published var trackingBid: Bid?
     @Published var trackingCoordinate: CLLocationCoordinate2D?
 
@@ -40,9 +41,12 @@ class HistoryViewModel: ObservableObject {
         isLoading = false
     }
 
+    @MainActor
     func select(_ order: NearbyOrder) async {
         if order.status == "On Progress" {
             await openTracking(order)
+        } else if order.status == "To Do" {
+            self.biddingOrder = order
         } else {
             self.detailOrder = order
         }

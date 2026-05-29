@@ -28,6 +28,12 @@ struct OrderHistoryRow: View {
                     Text(String(order.createdAt?.prefix(10) ?? "-"))
                         .font(.caption)
                         .foregroundColor(.secondary)
+                    if let info = order.vehicleInfo, !info.isEmpty {
+                        Label(info, systemImage: "car.fill")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
                     if let rating = order.rating, rating > 0 {
                         StarRatingView(rating: Double(rating))
                             .frame(height: 12)

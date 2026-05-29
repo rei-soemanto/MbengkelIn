@@ -27,6 +27,11 @@ struct CustomerHistoryView: View {
                     OrderTrackingView(bid: bid, customerCoordinate: coordinate)
                 }
             }
+            .navigationDestination(isPresented: biddingBinding) {
+                if let order = viewModel.biddingOrder {
+                    CustomerBiddingView(resuming: order, popToRoot: { viewModel.biddingOrder = nil })
+                }
+            }
     }
 
     @ViewBuilder
@@ -65,6 +70,13 @@ struct CustomerHistoryView: View {
         Binding(
             get: { viewModel.trackingBid != nil },
             set: { if !$0 { viewModel.trackingBid = nil; viewModel.trackingCoordinate = nil } }
+        )
+    }
+
+    private var biddingBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.biddingOrder != nil },
+            set: { if !$0 { viewModel.biddingOrder = nil } }
         )
     }
 }

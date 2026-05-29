@@ -13,6 +13,8 @@ struct NearbyOrder: Codable, Identifiable {
     var status: String
     var tireCount: Int?
     var photoUrls: [String]?
+    var vehicleId: String?
+    var vehicleInfo: String?
     var bengkelId: String?
     var rating: Int?
     var review: String?
@@ -34,6 +36,8 @@ struct NearbyOrder: Codable, Identifiable {
         case status
         case tireCount = "tire_count"
         case photoUrls = "photo_urls"
+        case vehicleId = "vehicle_id"
+        case vehicleInfo = "vehicle_info"
         case bengkelId = "bengkel_id"
         case rating
         case review

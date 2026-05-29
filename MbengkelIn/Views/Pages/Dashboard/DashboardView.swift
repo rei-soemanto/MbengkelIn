@@ -19,6 +19,7 @@ struct DashboardView: View {
     @ObservedObject var bengkelBiddingViewModel: BengkelBiddingViewModel
     @State private var recentOrders: [String] = []
     @State private var path = NavigationPath()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -34,6 +35,10 @@ struct DashboardView: View {
                 case .createOrder:
                     OrderView(popToRoot: { path = NavigationPath() })
                 }
+            }
+            .task { await authViewModel.fetchUser() }
+            .onChange(of: scenePhase) { phase in
+                if phase == .active { Task { await authViewModel.fetchUser() } }
             }
         }
     }

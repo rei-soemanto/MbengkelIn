@@ -71,6 +71,12 @@ struct OrderView: View {
                             .padding(.horizontal)
                         }
 
+                        VehiclePicker(
+                            vehicles: viewModel.vehicles,
+                            selectedVehicleId: viewModel.selectedVehicleId,
+                            onSelect: { viewModel.selectedVehicleId = $0 }
+                        )
+
                         if viewModel.requiresTireCount {
                             TireCountSelector(
                                 selectedCount: viewModel.tireCount,
@@ -134,6 +140,8 @@ struct OrderView: View {
                     coordinate: viewModel.region.center,
                     tireCount: viewModel.pendingTireCount,
                     photoUrls: viewModel.pendingPhotoUrls,
+                    vehicleId: viewModel.pendingVehicleId,
+                    vehicleInfo: viewModel.pendingVehicleInfo,
                     popToRoot: popToRoot
                 )
             }
@@ -150,11 +158,13 @@ struct OrderView: View {
             guard !viewModel.navigateToBidding else { return }
             viewModel.prepareForNewOrder()
             viewModel.useCurrentLocation()
+            Task { await viewModel.loadVehicles() }
         }
     }
 
     private var isCreateDisabled: Bool {
         if viewModel.selectedService == nil { return true }
+        if viewModel.selectedVehicleId == nil { return true }
         if !viewModel.hasResolvedLocation { return true }
         if viewModel.requiresTireCount {
             let provided = viewModel.photosData.prefix(viewModel.tireCount).compactMap { $0 }

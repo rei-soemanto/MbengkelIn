@@ -27,6 +27,12 @@ struct IncomingJobModal: View {
                     .font(.headline)
                     .multilineTextAlignment(.center)
 
+                if let info = order.vehicleInfo, !info.isEmpty {
+                    Label(info, systemImage: "car.fill")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
                 HStack(spacing: 6) {
                     Image(systemName: "location.fill")
                     Text(String(format: "%.0f m", order.distanceM ?? 0))

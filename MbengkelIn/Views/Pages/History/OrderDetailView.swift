@@ -115,6 +115,9 @@ struct OrderDetailView: View {
             detailRow(label: "Harga", value: order.price.map { Rupiah.format($0) } ?? "-")
             detailRow(label: "Tanggal", value: String(order.createdAt?.prefix(10) ?? "-"))
             detailRow(label: "Darurat", value: (order.isEmergency ?? false) ? "Ya" : "Tidak")
+            if let info = order.vehicleInfo, !info.isEmpty {
+                detailRow(label: "Kendaraan", value: info)
+            }
 
             if let rating = localRating, rating > 0 {
                 Divider()

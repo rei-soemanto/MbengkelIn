@@ -3,7 +3,7 @@ import Combine
 import Supabase
 
 @MainActor
-class CustomerBiddingViewModel: ObservableObject {
+final class CustomerBiddingViewModel: ObservableObject {
     @Published var bids: [Bid] = []
     @Published var acceptedBid: Bid?
     @Published var isLoading = false
@@ -31,6 +31,8 @@ class CustomerBiddingViewModel: ObservableObject {
     let longitude: Double
     let tireCount: Int
     let photoUrls: [String]
+    let vehicleId: String?
+    let vehicleInfo: String?
 
     private let searchTimeoutSeconds: UInt64 = 120
     private let decisionTimeoutSeconds: UInt64 = 10
@@ -56,17 +58,46 @@ class CustomerBiddingViewModel: ObservableObject {
     ]
 
 
-    init(serviceType: ServiceType, latitude: Double, longitude: Double, tireCount: Int, photoUrls: [String]) {
+    init(serviceType: ServiceType, latitude: Double, longitude: Double, tireCount: Int, photoUrls: [String], vehicleId: String? = nil, vehicleInfo: String? = nil) {
         self.serviceType = serviceType
         self.latitude = latitude
         self.longitude = longitude
         self.tireCount = tireCount
         self.photoUrls = photoUrls
+        self.vehicleId = vehicleId
+        self.vehicleInfo = vehicleInfo
         let base = serviceMinPrices[serviceType.rawValue] ?? 40000
         let isTire = serviceType == .banGembos || serviceType == .banPecah
         let min = isTire ? base * tireCount : base
         self.minPrice = min
         self.customerBidPrice = min
+    }
+
+    @MainActor
+    convenience init(resuming order: NearbyOrder) {
+        let type = ServiceType(rawValue: order.serviceType ?? "") ?? .banGembos
+        self.init(
+            serviceType: type,
+            latitude: order.latitude,
+            longitude: order.longitude,
+            tireCount: order.tireCount ?? 1,
+            photoUrls: order.photoUrls ?? [],
+            vehicleId: order.vehicleId,
+            vehicleInfo: order.vehicleInfo
+        )
+        self.serviceRequestId = order.id
+        self.customerBidPrice = order.price ?? self.minPrice
+        self.isSearching = true
+    }
+
+    func resume() async {
+        guard serviceRequestId != nil else { return }
+        isSearching = true
+        startRealtimeSubscription()
+        await loadReceivedBids()
+        if bids.isEmpty && acceptedBid == nil {
+            startSearchCountdown()
+        }
     }
 
     deinit {
@@ -81,6 +112,7 @@ class CustomerBiddingViewModel: ObservableObject {
         }
     }
 
+    @MainActor
     func startSearch(price: Int) async {
         guard price >= minPrice else {
             self.errorMessage = "Harga penawaran harus minimal Rp\(minPrice)"
@@ -121,7 +153,9 @@ class CustomerBiddingViewModel: ObservableObject {
                     is_emergency: false,
                     status: "To Do",
                     tire_count: tireCount,
-                    photo_urls: photoUrls
+                    photo_urls: photoUrls,
+                    vehicle_id: vehicleId,
+                    vehicle_info: vehicleInfo
                 )
                 let created: CreatedServiceRequest = try await supabase.from("service_requests")
                     .insert(payload)

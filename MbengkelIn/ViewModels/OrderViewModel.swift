@@ -11,6 +11,7 @@ import MapKit
 import CoreLocation
 import Supabase
 
+@MainActor
 class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, LocationSearchable {
     @Published var locationAddress: String = ""
     @Published var selectedService: String? = nil
@@ -26,6 +27,10 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
     @Published var pendingPhotoUrls: [String] = []
     @Published var navigateToBidding: Bool = false
     @Published var loadingPhase: LoadingPhase = .idle
+    @Published var vehicles: [Vehicle] = []
+    @Published var selectedVehicleId: String? = nil
+    @Published var pendingVehicleId: String? = nil
+    @Published var pendingVehicleInfo: String? = nil
 
     // True only once a *real* location has been resolved for this order — via
     // GPS, a map drag, or a search selection. Guards against silently creating
@@ -105,47 +110,51 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
         self.hasResolvedLocation = true
     }
     
+    @MainActor
     func useCurrentLocation() {
         isFetchingLocation = true
         isEditingLocation = false
         let status = locationManager.authorizationStatus
-        
+
         if status == .notDetermined {
             locationManager.requestWhenInUseAuthorization()
         } else if status == .authorizedWhenInUse || status == .authorizedAlways {
             locationManager.requestLocation()
         } else {
-            DispatchQueue.main.async { self.isFetchingLocation = false }
+            self.isFetchingLocation = false
         }
     }
     
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
-        if status == .authorizedWhenInUse || status == .authorizedAlways {
-            if isFetchingLocation {
-                manager.requestLocation()
+        Task { @MainActor in
+            if status == .authorizedWhenInUse || status == .authorizedAlways {
+                if isFetchingLocation {
+                    manager.requestLocation()
+                }
+            } else if status != .notDetermined {
+                self.isFetchingLocation = false
             }
-        } else if status != .notDetermined {
-            DispatchQueue.main.async { self.isFetchingLocation = false }
         }
     }
-    
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.first else { return }
-        
-        DispatchQueue.main.async {
+
+        Task { @MainActor in
             self.region = MKCoordinateRegion(
                 center: location.coordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
             )
             self.hasResolvedLocation = true
+            self.fetchAddress(from: location.coordinate)
         }
-        
-        fetchAddress(from: location.coordinate)
     }
-    
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        DispatchQueue.main.async { self.isFetchingLocation = false }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor in
+            self.isFetchingLocation = false
+        }
     }
     
     func updateLocationFromMap(coordinate: CLLocationCoordinate2D) {
@@ -156,8 +165,20 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
         }
     }
 
+    private let vehicleRepository = VehicleRepository()
+
+    @MainActor
+    func loadVehicles() async {
+        guard let uid = try? await supabase.auth.session.user.id.uuidString.lowercased() else { return }
+        do {
+            self.vehicles = try await vehicleRepository.fetchVehicles(customerId: uid)
+        } catch {
+        }
+    }
+
     // Reset all per-order state so each new order starts from a clean slate and
     // must re-resolve its location. Call when the order form appears.
+    @MainActor
     func prepareForNewOrder() {
         selectedService = nil
         estimatedPrice = 0
@@ -168,6 +189,9 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
         pendingPhotoUrls = []
         navigateToBidding = false
         hasResolvedLocation = false
+        selectedVehicleId = nil
+        pendingVehicleId = nil
+        pendingVehicleInfo = nil
         locationAddress = ""
         searchResults = []
         isEditingLocation = false
@@ -228,6 +252,10 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
             self.errorMessage = "Layanan tidak dikenali."
             return
         }
+        guard let vehicleId = selectedVehicleId, let vehicle = vehicles.first(where: { $0.id == vehicleId }) else {
+            self.errorMessage = vehicles.isEmpty ? "Tambahkan kendaraan di menu Profil terlebih dahulu." : "Pilih kendaraan yang bermasalah."
+            return
+        }
         if requiresTireCount {
             let provided = photosData.compactMap { $0 }
             guard provided.count == tireCount else {
@@ -251,6 +279,8 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
                 self.pendingServiceType = serviceType
                 self.pendingTireCount = requiresTireCount ? tireCount : 1
                 self.pendingPhotoUrls = uploadedUrls
+                self.pendingVehicleId = vehicleId
+                self.pendingVehicleInfo = "\(vehicle.manufacturer) \(vehicle.model) • \(vehicle.licensePlate)"
                 self.loadingPhase = .idle
                 self.navigateToBidding = true
             } catch {

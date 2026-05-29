@@ -13,16 +13,26 @@ struct CustomerBiddingView: View {
     var popToRoot: () -> Void = {}
 
     @StateObject private var viewModel: CustomerBiddingViewModel
+    private let isResuming: Bool
 
-    init(serviceType: ServiceType, coordinate: CLLocationCoordinate2D, tireCount: Int = 1, photoUrls: [String] = [], popToRoot: @escaping () -> Void = {}) {
+    init(serviceType: ServiceType, coordinate: CLLocationCoordinate2D, tireCount: Int = 1, photoUrls: [String] = [], vehicleId: String? = nil, vehicleInfo: String? = nil, popToRoot: @escaping () -> Void = {}) {
         self.popToRoot = popToRoot
+        self.isResuming = false
         _viewModel = StateObject(wrappedValue: CustomerBiddingViewModel(
             serviceType: serviceType,
             latitude: coordinate.latitude,
             longitude: coordinate.longitude,
             tireCount: tireCount,
-            photoUrls: photoUrls
+            photoUrls: photoUrls,
+            vehicleId: vehicleId,
+            vehicleInfo: vehicleInfo
         ))
+    }
+
+    init(resuming order: NearbyOrder, popToRoot: @escaping () -> Void = {}) {
+        self.popToRoot = popToRoot
+        self.isResuming = true
+        _viewModel = StateObject(wrappedValue: CustomerBiddingViewModel(resuming: order))
     }
 
     var body: some View {
@@ -82,6 +92,9 @@ struct CustomerBiddingView: View {
         }
         .onChange(of: viewModel.shouldDismiss) { dismissNow in
             if dismissNow { popToRoot() }
+        }
+        .task {
+            if isResuming { await viewModel.resume() }
         }
     }
 }

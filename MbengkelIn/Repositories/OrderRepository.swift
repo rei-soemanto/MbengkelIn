@@ -20,6 +20,19 @@ class OrderRepository {
             .value
     }
 
+    func fetchTodaysEarnings(bengkelId: String) async throws -> Double {
+        let startOfDay = Calendar.current.startOfDay(for: Date())
+        let iso = ISO8601DateFormatter().string(from: startOfDay)
+        let rows: [TodaysEarningRow] = try await supabase.from("service_requests")
+            .select("price")
+            .eq("bengkel_id", value: bengkelId)
+            .eq("status", value: "Done")
+            .gte("completed_at", value: iso)
+            .execute()
+            .value
+        return rows.reduce(0.0) { $0 + Double($1.price ?? 0) }
+    }
+
     func fetchBengkelOrders(bengkelId: String) async throws -> [NearbyOrder] {
         return try await supabase.from("service_requests")
             .select()

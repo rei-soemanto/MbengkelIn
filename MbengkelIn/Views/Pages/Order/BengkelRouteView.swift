@@ -115,6 +115,12 @@ struct BengkelRouteView: View {
                 OrderStatusBadge(status: viewModel.status)
             }
 
+            if let info = order.vehicleInfo, !info.isEmpty {
+                Label(info, systemImage: "car.fill")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
             Divider()
 
             switch viewModel.status {

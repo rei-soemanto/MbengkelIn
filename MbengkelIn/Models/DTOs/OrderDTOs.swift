@@ -12,10 +12,16 @@ struct ServiceRequestPayload: Encodable {
     let status: String
     let tire_count: Int
     let photo_urls: [String]?
+    let vehicle_id: String?
+    let vehicle_info: String?
 }
 
 struct CreatedServiceRequest: Decodable {
     let id: String
+}
+
+struct TodaysEarningRow: Decodable {
+    let price: Int?
 }
 
 // Customer Bidding DTOs
