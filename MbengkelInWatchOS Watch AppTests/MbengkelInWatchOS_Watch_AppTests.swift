@@ -2,35 +2,52 @@
 //  MbengkelInWatchOS_Watch_AppTests.swift
 //  MbengkelInWatchOS Watch AppTests
 //
-//  Created by Rei Soemanto on 22/05/26.
-//
 
 import XCTest
 @testable import MbengkelInWatchOS_Watch_App
 
-final class MbengkelInWatchOS_Watch_AppTests: XCTestCase {
+final class WatchOrderStateWatchTests: XCTestCase {
+    func testRoundTrip() throws {
+        let offer = WatchBidOffer(
+            bidId: "b1", bengkelName: "Bengkel A", price: 75000, rating: 4.5)
+        let state = WatchOrderState(
+            hasActiveOrder: true, stage: "inProgress", serviceType: "Ban Gembos",
+            bengkelName: "Bengkel A", agreedPrice: 75000, mySideCompleted: false,
+            alreadyRated: false, requestId: "r1", offers: [offer])
 
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+        let data = try JSONEncoder().encode(state)
+        let decoded = try JSONDecoder().decode(WatchOrderState.self, from: data)
+        XCTAssertEqual(decoded, state)
+        XCTAssertEqual(offer.id, offer.bidId)
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+    func testEmptyDefaults() {
+        let empty = WatchOrderState.empty
+        XCTAssertFalse(empty.hasActiveOrder)
+        XCTAssertEqual(empty.stage, "finding")
+        XCTAssertTrue(empty.offers.isEmpty)
     }
 
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
+    func testContractDecodeFromPhonePayload() throws {
+        let json = #"""
+        {"hasActiveOrder":true,"stage":"inProgress","serviceType":"Ban Gembos",
+        "bengkelName":"Bengkel A","agreedPrice":75000,"mySideCompleted":false,
+        "alreadyRated":false,"requestId":"r1",
+        "offers":[{"bidId":"b1","bengkelName":"Bengkel A","price":75000,"rating":4.5}]}
+        """#
+        let state = try JSONDecoder().decode(
+            WatchOrderState.self, from: Data(json.utf8))
+        XCTAssertEqual(state.stage, "inProgress")
+        XCTAssertEqual(state.agreedPrice, 75000)
+        XCTAssertEqual(state.requestId, "r1")
+        XCTAssertEqual(state.offers.first?.bidId, "b1")
+        XCTAssertEqual(state.offers.first?.rating, 4.5)
     }
 
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
-        }
+    func testStageStringContract() {
+        XCTAssertEqual("finding", WatchOrderState.empty.stage)
+        let stages = ["finding", "inProgress", "finished"]
+        XCTAssertEqual(stages.count, 3)
+        XCTAssertTrue(stages.contains("inProgress"))
     }
-
 }
