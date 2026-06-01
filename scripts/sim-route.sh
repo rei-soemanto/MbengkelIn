@@ -28,7 +28,7 @@ START_LON="112.6274774"
 
 cmd="${1:-go}"
 shift || true
-SPEED="108"   # 12x the original ~9 m/s (4x then 3x)
+SPEED="1080"   # 120x the original ~9 m/s (4x, 3x, then 10x)
 for arg in "$@"; do
   case "$arg" in
     --speed=*) SPEED="${arg#*=}" ;;

@@ -73,6 +73,7 @@ struct BengkelRouteView: View {
         }
         .navigationTitle("Menuju Lokasi Pelanggan")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button { dismiss() } label: {
@@ -83,6 +84,11 @@ struct BengkelRouteView: View {
         .task { await viewModel.start(order: order) }
         .task { await chatWatch.start() }
         .onChange(of: viewModel.bengkelCoordinate?.latitude) { _ in fitBothIfNeeded() }
+        .onChange(of: viewModel.status) { newStatus in
+            if newStatus == "Cancelled" {
+                dismiss()
+            }
+        }
         .onDisappear {
             viewModel.stop()
             chatWatch.stop()
@@ -144,7 +150,8 @@ struct BengkelRouteView: View {
                     }
                 }
             }
-            .presentationDetents([.medium, .large])
+            .presentationBackground(.white)
+            .presentationDetents([.large])
         }
     }
 

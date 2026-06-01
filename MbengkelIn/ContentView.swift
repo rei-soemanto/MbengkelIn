@@ -10,6 +10,7 @@ import Supabase
 
 struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
+    @StateObject private var network = NetworkMonitor()
     @StateObject private var bengkelBiddingViewModel = BengkelBiddingViewModel()
     @State private var bidOrder: NearbyOrder?
     @Environment(\.scenePhase) private var scenePhase
@@ -19,7 +20,11 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if authViewModel.isInitializing {
+            if !network.isConnected {
+                OfflineView {
+                    Task { await authViewModel.loadInitialSession() }
+                }
+            } else if authViewModel.isInitializing {
                 SplashView()
             } else if authViewModel.userSession != nil {
                 VStack(spacing: 0) {
@@ -44,6 +49,11 @@ struct ContentView: View {
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 Task { await bengkelBiddingViewModel.refreshOnForeground() }
+            }
+        }
+        .onChange(of: network.isConnected) { connected in
+            if connected {
+                Task { await authViewModel.loadInitialSession() }
             }
         }
         .task(id: authViewModel.userSession?.id) {

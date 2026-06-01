@@ -100,3 +100,11 @@ struct CustomerLocationPayload: Encodable {
     let latitude: Double
     let longitude: Double
 }
+
+// Behavior report payload — inserted by a party to the order into
+// behavior_reports (RLS enforces reporter_id = auth.uid()).
+struct BehaviorReportPayload: Encodable {
+    let service_request_id: String
+    let reporter_id: String
+    let reason: String
+}

@@ -19,12 +19,17 @@ struct OrderTrackingView: View {
     @StateObject private var locationPublisher = CustomerLocationPublishViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var region: MKCoordinateRegion
-    @State private var showReviewSheet = false
     @State private var didPromptReview = false
     @State private var didFitBoth = false
-    @State private var showCancelSheet = false
+    @State private var activeSheet: ActiveSheet?
     @State private var cancelReason = ""
+
+    private enum ActiveSheet: Identifiable {
+        case review, cancel
+        var id: Int { self == .review ? 0 : 1 }
+    }
     @State private var didNotifyNear = false
+    @State private var hasBeenNear = false
     private let notificationService = NotificationService()
 
     init(bid: Bid, customerCoordinate: CLLocationCoordinate2D, popToRoot: @escaping () -> Void = {}) {
@@ -52,10 +57,11 @@ struct OrderTrackingView: View {
             TrackingInfoCard(
                 bid: bid,
                 isLive: trackingViewModel.isLive,
+                status: trackingViewModel.status,
                 unreadCount: chatWatch.unreadCount,
                 onOpenChat: { chatWatch.markAllRead() },
-                canComplete: isBengkelNear,
-                onCancel: { showCancelSheet = true }
+                canComplete: hasBeenNear,
+                onCancel: { activeSheet = .cancel }
             )
         }
         .navigationTitle("Bengkel Menuju Lokasi")
@@ -82,11 +88,17 @@ struct OrderTrackingView: View {
             }
             if status == "Done", !trackingViewModel.alreadyRated, !didPromptReview {
                 didPromptReview = true
-                showReviewSheet = true
+                activeSheet = .review
+            }
+        }
+        .onChange(of: trackingViewModel.status) { newStatus in
+            if newStatus == "Cancelled" {
+                popToRoot()
             }
         }
         .onChange(of: trackingViewModel.providerCoordinate?.latitude) { _ in
             fitBothIfNeeded()
+            if isBengkelNear { hasBeenNear = true }
             if isBengkelNear, !didNotifyNear {
                 didNotifyNear = true
                 notificationService.notifyNewOrder(
@@ -95,49 +107,52 @@ struct OrderTrackingView: View {
                 )
             }
         }
-        .sheet(isPresented: $showReviewSheet) {
-            OrderReviewSheet(requestId: bid.serviceRequestId)
-        }
-        .sheet(isPresented: $showCancelSheet) {
-            NavigationStack {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Pesananmu sudah diterima bengkel. Pembatalan akan ditinjau admin dan dananya ditahan sementara sampai ada keputusan.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    TextField("Alasan pembatalan…", text: $cancelReason, axis: .vertical)
-                        .lineLimit(3...6)
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
-                    Button {
-                        Task {
-                            if await trackingViewModel.openDispute(reason: cancelReason) {
-                                showCancelSheet = false
-                                popToRoot()
-                            }
-                        }
-                    } label: {
-                        Text("Kirim Pembatalan")
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .review:
+                OrderReviewSheet(requestId: bid.serviceRequestId)
+            case .cancel:
+                NavigationStack {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Pesananmu sudah diterima bengkel. Pembatalan akan ditinjau admin dan dananya ditahan sementara sampai ada keputusan.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        TextField("Alasan pembatalan…", text: $cancelReason, axis: .vertical)
+                            .lineLimit(3...6)
                             .padding()
-                            .background(Color.red.opacity(cancelReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.4 : 1))
+                            .background(Color(.systemGray6))
                             .cornerRadius(12)
+                        Button {
+                            Task {
+                                if await trackingViewModel.openDispute(reason: cancelReason) {
+                                    activeSheet = nil
+                                    popToRoot()
+                                }
+                            }
+                        } label: {
+                            Text("Kirim Pembatalan")
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.red.opacity(cancelReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.4 : 1))
+                                .cornerRadius(12)
+                        }
+                        .disabled(cancelReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        Spacer()
                     }
-                    .disabled(cancelReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    Spacer()
-                }
-                .padding()
-                .navigationTitle("Batalkan Pesanan")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Batal") { showCancelSheet = false }
+                    .padding()
+                    .navigationTitle("Batalkan Pesanan")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Batal") { activeSheet = nil }
+                        }
                     }
                 }
+                .presentationBackground(.white)
+                .presentationDetents([.large])
             }
-            .presentationDetents([.medium])
         }
         .onDisappear {
             trackingViewModel.stop()

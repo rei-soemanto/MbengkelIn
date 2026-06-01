@@ -10,10 +10,41 @@ import SwiftUI
 struct OrderHistoryRow: View {
     let order: NearbyOrder
     let onTap: () -> Void
+    var onReport: (() -> Void)? = nil
+
+    private var canReport: Bool {
+        onReport != nil && (order.status == "Done" || order.status == "Cancelled")
+    }
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 14) {
+        VStack(spacing: 8) {
+            Button(action: onTap) {
+                card
+            }
+            .buttonStyle(.plain)
+
+            if canReport {
+                Button {
+                    onReport?()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "flag.fill")
+                        Text("Laporkan perilaku")
+                    }
+                    .font(.caption.bold())
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(Color.red.opacity(0.10))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var card: some View {
+        HStack(spacing: 14) {
                 Image(systemName: "wrench.and.screwdriver.fill")
                     .font(.title3)
                     .foregroundColor(.primary)
@@ -55,15 +86,13 @@ struct OrderHistoryRow: View {
             .background(Color(.systemBackground))
             .cornerRadius(16)
             .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
-            .overlay(alignment: .topTrailing) {
-                if order.status == "On Progress" {
-                    Image(systemName: "chevron.right")
-                        .font(.caption.bold())
-                        .foregroundColor(.green)
-                        .padding(10)
-                }
+        .overlay(alignment: .topTrailing) {
+            if order.status == "On Progress" {
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold())
+                    .foregroundColor(.green)
+                    .padding(10)
             }
         }
-        .buttonStyle(.plain)
     }
 }

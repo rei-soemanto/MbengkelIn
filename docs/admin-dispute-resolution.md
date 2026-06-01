@@ -5,12 +5,18 @@ When a customer ("Batalkan Pesanan") or a bengkel ("Laporkan Kendala") cancels a
 
 - records a row in `public.order_disputes` (`reason`, optional `proof_url`,
   `initiator_role`, `status = 'pending'`), and
-- flips the order to `Cancelled`, which makes `handle_order_balance` **freeze** the
-  money: the customer's `held_balance` and the bengkel's `pending_balance` stay in
-  place (nobody is paid or refunded yet).
+- flips the order to `Cancelled`, which makes `handle_order_balance` **unwind** the
+  reservation: the customer's `held_balance` is released and the bengkel's
+  `pending_balance` is reversed. **No money is charged or paid on cancel** — the
+  customer's balance returns to exactly its pre-order state so they can keep
+  ordering. (This superseded the earlier "freeze" behavior, which locked the
+  customer's available balance and caused false "saldo tidak cukup".)
 
-A (conceptual) admin reviews each pending dispute and resolves it by hand. There is
-no admin UI or resolve RPC — run one of the snippets below.
+The `order_disputes` row is now an **informational record** of why the order was
+cancelled. The customer is already made whole, so no routine resolution is needed.
+If an admin ever wants to *penalize* the customer or *compensate* the bengkel for a
+specific dispute, do it as a manual transfer (snippets below), then mark the row
+resolved.
 
 ## List pending disputes
 

@@ -10,6 +10,7 @@ import CoreLocation
 
 struct CustomerHistoryView: View {
     @StateObject private var viewModel = HistoryViewModel()
+    @State private var reportOrder: NearbyOrder?
 
     var body: some View {
         content
@@ -30,6 +31,7 @@ struct CustomerHistoryView: View {
                         popToRoot: {
                             viewModel.trackingBid = nil
                             viewModel.trackingCoordinate = nil
+                            Task { await viewModel.loadOrders() }
                         }
                     )
                 }
@@ -38,6 +40,9 @@ struct CustomerHistoryView: View {
                 if let order = viewModel.biddingOrder {
                     CustomerBiddingView(resuming: order, popToRoot: { viewModel.biddingOrder = nil })
                 }
+            }
+            .sheet(item: $reportOrder) { order in
+                ReportBehaviorSheet(order: order)
             }
     }
 
@@ -57,9 +62,11 @@ struct CustomerHistoryView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(viewModel.orders) { order in
-                    OrderHistoryRow(order: order) {
+                    OrderHistoryRow(order: order, onTap: {
                         Task { await viewModel.select(order) }
-                    }
+                    }, onReport: {
+                        reportOrder = order
+                    })
                 }
             }
             .padding()
@@ -69,7 +76,7 @@ struct CustomerHistoryView: View {
     private var detailBinding: Binding<Bool> {
         Binding(
             get: { viewModel.detailOrder != nil },
-            set: { if !$0 { viewModel.detailOrder = nil } }
+            set: { if !$0 { viewModel.detailOrder = nil; Task { await viewModel.loadOrders() } } }
         )
     }
 

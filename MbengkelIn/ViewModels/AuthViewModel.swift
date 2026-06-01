@@ -29,15 +29,19 @@ class AuthViewModel: ObservableObject {
     private let userRepository = UserRepository()
 
     init() {
-        Task {
-            defer { self.isInitializing = false }
-            do {
-                let session = try await authService.getCurrentSession()
-                self.userSession = session.user
-                await fetchUser()
-            } catch {
-                self.userSession = nil
-            }
+        Task { await loadInitialSession() }
+    }
+
+    @MainActor
+    func loadInitialSession() async {
+        isInitializing = true
+        defer { isInitializing = false }
+        do {
+            let session = try await authService.getCurrentSession()
+            self.userSession = session.user
+            await fetchUser()
+        } catch {
+            self.userSession = nil
         }
     }
 

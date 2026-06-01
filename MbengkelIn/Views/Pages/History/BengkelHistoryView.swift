@@ -9,6 +9,7 @@ import SwiftUI
 
 struct BengkelHistoryView: View {
     @StateObject private var viewModel = BengkelHistoryViewModel()
+    @State private var reportOrder: NearbyOrder?
 
     var body: some View {
         content
@@ -23,6 +24,9 @@ struct BengkelHistoryView: View {
                         OrderDetailView(order: order, isCustomer: false)
                     }
                 }
+            }
+            .sheet(item: $reportOrder) { order in
+                ReportBehaviorSheet(order: order)
             }
     }
 
@@ -42,9 +46,11 @@ struct BengkelHistoryView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(viewModel.orders) { order in
-                    OrderHistoryRow(order: order) {
+                    OrderHistoryRow(order: order, onTap: {
                         viewModel.select(order)
-                    }
+                    }, onReport: {
+                        reportOrder = order
+                    })
                 }
             }
             .padding()

@@ -10,6 +10,7 @@ import SwiftUI
 struct TrackingInfoCard: View {
     let bid: Bid
     let isLive: Bool
+    var status: String = "On Progress"
     var unreadCount: Int = 0
     var onOpenChat: () -> Void = {}
     var canComplete: Bool = true
@@ -54,21 +55,42 @@ struct TrackingInfoCard: View {
                 )
                 .font(.caption).foregroundColor(.green)
             }
-            CompleteOrderButton(requestId: bid.serviceRequestId, isCustomer: true, canComplete: canComplete)
-            Button(role: .destructive) {
-                onCancel()
-            } label: {
-                Text("Batalkan Pesanan")
-                    .font(.subheadline.bold())
-                    .foregroundColor(.red)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color.red.opacity(0.12))
-                    .cornerRadius(16)
+            if status == "On Progress" {
+                CompleteOrderButton(requestId: bid.serviceRequestId, isCustomer: true, canComplete: canComplete)
+                Button(role: .destructive) {
+                    onCancel()
+                } label: {
+                    Text("Batalkan Pesanan")
+                        .font(.subheadline.bold())
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.red.opacity(0.12))
+                        .cornerRadius(16)
+                }
+            } else {
+                statusLine
             }
         }
         .padding()
         .background(Color(.systemBackground))
         .shadow(color: .black.opacity(0.05), radius: 10, y: -2)
+    }
+
+    @ViewBuilder
+    private var statusLine: some View {
+        let isCancelled = status == "Cancelled"
+        HStack(spacing: 8) {
+            Image(systemName: isCancelled ? "xmark.seal.fill" : "checkmark.seal.fill")
+            Text(isCancelled ? "Pesanan dibatalkan." : "Pesanan selesai.")
+                .fontWeight(.semibold)
+            Spacer()
+        }
+        .font(.subheadline)
+        .foregroundColor(isCancelled ? .red : .green)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background((isCancelled ? Color.red : Color.green).opacity(0.12))
+        .cornerRadius(12)
     }
 }
