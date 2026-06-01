@@ -85,7 +85,8 @@ struct CustomerBiddingView: View {
                     customerCoordinate: CLLocationCoordinate2D(
                         latitude: viewModel.latitude,
                         longitude: viewModel.longitude
-                    )
+                    ),
+                    popToRoot: popToRoot
                 )
             }
         }

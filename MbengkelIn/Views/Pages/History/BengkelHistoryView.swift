@@ -17,7 +17,11 @@ struct BengkelHistoryView: View {
             .refreshable { await viewModel.loadOrders() }
             .navigationDestination(isPresented: detailBinding) {
                 if let order = viewModel.detailOrder {
-                    OrderDetailView(order: order, isCustomer: false)
+                    if order.status == "On Progress" {
+                        BengkelRouteView(order: order)
+                    } else {
+                        OrderDetailView(order: order, isCustomer: false)
+                    }
                 }
             }
     }

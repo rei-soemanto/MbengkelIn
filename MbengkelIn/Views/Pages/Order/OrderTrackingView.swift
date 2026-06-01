@@ -12,6 +12,7 @@ import CoreLocation
 struct OrderTrackingView: View {
     let bid: Bid
     let customerCoordinate: CLLocationCoordinate2D
+    let popToRoot: () -> Void
 
     @StateObject private var trackingViewModel = OrderTrackingViewModel()
     @StateObject private var chatWatch: ChatWatchViewModel
@@ -20,15 +21,18 @@ struct OrderTrackingView: View {
     @State private var region: MKCoordinateRegion
     @State private var showReviewSheet = false
     @State private var didPromptReview = false
+    @State private var didFitBoth = false
     @State private var showCancelConfirm = false
+    @State private var showCancelError = false
 
-    init(bid: Bid, customerCoordinate: CLLocationCoordinate2D) {
+    init(bid: Bid, customerCoordinate: CLLocationCoordinate2D, popToRoot: @escaping () -> Void = {}) {
         self.bid = bid
         self.customerCoordinate = customerCoordinate
-        let bengkelCoordinate = bid.bengkel.map {
-            CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
-        }
-        _region = State(initialValue: .fitting(customerCoordinate, bengkelCoordinate))
+        self.popToRoot = popToRoot
+        // Default zoom matches the bengkel's route map: start centered on the
+        // customer at the shared default span, then fit both once the bengkel's
+        // live location arrives.
+        _region = State(initialValue: .fitting(customerCoordinate, nil))
         _chatWatch = StateObject(wrappedValue: ChatWatchViewModel(
             serviceRequestId: bid.serviceRequestId,
             counterpartName: bid.bengkel?.name ?? "Bengkel"
@@ -56,7 +60,7 @@ struct OrderTrackingView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
-                    dismiss()
+                    popToRoot()
                 } label: {
                     Image(systemName: "chevron.left")
                         .fontWeight(.semibold)
@@ -79,11 +83,22 @@ struct OrderTrackingView: View {
             titleVisibility: .visible
         ) {
             Button("Ya, batalkan pesanan", role: .destructive) {
-                Task { if await trackingViewModel.cancelOrder() { dismiss() } }
+                Task {
+                    if await trackingViewModel.cancelOrder() {
+                        popToRoot()
+                    } else {
+                        showCancelError = true
+                    }
+                }
             }
             Button("Tidak", role: .cancel) {}
         } message: {
-            Text("Bengkel yang sedang menuju lokasi akan dibatalkan.")
+            Text("Kamu sudah menerima tawaran bengkel ini. Jika dibatalkan, kamu tetap dikenakan biaya penuh \(Rupiah.format(bid.price)) yang dibayarkan ke bengkel.")
+        }
+        .alert("Gagal Membatalkan", isPresented: $showCancelError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Pesanan tidak dapat dibatalkan saat ini. Periksa koneksi kamu dan coba lagi.")
         }
         .task { await trackingViewModel.start(serviceRequestId: bid.serviceRequestId) }
         .task { await chatWatch.start() }
@@ -99,6 +114,9 @@ struct OrderTrackingView: View {
                 showReviewSheet = true
             }
         }
+        .onChange(of: trackingViewModel.providerCoordinate?.latitude) { _ in
+            fitBothIfNeeded()
+        }
         .sheet(isPresented: $showReviewSheet) {
             OrderReviewSheet(requestId: bid.serviceRequestId)
         }
@@ -107,6 +125,12 @@ struct OrderTrackingView: View {
             chatWatch.stop()
             locationPublisher.stop()
         }
+    }
+
+    private func fitBothIfNeeded() {
+        guard !didFitBoth, let bengkel = trackingViewModel.providerCoordinate else { return }
+        didFitBoth = true
+        region = .fitting(customerCoordinate, bengkel)
     }
 
     private var liveBengkelCoordinate: CLLocationCoordinate2D? {

@@ -59,10 +59,19 @@ class OrderRepository {
     }
 
     func cancelOrder(id: String) async throws {
-        try await supabase.from("service_requests")
+        let updated: [CreatedServiceRequest] = try await supabase.from("service_requests")
             .update(OrderStatusUpdate(status: "Cancelled"))
             .eq("id", value: id)
+            .select("id")
             .execute()
+            .value
+        guard !updated.isEmpty else {
+            throw NSError(
+                domain: "MbengkelIn.OrderRepository",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Pembatalan tidak diterapkan. Coba lagi."]
+            )
+        }
     }
 
     func fetchAcceptedBid(serviceRequestId: String) async throws -> Bid? {

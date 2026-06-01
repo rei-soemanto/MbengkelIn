@@ -222,6 +222,19 @@ final class CustomerBiddingViewModel: ObservableObject {
         isSearching = false
     }
 
+    @MainActor
+    private func stopSearchingState() {
+        searchCountdownTask?.cancel()
+        searchCountdownTask = nil
+        decisionCountdownTask?.cancel()
+        decisionCountdownTask = nil
+        bidExpiryTask?.cancel()
+        bidExpiryTask = nil
+        searchSecondsRemaining = 0
+        showRetryPrompt = false
+        isSearching = false
+    }
+
     func cancelAndDelete() async {
         showRetryPrompt = false
         searchCountdownTask?.cancel()
@@ -290,6 +303,7 @@ final class CustomerBiddingViewModel: ObservableObject {
         }
     }
 
+    @MainActor
     func loadReceivedBids() async {
         guard let serviceRequestId = serviceRequestId else { return }
         do {
@@ -334,12 +348,14 @@ final class CustomerBiddingViewModel: ObservableObject {
             if let accepted = fetched.first(where: { $0.status.lowercased() == "accepted" }) {
                 self.acceptedBid = accepted
                 stopRealtimeSubscription()
+                stopSearchingState()
             }
         } catch {
             self.errorMessage = error.localizedDescription
         }
     }
 
+    @MainActor
     func refresh() async {
         errorMessage = nil
         if isSearching {
@@ -347,6 +363,7 @@ final class CustomerBiddingViewModel: ObservableObject {
         }
     }
 
+    @MainActor
     func acceptBid(_ bid: Bid) async {
         guard let serviceRequestId = serviceRequestId else { return }
         isLoading = true
@@ -386,12 +403,14 @@ final class CustomerBiddingViewModel: ObservableObject {
             if self.acceptedBid == nil {
                 self.acceptedBid = bid
             }
+            stopSearchingState()
         } catch {
             self.errorMessage = error.localizedDescription
         }
         isLoading = false
     }
 
+    @MainActor
     func rejectBid(_ bid: Bid) async {
         isLoading = true
         errorMessage = nil

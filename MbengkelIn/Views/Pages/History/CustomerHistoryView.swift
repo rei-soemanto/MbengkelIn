@@ -24,7 +24,14 @@ struct CustomerHistoryView: View {
             .navigationDestination(isPresented: trackingBinding) {
                 if let bid = viewModel.trackingBid,
                    let coordinate = viewModel.trackingCoordinate {
-                    OrderTrackingView(bid: bid, customerCoordinate: coordinate)
+                    OrderTrackingView(
+                        bid: bid,
+                        customerCoordinate: coordinate,
+                        popToRoot: {
+                            viewModel.trackingBid = nil
+                            viewModel.trackingCoordinate = nil
+                        }
+                    )
                 }
             }
             .navigationDestination(isPresented: biddingBinding) {

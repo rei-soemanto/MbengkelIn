@@ -10,7 +10,7 @@ import Combine
 import Supabase
 
 @MainActor
-class BengkelHistoryViewModel: ObservableObject {
+class BengkelHistoryViewModel: ObservableObject, Sendable {
     @Published var orders: [NearbyOrder] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -18,6 +18,15 @@ class BengkelHistoryViewModel: ObservableObject {
 
     private let bengkelRepository = BengkelRepository()
     private let orderRepository = OrderRepository()
+    private var channel: RealtimeChannelV2?
+    private var bengkelId: String?
+
+    deinit {
+        if let channel = channel {
+            let client = supabase
+            Task { await client.removeChannel(channel) }
+        }
+    }
 
     func loadOrders() async {
         isLoading = true
@@ -29,12 +38,39 @@ class BengkelHistoryViewModel: ObservableObject {
                 isLoading = false
                 return
             }
+            self.bengkelId = bengkelId
             let fetched = try await orderRepository.fetchBengkelOrders(bengkelId: bengkelId)
             self.orders = fetched.sorted(by: Self.isOrderedBefore)
+            startRealtimeIfNeeded()
         } catch {
             self.errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    private func startRealtimeIfNeeded() {
+        guard channel == nil, let bengkelId else { return }
+        let channel = supabase.channel("bengkel-history-\(bengkelId)")
+        self.channel = channel
+        let stream = channel.postgresChange(
+            AnyAction.self,
+            schema: "public",
+            table: "service_requests",
+            filter: "bengkel_id=eq.\(bengkelId)"
+        )
+        Task { [weak self] in
+            await channel.subscribe()
+            for await _ in stream {
+                await self?.reload()
+            }
+        }
+    }
+
+    private func reload() async {
+        guard let bengkelId else { return }
+        if let fetched = try? await orderRepository.fetchBengkelOrders(bengkelId: bengkelId) {
+            self.orders = fetched.sorted(by: Self.isOrderedBefore)
+        }
     }
 
     func select(_ order: NearbyOrder) {

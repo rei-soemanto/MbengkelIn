@@ -113,7 +113,22 @@ struct BengkelRouteView: View {
                         .font(.caption).foregroundColor(.secondary)
                 }
                 Spacer()
-                OrderStatusBadge(status: viewModel.status)
+                if viewModel.status == "On Progress" {
+                    NavigationLink(destination: ChatView(serviceRequestId: order.id, title: order.customerName ?? "Pelanggan")) {
+                        Image(systemName: "message.fill")
+                            .font(.title3)
+                            .foregroundColor(.primary)
+                            .padding(12)
+                            .background(Color(.systemGray6))
+                            .clipShape(Circle())
+                            .overlay(alignment: .topTrailing) {
+                                UnreadBadge(count: chatWatch.unreadCount)
+                            }
+                    }
+                    .simultaneousGesture(TapGesture().onEnded { chatWatch.markAllRead() })
+                } else {
+                    OrderStatusBadge(status: viewModel.status)
+                }
             }
 
             if let info = order.vehicleInfo, !info.isEmpty {
@@ -126,22 +141,6 @@ struct BengkelRouteView: View {
 
             switch viewModel.status {
             case "On Progress":
-                NavigationLink(destination: ChatView(serviceRequestId: order.id, title: order.customerName ?? "Pelanggan")) {
-                    HStack {
-                        Image(systemName: "message.fill")
-                            .overlay(alignment: .topTrailing) {
-                                UnreadBadge(count: chatWatch.unreadCount)
-                            }
-                        Text("Chat dengan Pelanggan").fontWeight(.bold)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                    }
-                    .foregroundColor(Color(.systemBackground))
-                    .padding()
-                    .background(Color.primary.opacity(0.9))
-                    .cornerRadius(12)
-                }
-                .simultaneousGesture(TapGesture().onEnded { chatWatch.markAllRead() })
                 CompleteOrderButton(requestId: order.id, isCustomer: false)
             case "Done":
                 statusLine(text: "Pesanan selesai.", icon: "checkmark.seal.fill", color: .green)
