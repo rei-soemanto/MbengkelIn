@@ -74,6 +74,17 @@ class OrderRepository {
         }
     }
 
+    @discardableResult
+    func openDispute(requestId: String, reason: String, proofUrl: String? = nil) async throws -> NearbyOrder {
+        return try await supabase.rpc(
+            "open_dispute",
+            params: OpenDisputeParams(p_request_id: requestId, p_reason: reason, p_proof_url: proofUrl)
+        )
+        .single()
+        .execute()
+        .value
+    }
+
     func fetchAcceptedBid(serviceRequestId: String) async throws -> Bid? {
         let bids: [Bid] = try await supabase.from("bids")
             .select("*, bengkel:bengkels(*)")
@@ -94,10 +105,10 @@ class OrderRepository {
     }
 
     @discardableResult
-    func markOrderCompleted(requestId: String) async throws -> NearbyOrder {
+    func markOrderCompleted(requestId: String, completionPhotoUrl: String? = nil) async throws -> NearbyOrder {
         return try await supabase.rpc(
             "mark_order_completed",
-            params: MarkCompletedParams(p_request_id: requestId)
+            params: MarkCompletedParams(p_request_id: requestId, p_completion_photo_url: completionPhotoUrl)
         )
         .single()
         .execute()

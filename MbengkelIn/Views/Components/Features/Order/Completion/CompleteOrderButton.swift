@@ -1,10 +1,17 @@
 import SwiftUI
+import PhotosUI
 
 struct CompleteOrderButton: View {
     @StateObject private var viewModel: OrderCompletionViewModel
     @Environment(\.scenePhase) private var scenePhase
+    @State private var photoItem: PhotosPickerItem?
 
-    init(requestId: String, isCustomer: Bool) {
+    private let isCustomer: Bool
+    private let canComplete: Bool
+
+    init(requestId: String, isCustomer: Bool, canComplete: Bool = true) {
+        self.isCustomer = isCustomer
+        self.canComplete = canComplete
         _viewModel = StateObject(wrappedValue: OrderCompletionViewModel(requestId: requestId, isCustomer: isCustomer))
     }
 
@@ -34,26 +41,46 @@ struct CompleteOrderButton: View {
             statusLabel(text: "Pesanan Dibatalkan", icon: "xmark.seal.fill", color: .red)
         } else if viewModel.mySideCompleted {
             statusLabel(text: "Menunggu konfirmasi pihak lain", icon: "clock.fill", color: .orange)
-        } else {
+        } else if !canComplete {
+            statusLabel(text: "Menunggu bengkel tiba di lokasi", icon: "location.circle", color: .secondary)
+        } else if isCustomer {
             Button {
                 Task { await viewModel.markCompleted() }
             } label: {
-                HStack {
-                    if viewModel.isLoading {
-                        ProgressView().tint(Color(.systemBackground))
-                    } else {
-                        Image(systemName: "checkmark.circle.fill")
-                        Text("Selesaikan Pesanan").fontWeight(.bold)
-                    }
-                }
-                .foregroundColor(Color(.systemBackground))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(Color.primary.opacity(0.9))
-                .cornerRadius(16)
+                buttonLabel
             }
             .disabled(viewModel.isLoading)
+        } else {
+            PhotosPicker(selection: $photoItem, matching: .images) {
+                buttonLabel
+            }
+            .disabled(viewModel.isLoading)
+            .onChange(of: photoItem) { item in
+                guard let item else { return }
+                Task {
+                    if let data = try? await item.loadTransferable(type: Data.self) {
+                        await viewModel.markCompleted(photoData: data)
+                    }
+                    photoItem = nil
+                }
+            }
         }
+    }
+
+    private var buttonLabel: some View {
+        HStack {
+            if viewModel.isLoading {
+                ProgressView().tint(Color(.systemBackground))
+            } else {
+                Image(systemName: isCustomer ? "checkmark.circle.fill" : "camera.fill")
+                Text(isCustomer ? "Selesaikan Pesanan" : "Selesaikan + Foto").fontWeight(.bold)
+            }
+        }
+        .foregroundColor(Color(.systemBackground))
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(Color.primary.opacity(0.9))
+        .cornerRadius(16)
     }
 
     private func statusLabel(text: String, icon: String, color: Color) -> some View {

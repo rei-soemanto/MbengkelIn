@@ -20,6 +20,12 @@ struct CreatedServiceRequest: Decodable {
     let id: String
 }
 
+struct OpenDisputeParams: Encodable {
+    let p_request_id: String
+    let p_reason: String
+    let p_proof_url: String?
+}
+
 struct TodaysEarningRow: Decodable {
     let price: Int?
 }

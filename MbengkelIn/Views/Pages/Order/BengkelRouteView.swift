@@ -8,6 +8,7 @@
 import SwiftUI
 import MapKit
 import CoreLocation
+import PhotosUI
 
 struct BengkelRouteView: View {
     let order: NearbyOrder
@@ -17,6 +18,10 @@ struct BengkelRouteView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var region: MKCoordinateRegion
     @State private var didFitBoth = false
+    @State private var showReportSheet = false
+    @State private var reportReason = ""
+    @State private var reportPhotoItem: PhotosPickerItem?
+    @State private var reportPhotoData: Data?
 
     init(order: NearbyOrder) {
         self.order = order
@@ -33,6 +38,16 @@ struct BengkelRouteView: View {
     private var customerCoordinate: CLLocationCoordinate2D {
         viewModel.customerLiveCoordinate
             ?? CLLocationCoordinate2D(latitude: order.latitude, longitude: order.longitude)
+    }
+
+    private var customerDistanceMeters: CLLocationDistance? {
+        guard let me = viewModel.bengkelCoordinate else { return nil }
+        return CLLocation(latitude: customerCoordinate.latitude, longitude: customerCoordinate.longitude)
+            .distance(from: CLLocation(latitude: me.latitude, longitude: me.longitude))
+    }
+    private var isCustomerNear: Bool {
+        if let d = customerDistanceMeters { return d <= 80 }
+        return false
     }
 
     var body: some View {
@@ -71,6 +86,65 @@ struct BengkelRouteView: View {
         .onDisappear {
             viewModel.stop()
             chatWatch.stop()
+        }
+        .sheet(isPresented: $showReportSheet) {
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Laporkan kendala yang membuat pesanan tidak bisa diselesaikan. Sertakan bukti foto. Dana ditahan untuk ditinjau admin.")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    TextField("Alasan / kendala…", text: $reportReason, axis: .vertical)
+                        .lineLimit(3...6)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                    PhotosPicker(selection: $reportPhotoItem, matching: .images) {
+                        HStack {
+                            Image(systemName: reportPhotoData == nil ? "photo.badge.plus" : "checkmark.circle.fill")
+                            Text(reportPhotoData == nil ? "Lampirkan Bukti Foto" : "Foto terlampir")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                    }
+                    .onChange(of: reportPhotoItem) { item in
+                        guard let item else { return }
+                        Task {
+                            if let data = try? await item.loadTransferable(type: Data.self) {
+                                reportPhotoData = data
+                            }
+                        }
+                    }
+                    Button {
+                        Task {
+                            if await viewModel.reportIssue(reason: reportReason, photoData: reportPhotoData) {
+                                showReportSheet = false
+                                dismiss()
+                            }
+                        }
+                    } label: {
+                        Text("Kirim Laporan")
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.red.opacity(reportReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.4 : 1))
+                            .cornerRadius(12)
+                    }
+                    .disabled(reportReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Spacer()
+                }
+                .padding()
+                .navigationTitle("Laporkan Kendala")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Batal") { showReportSheet = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
         }
     }
 
@@ -141,7 +215,20 @@ struct BengkelRouteView: View {
 
             switch viewModel.status {
             case "On Progress":
-                CompleteOrderButton(requestId: order.id, isCustomer: false)
+                CompleteOrderButton(requestId: order.id, isCustomer: false, canComplete: isCustomerNear)
+                Button(role: .destructive) {
+                    showReportSheet = true
+                } label: {
+                    HStack {
+                        Image(systemName: "exclamationmark.bubble.fill")
+                        Text("Laporkan Kendala").fontWeight(.semibold)
+                    }
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.red.opacity(0.12))
+                    .cornerRadius(12)
+                }
             case "Done":
                 statusLine(text: "Pesanan selesai.", icon: "checkmark.seal.fill", color: .green)
             case "Cancelled":

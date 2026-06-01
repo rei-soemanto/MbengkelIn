@@ -12,6 +12,7 @@ class OrderCompletionViewModel: ObservableObject {
     let isCustomer: Bool
 
     private let orderRepository = OrderRepository()
+    private let storageService = StorageService()
     private var realtimeChannel: RealtimeChannelV2?
 
     nonisolated init(requestId: String, isCustomer: Bool) {
@@ -69,11 +70,17 @@ class OrderCompletionViewModel: ObservableObject {
         }
     }
 
-    func markCompleted() async {
+    @MainActor
+    func markCompleted(photoData: Data? = nil) async {
         isLoading = true
         errorMessage = nil
         do {
-            self.order = try await orderRepository.markOrderCompleted(requestId: requestId)
+            var photoUrl: String? = nil
+            if let photoData {
+                let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
+                photoUrl = try await storageService.uploadOrderPhoto(uid: uid, data: photoData)
+            }
+            self.order = try await orderRepository.markOrderCompleted(requestId: requestId, completionPhotoUrl: photoUrl)
         } catch {
             self.errorMessage = error.localizedDescription
         }

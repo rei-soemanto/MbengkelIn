@@ -111,6 +111,17 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
         }
     }
 
+    @MainActor
+    func openDispute(reason: String) async -> Bool {
+        guard let id = serviceRequestId else { return false }
+        do {
+            _ = try await orderRepository.openDispute(requestId: id, reason: reason)
+            return true
+        } catch {
+            return false
+        }
+    }
+
     private func apply(_ location: OrderLocation) {
         self.providerCoordinate = CLLocationCoordinate2D(
             latitude: location.latitude,

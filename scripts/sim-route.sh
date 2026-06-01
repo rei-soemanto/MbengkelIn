@@ -28,7 +28,7 @@ START_LON="112.6274774"
 
 cmd="${1:-go}"
 shift || true
-SPEED="36"   # 4x the original ~9 m/s walking/city pace
+SPEED="108"   # 12x the original ~9 m/s (4x then 3x)
 for arg in "$@"; do
   case "$arg" in
     --speed=*) SPEED="${arg#*=}" ;;

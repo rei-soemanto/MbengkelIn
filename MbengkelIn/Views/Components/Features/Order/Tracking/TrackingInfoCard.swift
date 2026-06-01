@@ -12,6 +12,8 @@ struct TrackingInfoCard: View {
     let isLive: Bool
     var unreadCount: Int = 0
     var onOpenChat: () -> Void = {}
+    var canComplete: Bool = true
+    var onCancel: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -52,7 +54,18 @@ struct TrackingInfoCard: View {
                 )
                 .font(.caption).foregroundColor(.green)
             }
-            CompleteOrderButton(requestId: bid.serviceRequestId, isCustomer: true)
+            CompleteOrderButton(requestId: bid.serviceRequestId, isCustomer: true, canComplete: canComplete)
+            Button(role: .destructive) {
+                onCancel()
+            } label: {
+                Text("Batalkan Pesanan")
+                    .font(.subheadline.bold())
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.red.opacity(0.12))
+                    .cornerRadius(16)
+            }
         }
         .padding()
         .background(Color(.systemBackground))

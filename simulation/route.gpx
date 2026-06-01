@@ -1,128 +1,169 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="MbengkelIn route sim"
      xmlns="http://www.topografix.com/GPX/1/1">
-  <!-- Route: (-7.2813896,112.6274774) -> (-7.28229,112.634072) -->
+  <!-- Route: (-7.2813896,112.6274774) -> (-7.28229,112.634072,17.54) -->
   <wpt lat="-7.2813896" lon="112.6274774">
+    <ele>0.00</ele>
     <time>2026-01-01T00:00:00Z</time>
   </wpt>
   <wpt lat="-7.2814121" lon="112.6276423">
+    <ele>0.44</ele>
     <time>2026-01-01T00:00:02Z</time>
   </wpt>
   <wpt lat="-7.2814346" lon="112.6278071">
+    <ele>0.88</ele>
     <time>2026-01-01T00:00:04Z</time>
   </wpt>
   <wpt lat="-7.2814571" lon="112.6279720">
+    <ele>1.32</ele>
     <time>2026-01-01T00:00:06Z</time>
   </wpt>
   <wpt lat="-7.2814796" lon="112.6281369">
+    <ele>1.75</ele>
     <time>2026-01-01T00:00:08Z</time>
   </wpt>
   <wpt lat="-7.2815021" lon="112.6283017">
+    <ele>2.19</ele>
     <time>2026-01-01T00:00:10Z</time>
   </wpt>
   <wpt lat="-7.2815247" lon="112.6284666">
+    <ele>2.63</ele>
     <time>2026-01-01T00:00:12Z</time>
   </wpt>
   <wpt lat="-7.2815472" lon="112.6286315">
+    <ele>3.07</ele>
     <time>2026-01-01T00:00:14Z</time>
   </wpt>
   <wpt lat="-7.2815697" lon="112.6287963">
+    <ele>3.51</ele>
     <time>2026-01-01T00:00:16Z</time>
   </wpt>
   <wpt lat="-7.2815922" lon="112.6289612">
+    <ele>3.95</ele>
     <time>2026-01-01T00:00:18Z</time>
   </wpt>
   <wpt lat="-7.2816147" lon="112.6291260">
+    <ele>4.38</ele>
     <time>2026-01-01T00:00:20Z</time>
   </wpt>
   <wpt lat="-7.2816372" lon="112.6292909">
+    <ele>4.82</ele>
     <time>2026-01-01T00:00:22Z</time>
   </wpt>
   <wpt lat="-7.2816597" lon="112.6294558">
+    <ele>5.26</ele>
     <time>2026-01-01T00:00:24Z</time>
   </wpt>
   <wpt lat="-7.2816822" lon="112.6296206">
+    <ele>5.70</ele>
     <time>2026-01-01T00:00:26Z</time>
   </wpt>
   <wpt lat="-7.2817047" lon="112.6297855">
+    <ele>6.14</ele>
     <time>2026-01-01T00:00:28Z</time>
   </wpt>
   <wpt lat="-7.2817272" lon="112.6299504">
+    <ele>6.58</ele>
     <time>2026-01-01T00:00:30Z</time>
   </wpt>
   <wpt lat="-7.2817498" lon="112.6301152">
+    <ele>7.02</ele>
     <time>2026-01-01T00:00:32Z</time>
   </wpt>
   <wpt lat="-7.2817723" lon="112.6302801">
+    <ele>7.45</ele>
     <time>2026-01-01T00:00:34Z</time>
   </wpt>
   <wpt lat="-7.2817948" lon="112.6304450">
+    <ele>7.89</ele>
     <time>2026-01-01T00:00:36Z</time>
   </wpt>
   <wpt lat="-7.2818173" lon="112.6306098">
+    <ele>8.33</ele>
     <time>2026-01-01T00:00:38Z</time>
   </wpt>
   <wpt lat="-7.2818398" lon="112.6307747">
+    <ele>8.77</ele>
     <time>2026-01-01T00:00:40Z</time>
   </wpt>
   <wpt lat="-7.2818623" lon="112.6309396">
+    <ele>9.21</ele>
     <time>2026-01-01T00:00:42Z</time>
   </wpt>
   <wpt lat="-7.2818848" lon="112.6311044">
+    <ele>9.65</ele>
     <time>2026-01-01T00:00:44Z</time>
   </wpt>
   <wpt lat="-7.2819073" lon="112.6312693">
+    <ele>10.09</ele>
     <time>2026-01-01T00:00:46Z</time>
   </wpt>
   <wpt lat="-7.2819298" lon="112.6314342">
+    <ele>10.52</ele>
     <time>2026-01-01T00:00:48Z</time>
   </wpt>
   <wpt lat="-7.2819524" lon="112.6315990">
+    <ele>10.96</ele>
     <time>2026-01-01T00:00:50Z</time>
   </wpt>
   <wpt lat="-7.2819749" lon="112.6317639">
+    <ele>11.40</ele>
     <time>2026-01-01T00:00:52Z</time>
   </wpt>
   <wpt lat="-7.2819974" lon="112.6319288">
+    <ele>11.84</ele>
     <time>2026-01-01T00:00:54Z</time>
   </wpt>
   <wpt lat="-7.2820199" lon="112.6320936">
+    <ele>12.28</ele>
     <time>2026-01-01T00:00:56Z</time>
   </wpt>
   <wpt lat="-7.2820424" lon="112.6322585">
+    <ele>12.72</ele>
     <time>2026-01-01T00:00:58Z</time>
   </wpt>
   <wpt lat="-7.2820649" lon="112.6324234">
+    <ele>13.15</ele>
     <time>2026-01-01T00:01:00Z</time>
   </wpt>
   <wpt lat="-7.2820874" lon="112.6325882">
+    <ele>13.59</ele>
     <time>2026-01-01T00:01:02Z</time>
   </wpt>
   <wpt lat="-7.2821099" lon="112.6327531">
+    <ele>14.03</ele>
     <time>2026-01-01T00:01:04Z</time>
   </wpt>
   <wpt lat="-7.2821324" lon="112.6329179">
+    <ele>14.47</ele>
     <time>2026-01-01T00:01:06Z</time>
   </wpt>
   <wpt lat="-7.2821549" lon="112.6330828">
+    <ele>14.91</ele>
     <time>2026-01-01T00:01:08Z</time>
   </wpt>
   <wpt lat="-7.2821774" lon="112.6332477">
+    <ele>15.35</ele>
     <time>2026-01-01T00:01:10Z</time>
   </wpt>
   <wpt lat="-7.2822000" lon="112.6334125">
+    <ele>15.79</ele>
     <time>2026-01-01T00:01:12Z</time>
   </wpt>
   <wpt lat="-7.2822225" lon="112.6335774">
+    <ele>16.22</ele>
     <time>2026-01-01T00:01:14Z</time>
   </wpt>
   <wpt lat="-7.2822450" lon="112.6337423">
+    <ele>16.66</ele>
     <time>2026-01-01T00:01:16Z</time>
   </wpt>
   <wpt lat="-7.2822675" lon="112.6339071">
+    <ele>17.10</ele>
     <time>2026-01-01T00:01:18Z</time>
   </wpt>
   <wpt lat="-7.2822900" lon="112.6340720">
+    <ele>17.54</ele>
     <time>2026-01-01T00:01:20Z</time>
   </wpt>
 </gpx>

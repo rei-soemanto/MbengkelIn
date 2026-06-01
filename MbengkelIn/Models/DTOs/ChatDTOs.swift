@@ -9,4 +9,5 @@ struct ChatMessagePayload: Encodable {
 
 struct MarkCompletedParams: Encodable {
     let p_request_id: String
+    let p_completion_photo_url: String?
 }

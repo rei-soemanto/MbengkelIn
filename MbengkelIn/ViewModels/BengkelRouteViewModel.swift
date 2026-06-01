@@ -22,6 +22,7 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
 
     private let locationManager = CLLocationManager()
     private let orderRepository = OrderRepository()
+    private let storageService = StorageService()
     private let locationRepository = OrderLocationRepository()
     private let authService = AuthService()
 
@@ -108,6 +109,23 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     func stop() {
         locationManager.stopUpdatingLocation()
         stopChannel()
+    }
+
+    @MainActor
+    func reportIssue(reason: String, photoData: Data?) async -> Bool {
+        guard let id = serviceRequestId else { return false }
+        do {
+            var proofUrl: String? = nil
+            if let photoData,
+               let session = try? await authService.getCurrentSession() {
+                let uid = session.user.id.uuidString.lowercased()
+                proofUrl = try await storageService.uploadOrderPhoto(uid: uid, data: photoData)
+            }
+            _ = try await orderRepository.openDispute(requestId: id, reason: reason, proofUrl: proofUrl)
+            return true
+        } catch {
+            return false
+        }
     }
 
     private func stopChannel() {
