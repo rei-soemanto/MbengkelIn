@@ -18,9 +18,9 @@ class BengkelHistoryViewModel: ObservableObject, Sendable {
 
     private let bengkelRepository = BengkelRepository()
     private let orderRepository = OrderRepository()
+    private let authService = AuthService()
     private var channel: RealtimeChannelV2?
     private var bengkelId: String?
-    // realtime reader tasks for this @MainActor view model
     private var realtimeReaderTasks: [Task<Void, Never>] = []
 
     deinit {
@@ -36,7 +36,7 @@ class BengkelHistoryViewModel: ObservableObject, Sendable {
         isLoading = true
         errorMessage = nil
         do {
-            let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
+            let uid = try await authService.currentUID()
             let bengkel = try await bengkelRepository.fetchBengkel(providerUid: uid)
             guard let bengkelId = bengkel.id else {
                 isLoading = false
@@ -62,7 +62,6 @@ class BengkelHistoryViewModel: ObservableObject, Sendable {
             table: "service_requests",
             filter: "bengkel_id=eq.\(bengkelId)"
         )
-        // @MainActor view model: store the realtime reader task
         realtimeReaderTasks.append(Task { [weak self] in
             await channel.subscribe()
             for await _ in stream {

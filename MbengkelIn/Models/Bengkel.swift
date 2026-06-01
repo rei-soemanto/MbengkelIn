@@ -13,7 +13,6 @@ struct Bengkel: Codable, Identifiable {
     var name: String
     var address: String
     
-    // Geospatial data for the map queries
     var latitude: Double
     var longitude: Double
     
@@ -23,7 +22,6 @@ struct Bengkel: Codable, Identifiable {
     // The embedded services array (Stored as JSONB in Supabase)
     var offeredServices: [BengkelService]
     
-    // Rating aggregates
     var averageRating: Double
     var totalReviews: Int
     

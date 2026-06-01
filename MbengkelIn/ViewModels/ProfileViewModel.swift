@@ -47,7 +47,6 @@ class ProfileViewModel: ObservableObject {
         }
     }
     
-    @MainActor
     func uploadProfileImage(_ data: Data) async -> Bool {
         isLoading = true
         errorMessage = nil

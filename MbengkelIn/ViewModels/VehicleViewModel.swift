@@ -91,7 +91,6 @@ class VehicleViewModel: ObservableObject {
         }
     }
     
-    @MainActor
     @discardableResult
     func deleteVehicle(vehicleId: String) async -> Bool {
         errorMessage = nil

@@ -31,17 +31,6 @@ struct TodaysEarningRow: Decodable {
 }
 
 // Customer Bidding DTOs
-struct BengkelUpdate: Encodable {
-    let bengkel_id: String
-    let status: String
-}
-
-struct AcceptOrderPayload: Encodable {
-    let bengkel_id: String
-    let status: String
-    let price: Int
-}
-
 struct BidStatusUpdate: Encodable {
     let status: String
 }
@@ -53,10 +42,6 @@ struct AcceptBidParams: Encodable {
 // Params for the cancel_order RPC (bidding-phase give-up; To Do → Cancelled).
 struct CancelOrderParams: Encodable {
     let p_request_id: String
-}
-
-struct OrderStatusUpdate: Encodable {
-    let status: String
 }
 
 struct StartSearchPayload: Encodable {

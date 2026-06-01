@@ -27,7 +27,6 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
     private var iInitiatedCancel = false
     private var channel: RealtimeChannelV2?
     private var serviceRequestId: String?
-    // realtime reader tasks for this @MainActor view model
     private var realtimeReaderTasks: [Task<Void, Never>] = []
 
     var status: String { order?.status ?? "On Progress" }
@@ -42,7 +41,6 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
         }
     }
 
-    @MainActor
     func start(serviceRequestId: String) async {
         self.serviceRequestId = serviceRequestId
         // Notification authorization is requested when tracking begins.
@@ -102,7 +100,6 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
         })
     }
 
-    @MainActor
     func stop() {
         isLive = false
         realtimeReaderTasks.forEach { $0.cancel() }
@@ -113,7 +110,6 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
         }
     }
 
-    @MainActor
     func openDispute(reason: String) async -> Bool {
         guard let id = serviceRequestId else { return false }
         do {
@@ -126,13 +122,19 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
         }
     }
 
-    @MainActor
     private func notifyOnCancellation(previous: NearbyOrder?, updated: NearbyOrder) {
         guard previous?.status != "Cancelled", updated.status == "Cancelled" else { return }
         if iInitiatedCancel { iInitiatedCancel = false; return }
         notificationService.notifyNewOrder(
             title: "Pesanan dibatalkan",
             body: "Bengkel membatalkan pesanan ini."
+        )
+    }
+
+    func notifyBengkelNear() {
+        notificationService.notifyNewOrder(
+            title: "Bengkel sudah dekat",
+            body: "Bengkel berada di sekitar lokasimu. Kamu bisa menyelesaikan pesanan."
         )
     }
 

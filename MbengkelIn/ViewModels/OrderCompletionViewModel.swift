@@ -4,6 +4,7 @@ import Supabase
 
 @MainActor
 class OrderCompletionViewModel: ObservableObject {
+    private let authService = AuthService()
     @Published var order: NearbyOrder?
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -15,7 +16,6 @@ class OrderCompletionViewModel: ObservableObject {
     private let storageService = StorageService()
     private let notificationService = NotificationService()
     private var realtimeChannel: RealtimeChannelV2?
-    // realtime reader tasks for this @MainActor view model
     private var realtimeReaderTasks: [Task<Void, Never>] = []
     private var hasLoadedOnce = false
 
@@ -24,7 +24,6 @@ class OrderCompletionViewModel: ObservableObject {
         self.isCustomer = isCustomer
     }
 
-    // @MainActor view model deinit
     deinit {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
@@ -40,14 +39,12 @@ class OrderCompletionViewModel: ObservableObject {
         isCustomer ? (order?.customerCompleted ?? false) : (order?.providerCompleted ?? false)
     }
 
-    @MainActor
     func start() async {
         notificationService.requestAuthorization()
         await refresh()
         startRealtimeSubscription()
     }
 
-    @MainActor
     func refresh() async {
         do {
             let updated = try await orderRepository.fetchOrder(id: requestId)
@@ -60,7 +57,6 @@ class OrderCompletionViewModel: ObservableObject {
 
     // Each device only reacts to the OPPOSITE party's completion flag flipping,
     // so the actor never notifies itself.
-    @MainActor
     private func notifyOnCounterpartCompletion(previous: NearbyOrder?, updated: NearbyOrder) {
         defer { hasLoadedOnce = true }
         guard hasLoadedOnce, let previous else { return }
@@ -100,7 +96,6 @@ class OrderCompletionViewModel: ObservableObject {
         })
     }
 
-    // @MainActor teardown
     func stopRealtimeSubscription() {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
@@ -110,14 +105,13 @@ class OrderCompletionViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func markCompleted(photoData: Data? = nil) async {
         isLoading = true
         errorMessage = nil
         do {
             var photoUrl: String? = nil
             if let photoData {
-                let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
+                let uid = try await authService.currentUID()
                 photoUrl = try await storageService.uploadOrderPhoto(uid: uid, data: photoData)
             }
             self.order = try await orderRepository.markOrderCompleted(requestId: requestId, completionPhotoUrl: photoUrl)

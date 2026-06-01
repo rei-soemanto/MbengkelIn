@@ -16,8 +16,8 @@ class ChatViewModel: ObservableObject {
     private let chatRepository = ChatRepository()
     private let orderRepository = OrderRepository()
     private let storageService = StorageService()
+    private let authService = AuthService()
     private var realtimeChannel: RealtimeChannelV2?
-    // realtime reader tasks for this @MainActor view model
     private var realtimeReaderTasks: [Task<Void, Never>] = []
 
     nonisolated init(serviceRequestId: String) {
@@ -34,7 +34,7 @@ class ChatViewModel: ObservableObject {
     }
 
     func start() async {
-        if let uid = try? await supabase.auth.session.user.id.uuidString.lowercased() {
+        if let uid = try? await authService.currentUID() {
             self.currentUserId = uid
         }
         await loadMessages()
@@ -53,7 +53,7 @@ class ChatViewModel: ObservableObject {
     func loadLockState() async {
         do {
             let order = try await orderRepository.fetchOrder(id: serviceRequestId)
-            self.isLocked = !(order.status == "To Do" || order.status == "On Progress")
+            self.isLocked = !["To Do", "On Progress"].contains(order.status)
         } catch {
             // If we can't read it, fail safe by not locking the UI.
         }
@@ -90,7 +90,6 @@ class ChatViewModel: ObservableObject {
         })
     }
 
-    // @MainActor teardown
     func stopRealtimeSubscription() {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
@@ -100,7 +99,6 @@ class ChatViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func sendText() async {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isLocked else { return }
@@ -109,7 +107,6 @@ class ChatViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func sendImage(data: Data) async {
         guard !isLocked else { return }
         isSending = true
@@ -124,7 +121,6 @@ class ChatViewModel: ObservableObject {
         isSending = false
     }
 
-    @MainActor
     @discardableResult
     private func send(content: String?, imageUrl: String?) async -> Bool {
         isSending = true

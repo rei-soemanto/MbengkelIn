@@ -18,7 +18,7 @@ struct RegisterBengkelView: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             VStack(spacing: 0) {
-                // ── Map (top, fully visible) ──
+                // Map
                 ZStack {
                     OrderMapView(
                         region: $viewModel.region,
@@ -44,7 +44,7 @@ struct RegisterBengkelView: View {
                 }
                 .ignoresSafeArea(edges: .top)
 
-                // ── Controls (bottom panel, no overlap) ──
+                // Controls
                 VStack(spacing: 0) {
                     LocationInputCard(
                         address: $viewModel.locationAddress,

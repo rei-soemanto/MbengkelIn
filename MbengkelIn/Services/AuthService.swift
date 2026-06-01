@@ -13,6 +13,11 @@ class AuthService {
         return try await supabase.auth.session
     }
 
+    // Lowercased Supabase auth user id — the app's user PK convention.
+    func currentUID() async throws -> String {
+        try await supabase.auth.session.user.id.uuidString.lowercased()
+    }
+
     // Locally-stored session WITHOUT a network refresh — used so a transient
     // network failure at launch doesn't bounce a logged-in user to Login.
     func cachedSession() -> Session? {

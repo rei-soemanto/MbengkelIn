@@ -41,7 +41,6 @@ class HistoryViewModel: ObservableObject {
         isLoading = false
     }
 
-    @MainActor
     func select(_ order: NearbyOrder) async {
         if order.status == "On Progress" {
             await openTracking(order)

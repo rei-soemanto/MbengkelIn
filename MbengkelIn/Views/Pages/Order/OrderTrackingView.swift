@@ -30,7 +30,6 @@ struct OrderTrackingView: View {
     }
     @State private var didNotifyNear = false
     @State private var hasBeenNear = false
-    private let notificationService = NotificationService()
 
     init(bid: Bid, customerCoordinate: CLLocationCoordinate2D, popToRoot: @escaping () -> Void = {}) {
         self.bid = bid
@@ -101,10 +100,7 @@ struct OrderTrackingView: View {
             if isBengkelNear { hasBeenNear = true }
             if isBengkelNear, !didNotifyNear {
                 didNotifyNear = true
-                notificationService.notifyNewOrder(
-                    title: "Bengkel sudah dekat",
-                    body: "Bengkel berada di sekitar lokasimu. Kamu bisa menyelesaikan pesanan."
-                )
+                trackingViewModel.notifyBengkelNear()
             }
         }
         .sheet(item: $activeSheet) { sheet in

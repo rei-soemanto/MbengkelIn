@@ -36,8 +36,8 @@ class PaymentViewModel: ObservableObject {
         !bankAccountNumber.isEmpty && !bankName.isEmpty && !bankAccountName.isEmpty
     }
 
-    // @MainActor (inherited from class) — withdrawable funds excluding escrow.
-    @MainActor var availableBalance: Double { max(0, balance - heldBalance) }
+    // Withdrawable funds excluding escrow.
+    var availableBalance: Double { max(0, balance - heldBalance) }
 
     private let authService = AuthService()
     private let userRepository = UserRepository()
@@ -46,7 +46,6 @@ class PaymentViewModel: ObservableObject {
     private let paymentService = PaymentService()
 
     private var realtimeChannel: RealtimeChannelV2?
-    // realtime reader tasks for this @MainActor view model
     private var realtimeReaderTasks: [Task<Void, Never>] = []
 
     // Track which top-ups have already settled as "success" so we can alert
@@ -55,7 +54,6 @@ class PaymentViewModel: ObservableObject {
     private var knownSuccessTopupIds: Set<String> = []
     private var didLoadTopupsOnce = false
 
-    // @MainActor view model deinit
     deinit {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
@@ -107,7 +105,6 @@ class PaymentViewModel: ObservableObject {
 
     }
 
-    // @MainActor teardown
     func stop() {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
@@ -119,7 +116,6 @@ class PaymentViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func refresh() async {
         guard let session = try? await authService.getCurrentSession() else { return }
         let uid = session.user.id.uuidString.lowercased()

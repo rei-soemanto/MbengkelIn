@@ -32,7 +32,6 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     private var customerCoordinate: CLLocationCoordinate2D?
     private var lastPublishedAt: Date?
     private var channel: RealtimeChannelV2?
-    // realtime reader tasks for this @MainActor view model
     private var realtimeReaderTasks: [Task<Void, Never>] = []
 
     var status: String { order?.status ?? "To Do" }
@@ -52,7 +51,6 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         }
     }
 
-    // @MainActor view model deinit
     deinit {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
@@ -62,7 +60,6 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         }
     }
 
-    @MainActor
     func start(order: NearbyOrder) async {
         self.order = order
         self.serviceRequestId = order.id
@@ -94,7 +91,6 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
             table: "customer_locations",
             filter: "service_request_id=eq.\(order.id)"
         )
-        // @MainActor view model: store the realtime reader task
         realtimeReaderTasks.append(Task { [weak self] in
             guard let self else { return }
             await channel.subscribe()
@@ -117,13 +113,11 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         })
     }
 
-    @MainActor
     func stop() {
         locationManager.stopUpdatingLocation()
         stopChannel()
     }
 
-    @MainActor
     func reportIssue(reason: String, photoData: Data?) async -> Bool {
         guard let id = serviceRequestId else { return false }
         do {
@@ -142,7 +136,6 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         }
     }
 
-    @MainActor
     private func notifyOnCancellation(previous: NearbyOrder?, updated: NearbyOrder) {
         guard previous?.status != "Cancelled", updated.status == "Cancelled" else { return }
         if iInitiatedCancel { iInitiatedCancel = false; return }
@@ -152,7 +145,6 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         )
     }
 
-    // @MainActor teardown
     private func stopChannel() {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()

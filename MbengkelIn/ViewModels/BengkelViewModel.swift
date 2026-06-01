@@ -19,7 +19,7 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
     @Published var successMessage: String?
     @Published var todaysEarnings: Double = 0
 
-    // ── Location / Map state (same pattern as OrderViewModel) ──
+    // Location / Map state
     @Published var locationAddress: String = ""
     @Published var isEditingLocation: Bool = false
     @Published var isFetchingLocation: Bool = false
@@ -36,7 +36,6 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
     private let locationManager = CLLocationManager()
     private var cancellables = Set<AnyCancellable>()
     private var realtimeChannel: RealtimeChannelV2?
-    // realtime reader tasks for this @MainActor view model
     private var realtimeReaderTasks: [Task<Void, Never>] = []
 
     override init() {
@@ -145,7 +144,6 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
                     self.locationAddress = address
                 }
             } catch {
-                // handle error silently
             }
             self.isFetchingLocation = false
         }
@@ -163,7 +161,6 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
         }
         let uid = session.user.id.uuidString.lowercased()
         
-        // Coordinates come from region.center (set by map/search picker)
         let lat = region.center.latitude
         let lon = region.center.longitude
         
@@ -193,7 +190,6 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
         }
     }
     
-    // @MainActor view model deinit
     deinit {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
@@ -213,7 +209,6 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
         startRealtimeSubscription(uid: uid)
     }
 
-    @MainActor
     func loadTodaysEarnings() async {
         guard let bengkelId = myBengkel?.id else { return }
         do {
@@ -245,7 +240,6 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
 
     }
 
-    // @MainActor teardown
     func stopWatching() {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()

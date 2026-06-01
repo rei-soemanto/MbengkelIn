@@ -4,7 +4,7 @@ import Supabase
 
 @MainActor
 class BengkelBiddingViewModel: ObservableObject {
-    // @MainActor (class-level annotation also applies to all members below).
+    private let authService = AuthService()
     @Published var orders: [NearbyOrder] = []
     @Published var myBengkel: Bengkel?
     @Published var myPendingBids: [Bid] = []
@@ -31,7 +31,6 @@ class BengkelBiddingViewModel: ObservableObject {
     @Published var myRejectedBids: [Bid] = []
 
     private var realtimeChannel: RealtimeChannelV2?
-    // realtime reader tasks for this @MainActor view model
     private var realtimeReaderTasks: [Task<Void, Never>] = []
     private let orderRepository = OrderRepository()
     private let notificationService = NotificationService()
@@ -42,7 +41,6 @@ class BengkelBiddingViewModel: ObservableObject {
     private var providerUid: String?
 
 
-    // @MainActor view model deinit
     deinit {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
@@ -61,7 +59,7 @@ class BengkelBiddingViewModel: ObservableObject {
         errorMessage = nil
         notificationService.requestAuthorization()
         do {
-            let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
+            let uid = try await authService.currentUID()
             self.providerUid = uid
             let fetched: Bengkel = try await supabase.from("bengkels")
                 .select()
@@ -91,7 +89,6 @@ class BengkelBiddingViewModel: ObservableObject {
         startRealtimeSubscription()
     }
 
-    @MainActor
     func startRealtimeSubscription() {
         stopRealtimeSubscription()
         guard let uid = providerUid else { return }
@@ -115,7 +112,6 @@ class BengkelBiddingViewModel: ObservableObject {
             table: "service_requests"
         )
 
-        // @MainActor view model: store the realtime reader task
         realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
             print("[BengkelRT] subscribing channel mechanic-bids-\(uid)")
@@ -124,8 +120,6 @@ class BengkelBiddingViewModel: ObservableObject {
             // Cold-start reconcile: the first realtime events after launch can
             // arrive during the subscribe handshake and be missed. Refetch once
             // the channel is confirmed subscribed so the first order isn't lost.
-            // One-shot reconcile — NOT polling.
-            // @MainActor (class-level annotation also applied to this method).
             await self.loadOrders()
 
             Task { [weak self] in
@@ -144,7 +138,6 @@ class BengkelBiddingViewModel: ObservableObject {
         })
     }
 
-    // @MainActor teardown
     func stopRealtimeSubscription() {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
@@ -156,7 +149,6 @@ class BengkelBiddingViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func loadOrders() async {
         guard let bengkel = myBengkel, let bengkelId = bengkel.id else { return }
         errorMessage = nil
@@ -173,7 +165,6 @@ class BengkelBiddingViewModel: ObservableObject {
             )
             let nearbyOrders = response.orders
 
-            // Fetch all bids placed by this bengkel
             let allMyBids: [Bid] = try await supabase.from("bids")
                 .select()
                 .eq("bengkel_id", value: bengkelId)
@@ -181,7 +172,6 @@ class BengkelBiddingViewModel: ObservableObject {
                 .value
 
             // Detect bids the customer rejected by choosing another bengkel.
-            // A pending bid flipping to AutoRejected means we lost the job.
             // A pending bid changing state tells us why we no longer have the job:
             //  - "autorejected": the customer accepted a different bengkel (taken)
             //  - "expired": the response window elapsed with no decision (timeout)
@@ -252,7 +242,6 @@ class BengkelBiddingViewModel: ObservableObject {
             self.orders = filteredOrders
             // If the incoming-order modal is showing an order that's no longer in
             // the open feed (cancelled/taken), dismiss it so it can't be bid on.
-            // @MainActor (class-level annotation also applied to this method).
             if let alert = self.newOrderAlert, !currentIds.contains(alert.id) {
                 self.newOrderAlert = nil
             }
@@ -263,7 +252,6 @@ class BengkelBiddingViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func placeBid(order: NearbyOrder, price: Int, notes: String) async {
         guard let bengkel = myBengkel, let bengkelId = bengkel.id else { return }
         // Re-verify the order is still open before bidding. It may have been
@@ -310,7 +298,6 @@ class BengkelBiddingViewModel: ObservableObject {
 
     // When an order's 2-minute window elapses, drop it locally and reject any
     // bid we placed on it. The customer also deletes/expires the row server-side.
-    @MainActor
     func handleExpiredOrder(_ order: NearbyOrder) async {
         orders.removeAll { $0.id == order.id }
         knownOrderIds.remove(order.id)

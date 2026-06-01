@@ -19,7 +19,6 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
     @Published var isPublishing = false
     @Published var errorMessage: String?
 
-    // @MainActor view model dependencies
     private let locationManager = CLLocationManager()
     private let repository = OrderLocationRepository()
     private let authService = AuthService()
@@ -46,7 +45,6 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
         }
     }
 
-    @MainActor
     func start(serviceRequestId: String, customerCoordinate: CLLocationCoordinate2D) {
         self.serviceRequestId = serviceRequestId
         self.customerCoordinate = customerCoordinate
@@ -84,7 +82,6 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
         }
     }
 
-    // @MainActor teardown
     func stop() {
         locationManager.stopUpdatingLocation()
         isPublishing = false
@@ -116,7 +113,6 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
         }
     }
 
-    // @MainActor delegate callback (class is @MainActor-isolated)
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
         if isPublishing, status == .authorizedWhenInUse || status == .authorizedAlways {

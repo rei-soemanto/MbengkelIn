@@ -45,7 +45,7 @@ struct UpdateBengkelView: View {
                 }
                 .ignoresSafeArea(edges: .top)
 
-                // ── Controls (bottom panel, no overlap) ──
+                // Controls
                 VStack(spacing: 0) {
                     LocationInputCard(
                         address: $bengkelViewModel.locationAddress,

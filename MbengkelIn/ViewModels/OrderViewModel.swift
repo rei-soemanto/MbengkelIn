@@ -13,6 +13,7 @@ import Supabase
 
 @MainActor
 class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, LocationSearchable {
+    private let authService = AuthService()
     @Published var locationAddress: String = ""
     @Published var selectedService: String? = nil
     @Published var estimatedPrice: Int = 0
@@ -38,7 +39,6 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
     // from a previous order), which is the root cause of far-away matches.
     @Published var hasResolvedLocation: Bool = false
 
-    @MainActor
     var requiresTireCount: Bool {
         guard let selectedService, let type = ServiceType(rawValue: selectedService) else { return false }
         return type.requiresTireCount
@@ -107,7 +107,6 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
         self.hasResolvedLocation = true
     }
     
-    @MainActor
     func useCurrentLocation() {
         isFetchingLocation = true
         isEditingLocation = false
@@ -122,7 +121,6 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
         }
     }
 
-    @MainActor
     private func fallBackToDefaultLocation() {
         region = MKCoordinateRegion(
             center: OrderViewModel.defaultCenter,
@@ -179,9 +177,8 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
 
     private let vehicleRepository = VehicleRepository()
 
-    @MainActor
     func loadVehicles() async {
-        guard let uid = try? await supabase.auth.session.user.id.uuidString.lowercased() else { return }
+        guard let uid = try? await authService.currentUID() else { return }
         do {
             self.vehicles = try await vehicleRepository.fetchVehicles(customerId: uid)
         } catch {
@@ -190,7 +187,6 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
 
     // Reset all per-order state so each new order starts from a clean slate and
     // must re-resolve its location. Call when the order form appears.
-    @MainActor
     func prepareForNewOrder() {
         selectedService = nil
         estimatedPrice = 0
@@ -221,7 +217,6 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
                     self.locationAddress = address
                 }
             } catch {
-                // handle error silently
             }
             self.isFetchingLocation = false
         }
@@ -282,7 +277,7 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
                 var uploadedUrls: [String] = []
                 let datas = photosData.compactMap { $0 }
                 if !datas.isEmpty {
-                    let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
+                    let uid = try await authService.currentUID()
                     for data in datas {
                         let url = try await storageService.uploadOrderPhoto(uid: uid, data: data)
                         uploadedUrls.append(url)

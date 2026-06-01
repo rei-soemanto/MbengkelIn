@@ -4,6 +4,7 @@ import Supabase
 
 @MainActor
 final class CustomerBiddingViewModel: ObservableObject {
+    private let authService = AuthService()
     @Published var bids: [Bid] = []
     @Published var acceptedBid: Bid?
     @Published var isLoading = false
@@ -44,7 +45,6 @@ final class CustomerBiddingViewModel: ObservableObject {
     private var bidExpiryTask: Task<Void, Never>?
 
     private var realtimeChannel: RealtimeChannelV2?
-    // realtime reader tasks for this @MainActor view model
     private var realtimeReaderTasks: [Task<Void, Never>] = []
     private let userRepository = UserRepository()
     private let orderRepository = OrderRepository()
@@ -68,7 +68,6 @@ final class CustomerBiddingViewModel: ObservableObject {
         self.customerBidPrice = min
     }
 
-    @MainActor
     convenience init(resuming order: NearbyOrder) {
         let type = ServiceType(rawValue: order.serviceType ?? "") ?? .banGembos
         self.init(
@@ -95,7 +94,6 @@ final class CustomerBiddingViewModel: ObservableObject {
         }
     }
 
-    // @MainActor view model deinit
     deinit {
         searchCountdownTask?.cancel()
         decisionCountdownTask?.cancel()
@@ -110,7 +108,6 @@ final class CustomerBiddingViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func startSearch(price: Int) async {
         guard price >= minPrice else {
             self.errorMessage = "Harga penawaran harus minimal Rp\(minPrice)"
@@ -122,7 +119,7 @@ final class CustomerBiddingViewModel: ObservableObject {
         notificationService.requestAuthorization()
         loadingPhase = .loading(message: "Membuat pesanan...")
         do {
-            let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
+            let uid = try await authService.currentUID()
             let user = try await userRepository.fetchUser(uid: uid)
             self.balance = user.balance
             // If re-searching an existing order, its current hold is added back before checking.
@@ -155,12 +152,7 @@ final class CustomerBiddingViewModel: ObservableObject {
                     vehicle_id: vehicleId,
                     vehicle_info: vehicleInfo
                 )
-                let created: CreatedServiceRequest = try await supabase.from("service_requests")
-                    .insert(payload)
-                    .select("id")
-                    .single()
-                    .execute()
-                    .value
+                let created = try await orderRepository.createOrder(payload: payload)
                 self.serviceRequestId = created.id
             }
 
@@ -227,7 +219,6 @@ final class CustomerBiddingViewModel: ObservableObject {
         isSearching = false
     }
 
-    @MainActor
     private func stopSearchingState() {
         searchCountdownTask?.cancel()
         searchCountdownTask = nil
@@ -256,7 +247,6 @@ final class CustomerBiddingViewModel: ObservableObject {
         shouldDismiss = true
     }
 
-    @MainActor
     func cancel() async {
         showRetryPrompt = false
         searchCountdownTask?.cancel()
@@ -288,8 +278,7 @@ final class CustomerBiddingViewModel: ObservableObject {
             guard let self = self else { return }
             await channel.subscribe()
             // Cold-start reconcile after the channel is confirmed subscribed, in
-            // case a bid landed during the subscribe handshake. One-shot, not polling.
-            // @MainActor (class-level annotation also applied to this method).
+            // case a bid landed during the subscribe handshake.
             await self.loadReceivedBids()
 
             for await _ in stream {
@@ -299,7 +288,6 @@ final class CustomerBiddingViewModel: ObservableObject {
 
     }
 
-    // @MainActor teardown
     func stopRealtimeSubscription() {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
@@ -311,7 +299,6 @@ final class CustomerBiddingViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func loadReceivedBids() async {
         guard let serviceRequestId = serviceRequestId else { return }
         do {
@@ -363,7 +350,6 @@ final class CustomerBiddingViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func refresh() async {
         errorMessage = nil
         if isSearching {
@@ -371,7 +357,6 @@ final class CustomerBiddingViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func acceptBid(_ bid: Bid) async {
         isLoading = true
         errorMessage = nil
@@ -389,7 +374,6 @@ final class CustomerBiddingViewModel: ObservableObject {
         isLoading = false
     }
 
-    @MainActor
     func rejectBid(_ bid: Bid) async {
         isLoading = true
         errorMessage = nil

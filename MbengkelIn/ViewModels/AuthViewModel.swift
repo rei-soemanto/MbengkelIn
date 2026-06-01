@@ -15,7 +15,7 @@ enum AppMode {
 }
 
 @MainActor
-class AuthViewModel: ObservableObject { // @MainActor isolated
+class AuthViewModel: ObservableObject {
     @Published var userSession: Supabase.User?
     @Published var currentUser: User?
     @Published var isLoading = false
@@ -29,7 +29,6 @@ class AuthViewModel: ObservableObject { // @MainActor isolated
     private let userRepository = UserRepository()
     private var authStateTask: Task<Void, Never>?
 
-    // @MainActor-isolated init (whole class is @MainActor)
     init() {
         Task { await loadInitialSession() }
         authStateTask = Task { [weak self] in
@@ -50,7 +49,6 @@ class AuthViewModel: ObservableObject { // @MainActor isolated
 
     deinit { authStateTask?.cancel() }
 
-    @MainActor
     func loadInitialSession() async {
         isInitializing = true
         defer { isInitializing = false }
@@ -105,7 +103,6 @@ class AuthViewModel: ObservableObject { // @MainActor isolated
         isLoading = false
     }
 
-    @MainActor
     func fetchUser() async {
         guard let sessionUser = self.userSession else { return }
         let uid = sessionUser.id.uuidString.lowercased()
@@ -142,7 +139,6 @@ class AuthViewModel: ObservableObject { // @MainActor isolated
         }
     }
     
-    @MainActor
     func deleteAccount(password: String) async {
         isLoading = true
         errorMessage = nil
