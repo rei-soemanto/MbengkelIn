@@ -18,6 +18,7 @@ import Supabase
 class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var order: NearbyOrder?
     @Published var bengkelCoordinate: CLLocationCoordinate2D?
+    @Published var customerLiveCoordinate: CLLocationCoordinate2D?
 
     private let locationManager = CLLocationManager()
     private let orderRepository = OrderRepository()
@@ -65,21 +66,40 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
             locationManager.startUpdatingLocation()
         }
 
+        if let loc = try? await locationRepository.fetchCustomerLocation(serviceRequestId: order.id) {
+            self.customerLiveCoordinate = CLLocationCoordinate2D(latitude: loc.latitude, longitude: loc.longitude)
+        }
+
         stopChannel()
         let channel = supabase.channel("bengkel-route-\(order.id)")
         self.channel = channel
-        let stream = channel.postgresChange(
+        let orderStream = channel.postgresChange(
             AnyAction.self,
             schema: "public",
             table: "service_requests",
             filter: "id=eq.\(order.id)"
         )
+        let customerLocationStream = channel.postgresChange(
+            AnyAction.self,
+            schema: "public",
+            table: "customer_locations",
+            filter: "service_request_id=eq.\(order.id)"
+        )
         Task { [weak self] in
             guard let self else { return }
             await channel.subscribe()
-            for await _ in stream {
-                if let updated = try? await self.orderRepository.fetchOrder(id: order.id) {
-                    self.order = updated
+            Task { [weak self] in
+                for await _ in orderStream {
+                    if let updated = try? await self?.orderRepository.fetchOrder(id: order.id) {
+                        self?.order = updated
+                    }
+                }
+            }
+            Task { [weak self] in
+                for await _ in customerLocationStream {
+                    if let loc = try? await self?.locationRepository.fetchCustomerLocation(serviceRequestId: order.id) {
+                        self?.customerLiveCoordinate = CLLocationCoordinate2D(latitude: loc.latitude, longitude: loc.longitude)
+                    }
                 }
             }
         }

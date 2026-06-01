@@ -15,6 +15,7 @@ struct OrderTrackingView: View {
 
     @StateObject private var trackingViewModel = OrderTrackingViewModel()
     @StateObject private var chatWatch: ChatWatchViewModel
+    @StateObject private var locationPublisher = CustomerLocationPublishViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var region: MKCoordinateRegion
     @State private var showReviewSheet = false
@@ -87,6 +88,12 @@ struct OrderTrackingView: View {
         .task { await trackingViewModel.start(serviceRequestId: bid.serviceRequestId) }
         .task { await chatWatch.start() }
         .onChange(of: trackingViewModel.order?.status) { status in
+            if status == "On Progress" {
+                locationPublisher.start(serviceRequestId: bid.serviceRequestId)
+            }
+            if status == "Done" || status == "Cancelled" {
+                locationPublisher.stop()
+            }
             if status == "Done", !trackingViewModel.alreadyRated, !didPromptReview {
                 didPromptReview = true
                 showReviewSheet = true
@@ -98,6 +105,7 @@ struct OrderTrackingView: View {
         .onDisappear {
             trackingViewModel.stop()
             chatWatch.stop()
+            locationPublisher.stop()
         }
     }
 

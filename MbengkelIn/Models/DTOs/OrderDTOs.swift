@@ -87,3 +87,10 @@ struct OrderLocationPayload: Encodable {
     let latitude: Double
     let longitude: Double
 }
+
+struct CustomerLocationPayload: Encodable {
+    let service_request_id: String
+    let customer_id: String
+    let latitude: Double
+    let longitude: Double
+}

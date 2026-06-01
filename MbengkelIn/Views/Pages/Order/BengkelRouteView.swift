@@ -31,7 +31,8 @@ struct BengkelRouteView: View {
     }
 
     private var customerCoordinate: CLLocationCoordinate2D {
-        CLLocationCoordinate2D(latitude: order.latitude, longitude: order.longitude)
+        viewModel.customerLiveCoordinate
+            ?? CLLocationCoordinate2D(latitude: order.latitude, longitude: order.longitude)
     }
 
     var body: some View {
