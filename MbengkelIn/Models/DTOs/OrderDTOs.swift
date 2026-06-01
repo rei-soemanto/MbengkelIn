@@ -46,6 +46,15 @@ struct BidStatusUpdate: Encodable {
     let status: String
 }
 
+struct AcceptBidParams: Encodable {
+    let p_bid_id: String
+}
+
+// Params for the cancel_order RPC (bidding-phase give-up; To Do → Cancelled).
+struct CancelOrderParams: Encodable {
+    let p_request_id: String
+}
+
 struct OrderStatusUpdate: Encodable {
     let status: String
 }
@@ -54,11 +63,13 @@ struct StartSearchPayload: Encodable {
     let price: Int
 }
 
-// Customer rating of a completed order. Writing `rating` fires a Postgres
-// trigger that recomputes the bengkel's average_rating / total_reviews.
-struct RatingPayload: Encodable {
-    let rating: Int
-    let review: String?
+// Customer rating of a completed order, via the rate_order RPC. The RPC's UPDATE
+// of the `rating` column fires the trigger that recomputes the bengkel's
+// average_rating / total_reviews. Enforces customer-owned + Done + not-yet-rated.
+struct RateOrderParams: Encodable {
+    let p_request_id: String
+    let p_rating: Int
+    let p_review: String?
 }
 
 // Mechanic Bidding DTOs

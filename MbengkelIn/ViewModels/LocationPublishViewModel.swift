@@ -19,13 +19,17 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
     @Published var isPublishing = false
     @Published var errorMessage: String?
 
+    // @MainActor view model dependencies
     private let locationManager = CLLocationManager()
     private let repository = OrderLocationRepository()
     private let authService = AuthService()
+    private let orderRepository = OrderRepository()
 
     private var serviceRequestId: String?
     private var customerCoordinate: CLLocationCoordinate2D?
     private var lastPublishedAt: Date?
+    private var statusChannel: RealtimeChannelV2?
+    private var statusReaderTask: Task<Void, Never>?
 
     override init() {
         super.init()
@@ -42,26 +46,65 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
         }
     }
 
+    @MainActor
     func start(serviceRequestId: String, customerCoordinate: CLLocationCoordinate2D) {
         self.serviceRequestId = serviceRequestId
         self.customerCoordinate = customerCoordinate
         self.lastPublishedAt = nil
         isPublishing = true
 
+        observeOrderStatus(requestId: serviceRequestId)
+
         let status = locationManager.authorizationStatus
         if status == .notDetermined {
             locationManager.requestWhenInUseAuthorization()
         } else if status == .authorizedWhenInUse || status == .authorizedAlways {
             locationManager.startUpdatingLocation()
+        } else if status == .denied || status == .restricted {
+            errorMessage = "Izin lokasi ditolak. Aktifkan di Pengaturan untuk berbagi lokasi bengkel."
         }
     }
 
+    private func observeOrderStatus(requestId: String) {
+        let channel = supabase.channel("publish-order-status-\(requestId)")
+        self.statusChannel = channel
+        let stream = channel.postgresChange(
+            AnyAction.self, schema: "public", table: "service_requests",
+            filter: "id=eq.\(requestId)"
+        )
+        statusReaderTask = Task { [weak self] in
+            guard let self else { return }
+            await channel.subscribe()
+            for await _ in stream {
+                if let order = try? await self.orderRepository.fetchOrder(id: requestId),
+                   order.status != "On Progress" {
+                    self.stop()
+                }
+            }
+        }
+    }
+
+    // @MainActor teardown
     func stop() {
         locationManager.stopUpdatingLocation()
         isPublishing = false
         serviceRequestId = nil
         customerCoordinate = nil
         lastPublishedAt = nil
+        statusReaderTask?.cancel()
+        statusReaderTask = nil
+        if let statusChannel {
+            Task { await supabase.removeChannel(statusChannel) }
+            self.statusChannel = nil
+        }
+    }
+
+    deinit {
+        statusReaderTask?.cancel()
+        if let statusChannel {
+            let client = supabase
+            Task { await client.removeChannel(statusChannel) }
+        }
     }
 
     // Adaptive interval based on distance to the customer (meters).
@@ -73,10 +116,13 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
         }
     }
 
+    // @MainActor delegate callback (class is @MainActor-isolated)
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
         if isPublishing, status == .authorizedWhenInUse || status == .authorizedAlways {
             manager.startUpdatingLocation()
+        } else if isPublishing, status == .denied || status == .restricted {
+            errorMessage = "Izin lokasi ditolak. Aktifkan di Pengaturan untuk berbagi lokasi bengkel."
         }
     }
 

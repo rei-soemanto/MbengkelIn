@@ -12,6 +12,26 @@ class AuthService {
     func getCurrentSession() async throws -> Session {
         return try await supabase.auth.session
     }
+
+    // Locally-stored session WITHOUT a network refresh — used so a transient
+    // network failure at launch doesn't bounce a logged-in user to Login.
+    func cachedSession() -> Session? {
+        supabase.auth.currentSession
+    }
+
+    // Stream of auth events (sign-in, token refresh, sign-out) so the app can
+    // keep its session in sync with the SDK.
+    func authStateChanges() -> AsyncStream<(event: AuthChangeEvent, session: Session?)> {
+        AsyncStream { continuation in
+            let task = Task {
+                for await change in supabase.auth.authStateChanges {
+                    continuation.yield((change.event, change.session))
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
     
     func signIn(email: String, password: String) async throws -> Session {
         return try await supabase.auth.signIn(email: email, password: password)

@@ -83,6 +83,14 @@ struct PaymentView: View {
             Text(Int(viewModel.balance).rupiah)
                 .font(.system(size: 36, weight: .bold))
                 .foregroundColor(Color(.systemBackground))
+            if viewModel.heldBalance > 0 {
+                HStack(spacing: 12) {
+                    Label("Tertahan \(Int(viewModel.heldBalance).rupiah)", systemImage: "lock.fill")
+                    Label("Tersedia \(Int(viewModel.availableBalance).rupiah)", systemImage: "checkmark.circle.fill")
+                }
+                .font(.caption)
+                .foregroundColor(Color(.systemBackground).opacity(0.85))
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(24)

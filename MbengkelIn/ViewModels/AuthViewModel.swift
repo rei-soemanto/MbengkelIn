@@ -15,7 +15,7 @@ enum AppMode {
 }
 
 @MainActor
-class AuthViewModel: ObservableObject {
+class AuthViewModel: ObservableObject { // @MainActor isolated
     @Published var userSession: Supabase.User?
     @Published var currentUser: User?
     @Published var isLoading = false
@@ -27,10 +27,28 @@ class AuthViewModel: ObservableObject {
     
     private let authService = AuthService()
     private let userRepository = UserRepository()
+    private var authStateTask: Task<Void, Never>?
 
+    // @MainActor-isolated init (whole class is @MainActor)
     init() {
         Task { await loadInitialSession() }
+        authStateTask = Task { [weak self] in
+            guard let self else { return }
+            for await change in self.authService.authStateChanges() {
+                switch change.event {
+                case .signedOut:
+                    self.userSession = nil
+                    self.currentUser = nil
+                case .signedIn, .tokenRefreshed, .initialSession:
+                    if let user = change.session?.user { self.userSession = user }
+                default:
+                    break
+                }
+            }
+        }
     }
+
+    deinit { authStateTask?.cancel() }
 
     @MainActor
     func loadInitialSession() async {
@@ -41,7 +59,12 @@ class AuthViewModel: ObservableObject {
             self.userSession = session.user
             await fetchUser()
         } catch {
-            self.userSession = nil
+            if let cached = authService.cachedSession() {
+                self.userSession = cached.user
+                await fetchUser()
+            } else {
+                self.userSession = nil
+            }
         }
     }
 
@@ -82,23 +105,30 @@ class AuthViewModel: ObservableObject {
         isLoading = false
     }
 
+    @MainActor
     func fetchUser() async {
         guard let sessionUser = self.userSession else { return }
         let uid = sessionUser.id.uuidString.lowercased()
         do {
             var fetchedUser = try await userRepository.fetchUser(uid: uid)
-            
+
             fetchedUser.email = sessionUser.email
-            
+
             if case let .string(phoneString) = sessionUser.userMetadata["phone_number"] {
                 fetchedUser.phoneNumber = phoneString
             } else {
                 fetchedUser.phoneNumber = sessionUser.phone
             }
-            
+
             self.currentUser = fetchedUser
         } catch {
-            self.errorMessage = error.localizedDescription
+            if (error as? PostgrestError)?.code == "PGRST116" {
+                try? await authService.signOut()
+                self.userSession = nil
+                self.currentUser = nil
+            } else {
+                self.errorMessage = error.localizedDescription
+            }
         }
     }
     
@@ -112,10 +142,11 @@ class AuthViewModel: ObservableObject {
         }
     }
     
+    @MainActor
     func deleteAccount(password: String) async {
         isLoading = true
         errorMessage = nil
-        guard let sessionUser = self.userSession, let email = sessionUser.email else { return }
+        guard let sessionUser = self.userSession, let email = sessionUser.email else { isLoading = false; return }
         
         do {
             _ = try await authService.signIn(email: email, password: password)

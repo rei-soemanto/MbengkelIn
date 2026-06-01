@@ -25,6 +25,8 @@ final class ChatWatchViewModel: ObservableObject {
     private let chatRepository = ChatRepository()
     private let notificationService = NotificationService()
     private var channel: RealtimeChannelV2?
+    // realtime reader tasks for this @MainActor view model
+    private var realtimeReaderTasks: [Task<Void, Never>] = []
 
     private var notifiedIds: Set<String> = []
     private var didLoadOnce = false
@@ -35,7 +37,10 @@ final class ChatWatchViewModel: ObservableObject {
         self.cursor = ChatReadCursor(serviceRequestId: serviceRequestId)
     }
 
+    // @MainActor view model deinit
     deinit {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = channel {
             let client = supabase
             Task { await client.removeChannel(channel) }
@@ -51,7 +56,10 @@ final class ChatWatchViewModel: ObservableObject {
         subscribe()
     }
 
+    // @MainActor teardown
     func stop() {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = channel {
             Task { await supabase.removeChannel(channel) }
             self.channel = nil
@@ -77,10 +85,11 @@ final class ChatWatchViewModel: ObservableObject {
             filter: "service_request_id=eq.\(serviceRequestId)"
         )
 
-        Task { [weak self] in
+        // @MainActor view model: store the realtime reader task
+        realtimeReaderTasks.append(Task { [weak self] in
             await channel.subscribe()
             for await _ in stream { await self?.reload() }
-        }
+        })
     }
 
     private func reload() async {

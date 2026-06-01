@@ -91,12 +91,17 @@ class VehicleViewModel: ObservableObject {
         }
     }
     
-    func deleteVehicle(vehicleId: String) async {
+    @MainActor
+    @discardableResult
+    func deleteVehicle(vehicleId: String) async -> Bool {
+        errorMessage = nil
         do {
             try await vehicleRepository.deleteVehicle(vehicleId: vehicleId)
             await fetchVehicles()
+            return true
         } catch {
-            print("Gagal menghapus kendaraan: \(error)")
+            self.errorMessage = error.localizedDescription
+            return false
         }
     }
 }

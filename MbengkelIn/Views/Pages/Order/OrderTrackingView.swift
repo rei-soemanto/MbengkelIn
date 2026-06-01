@@ -110,7 +110,10 @@ struct OrderTrackingView: View {
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .review:
-                OrderReviewSheet(requestId: bid.serviceRequestId)
+                OrderReviewSheet(
+                    requestId: bid.serviceRequestId,
+                    existingRating: trackingViewModel.order?.rating
+                )
             case .cancel:
                 NavigationStack {
                     VStack(alignment: .leading, spacing: 16) {

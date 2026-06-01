@@ -96,23 +96,12 @@ extension WatchSessionManager {
     }
 
     func approveBid(_ message: [String: Any]) async throws {
-        guard let requestId = message["requestId"] as? String, let bidId = message["bidId"] as? String else {
+        guard let bidId = message["bidId"] as? String else {
             throw NSError(domain: "watch", code: 1, userInfo: [NSLocalizedDescriptionKey: "Argumen tidak lengkap."])
         }
-        let bids = try await orderRepository.fetchPendingBids(serviceRequestId: requestId)
-        guard let bid = bids.first(where: { $0.id == bidId }) else {
-            throw NSError(domain: "watch", code: 2, userInfo: [NSLocalizedDescriptionKey: "Tawaran tidak ditemukan."])
-        }
-        // Balance check mirrors CustomerBiddingViewModel.acceptBid: the order already
-        // holds the customer's own price; accepting swaps that hold to the bid price.
-        let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
-        let user = try await userRepository.fetchUser(uid: uid)
-        let currentOrder = try? await orderRepository.fetchOrder(id: requestId)
-        let held = Double(currentOrder?.price ?? bid.price)
-        let available = user.availableBalance + held
-        guard Double(bid.price) <= available else {
-            throw NSError(domain: "watch", code: 3, userInfo: [NSLocalizedDescriptionKey: "Saldo tidak cukup untuk menerima tawaran."])
-        }
-        try await orderRepository.acceptBid(serviceRequestId: requestId, bidId: bidId, bengkelId: bid.bengkelId, price: bid.price)
+        // Server-authoritative accept_bid RPC validates owner, open status, and
+        // balance in one transaction; any failure (e.g. "Saldo tidak cukup") is
+        // surfaced through the thrown error's localizedDescription.
+        _ = try await orderRepository.acceptBid(bidId: bidId)
     }
 }

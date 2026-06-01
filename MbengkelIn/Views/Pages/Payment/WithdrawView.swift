@@ -18,12 +18,12 @@ struct WithdrawView: View {
     private var amountError: String? {
         if amountText.isEmpty || amount == 0 { return nil }
         if amount < 10000 { return "Minimal penarikan Rp10.000." }
-        if Double(amount) > viewModel.balance { return "Jumlah melebihi saldo." }
+        if Double(amount) > viewModel.availableBalance { return "Jumlah melebihi saldo." }
         return nil
     }
 
     private var isValid: Bool {
-        amount >= 10000 && Double(amount) <= viewModel.balance && viewModel.hasBankDetails
+        amount >= 10000 && Double(amount) <= viewModel.availableBalance && viewModel.hasBankDetails
     }
 
     var body: some View {
@@ -34,7 +34,7 @@ struct WithdrawView: View {
                         Text("Saldo tersedia")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        Text(Int(viewModel.balance).rupiah)
+                        Text(Int(viewModel.availableBalance).rupiah)
                             .font(.title2).fontWeight(.bold)
                     }
 
@@ -58,10 +58,10 @@ struct WithdrawView: View {
                             Text("Jumlah Penarikan").font(.headline)
                             Spacer()
                             Button("Tarik semua") {
-                                amountText = "\(Int(viewModel.balance))"
+                                amountText = "\(Int(viewModel.availableBalance))"
                             }
                             .font(.caption)
-                            .disabled(viewModel.balance < 10000)
+                            .disabled(viewModel.availableBalance < 10000)
                         }
                         HStack {
                             Text("Rp").foregroundColor(.secondary)

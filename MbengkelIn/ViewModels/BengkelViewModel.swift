@@ -36,7 +36,9 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
     private let locationManager = CLLocationManager()
     private var cancellables = Set<AnyCancellable>()
     private var realtimeChannel: RealtimeChannelV2?
-    
+    // realtime reader tasks for this @MainActor view model
+    private var realtimeReaderTasks: [Task<Void, Never>] = []
+
     override init() {
         super.init()
         locationManager.delegate = self
@@ -191,7 +193,10 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
         }
     }
     
+    // @MainActor view model deinit
     deinit {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
             let client = supabase
             Task {
@@ -230,17 +235,20 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
             filter: "provider_uid=eq.\(uid)"
         )
 
-        Task { [weak self] in
+        realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
             await channel.subscribe()
             for await _ in stream {
                 await self.refreshBengkelQuietly(uid: uid)
             }
-        }
+        })
 
     }
 
+    // @MainActor teardown
     func stopWatching() {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
             Task {
                 await supabase.removeChannel(channel)

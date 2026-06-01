@@ -32,6 +32,8 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     private var customerCoordinate: CLLocationCoordinate2D?
     private var lastPublishedAt: Date?
     private var channel: RealtimeChannelV2?
+    // realtime reader tasks for this @MainActor view model
+    private var realtimeReaderTasks: [Task<Void, Never>] = []
 
     var status: String { order?.status ?? "To Do" }
 
@@ -50,7 +52,10 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         }
     }
 
+    // @MainActor view model deinit
     deinit {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = channel {
             let client = supabase
             Task { await client.removeChannel(channel) }
@@ -89,7 +94,8 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
             table: "customer_locations",
             filter: "service_request_id=eq.\(order.id)"
         )
-        Task { [weak self] in
+        // @MainActor view model: store the realtime reader task
+        realtimeReaderTasks.append(Task { [weak self] in
             guard let self else { return }
             await channel.subscribe()
             Task { [weak self] in
@@ -108,7 +114,7 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
                     }
                 }
             }
-        }
+        })
     }
 
     @MainActor
@@ -146,7 +152,10 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         )
     }
 
+    // @MainActor teardown
     private func stopChannel() {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = channel {
             Task { await supabase.removeChannel(channel) }
             self.channel = nil

@@ -44,6 +44,8 @@ final class CustomerBiddingViewModel: ObservableObject {
     private var bidExpiryTask: Task<Void, Never>?
 
     private var realtimeChannel: RealtimeChannelV2?
+    // realtime reader tasks for this @MainActor view model
+    private var realtimeReaderTasks: [Task<Void, Never>] = []
     private let userRepository = UserRepository()
     private let orderRepository = OrderRepository()
     private let storageService = StorageService()
@@ -93,10 +95,13 @@ final class CustomerBiddingViewModel: ObservableObject {
         }
     }
 
+    // @MainActor view model deinit
     deinit {
         searchCountdownTask?.cancel()
         decisionCountdownTask?.cancel()
         bidExpiryTask?.cancel()
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
             let client = supabase
             Task {
@@ -279,7 +284,7 @@ final class CustomerBiddingViewModel: ObservableObject {
             filter: "service_request_id=eq.\(serviceRequestId)"
         )
 
-        Task { [weak self] in
+        realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
             await channel.subscribe()
             // Cold-start reconcile after the channel is confirmed subscribed, in
@@ -290,11 +295,14 @@ final class CustomerBiddingViewModel: ObservableObject {
             for await _ in stream {
                 await self.loadReceivedBids()
             }
-        }
-        
+        })
+
     }
 
+    // @MainActor teardown
     func stopRealtimeSubscription() {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
             Task {
                 await supabase.removeChannel(channel)
@@ -365,39 +373,10 @@ final class CustomerBiddingViewModel: ObservableObject {
 
     @MainActor
     func acceptBid(_ bid: Bid) async {
-        guard let serviceRequestId = serviceRequestId else { return }
         isLoading = true
         errorMessage = nil
         do {
-            let uid = try await supabase.auth.session.user.id.uuidString.lowercased()
-            let user = try await userRepository.fetchUser(uid: uid)
-            self.balance = user.balance
-            // This order already holds `customerBidPrice`; accepting swaps that hold to bid.price.
-            let available = user.availableBalance + Double(customerBidPrice)
-            guard Double(bid.price) <= available else {
-                self.errorMessage = "Saldo tidak cukup untuk menerima tawaran Rp\(bid.price). Saldo tersedia Rp\(Int(available))."
-                isLoading = false
-                return
-            }
-
-            try await supabase.from("bids")
-                .update(BidStatusUpdate(status: "Accepted"))
-                .eq("id", value: bid.id)
-                .execute()
-
-            // Reject every other bid on this request so the losing bengkels
-            // have the order removed and get alerted (realtime on their side).
-            try await supabase.from("bids")
-                .update(BidStatusUpdate(status: "AutoRejected"))
-                .eq("service_request_id", value: serviceRequestId)
-                .neq("id", value: bid.id)
-                .execute()
-
-            try await supabase.from("service_requests")
-                .update(AcceptOrderPayload(bengkel_id: bid.bengkelId, status: "On Progress", price: bid.price))
-                .eq("id", value: serviceRequestId)
-                .execute()
-
+            _ = try await orderRepository.acceptBid(bidId: bid.id)
             stopRealtimeSubscription()
             await loadReceivedBids()
             if self.acceptedBid == nil {

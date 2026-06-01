@@ -47,10 +47,11 @@ class ProfileViewModel: ObservableObject {
         }
     }
     
+    @MainActor
     func uploadProfileImage(_ data: Data) async -> Bool {
         isLoading = true
         errorMessage = nil
-        
+
         do {
             guard let session = try? await authService.getCurrentSession() else {
                 self.errorMessage = "Anda harus masuk untuk mengunggah gambar."
@@ -58,8 +59,9 @@ class ProfileViewModel: ObservableObject {
                 return false
             }
             let uid = session.user.id.uuidString.lowercased()
-            
-            let publicURLString = try await storageService.uploadAvatar(uid: uid, data: data)
+
+            let compressed = ImageCompressor.compressed(data)
+            let publicURLString = try await storageService.uploadAvatar(uid: uid, data: compressed)
             
             let payload = ProfileImageUpdatePayload(profile_image_url: publicURLString)
             try await userRepository.updateProfileImageUrl(uid: uid, payload: payload)

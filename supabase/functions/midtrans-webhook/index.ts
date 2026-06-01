@@ -6,9 +6,6 @@ import {
   verifySignature,
 } from "../_shared/midtrans.ts";
 
-// This endpoint is called server-to-server by Midtrans, not by the app.
-// It has verify_jwt disabled; authenticity is enforced via the signature_key.
-
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -51,38 +48,18 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const { data: topup, error: fetchError } = await adminClient
-    .from("topups")
-    .select("id, user_id, gross_amount, status")
-    .eq("order_id", orderId)
-    .single();
+  // Single atomic settlement: credits the balance (idempotently, never
+  // double-crediting an already-successful topup) AND flips the topup status
+  // in one transaction.
+  const { error } = await adminClient.rpc("settle_topup", {
+    p_order_id: orderId,
+    p_status: newStatus,
+    p_payment_type: paymentType,
+  });
 
-  if (fetchError || !topup) {
-    return json({ error: "Top-up not found" }, 404);
-  }
-
-  // Credit the balance exactly once, on the transition into "success".
-  if (newStatus === "success" && topup.status !== "success") {
-    const { error: creditError } = await adminClient.rpc("increment_user_balance", {
-      p_user_id: topup.user_id,
-      p_amount: topup.gross_amount,
-    });
-    if (creditError) {
-      return json({ error: creditError.message }, 500);
-    }
-  }
-
-  const { error: updateError } = await adminClient
-    .from("topups")
-    .update({
-      status: newStatus,
-      payment_type: paymentType,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("order_id", orderId);
-
-  if (updateError) {
-    return json({ error: updateError.message }, 500);
+  if (error) {
+    const notFound = (error.message ?? "").toLowerCase().includes("not found");
+    return json({ error: error.message }, notFound ? 404 : 500);
   }
 
   return json({ received: true, status: newStatus });

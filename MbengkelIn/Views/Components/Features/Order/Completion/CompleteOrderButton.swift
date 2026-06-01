@@ -40,7 +40,13 @@ struct CompleteOrderButton: View {
         } else if viewModel.status == "Cancelled" {
             statusLabel(text: "Pesanan Dibatalkan", icon: "xmark.seal.fill", color: .red)
         } else if viewModel.mySideCompleted {
-            statusLabel(text: "Menunggu konfirmasi pihak lain", icon: "clock.fill", color: .orange)
+            VStack(spacing: 6) {
+                statusLabel(text: "Menunggu konfirmasi pihak lain", icon: "clock.fill", color: .orange)
+                Text("Dana ditahan sampai kedua pihak menyelesaikan pesanan.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
         } else if !canComplete {
             statusLabel(text: "Menunggu bengkel tiba di lokasi", icon: "location.circle", color: .secondary)
         } else if isCustomer {
@@ -60,6 +66,8 @@ struct CompleteOrderButton: View {
                 Task {
                     if let data = try? await item.loadTransferable(type: Data.self) {
                         await viewModel.markCompleted(photoData: data)
+                    } else {
+                        viewModel.errorMessage = "Gagal memuat foto. Coba pilih ulang."
                     }
                     photoItem = nil
                 }

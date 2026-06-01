@@ -59,19 +59,11 @@ class OrderRepository {
     }
 
     func cancelOrder(id: String) async throws {
-        let updated: [CreatedServiceRequest] = try await supabase.from("service_requests")
-            .update(OrderStatusUpdate(status: "Cancelled"))
-            .eq("id", value: id)
-            .select("id")
-            .execute()
-            .value
-        guard !updated.isEmpty else {
-            throw NSError(
-                domain: "MbengkelIn.OrderRepository",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Pembatalan tidak diterapkan. Coba lagi."]
-            )
-        }
+        try await supabase.rpc(
+            "cancel_order",
+            params: CancelOrderParams(p_request_id: id)
+        )
+        .execute()
     }
 
     @discardableResult
@@ -97,11 +89,11 @@ class OrderRepository {
     }
 
     func submitRating(requestId: String, rating: Int, review: String?) async throws {
-        let payload = RatingPayload(rating: rating, review: review)
-        try await supabase.from("service_requests")
-            .update(payload)
-            .eq("id", value: requestId)
-            .execute()
+        try await supabase.rpc(
+            "rate_order",
+            params: RateOrderParams(p_request_id: requestId, p_rating: rating, p_review: review)
+        )
+        .execute()
     }
 
     @discardableResult
@@ -139,19 +131,14 @@ class OrderRepository {
             .value
     }
 
-    func acceptBid(serviceRequestId: String, bidId: String, bengkelId: String, price: Int) async throws {
-        try await supabase.from("bids")
-            .update(BidStatusUpdate(status: "Accepted"))
-            .eq("id", value: bidId)
-            .execute()
-        try await supabase.from("bids")
-            .update(BidStatusUpdate(status: "AutoRejected"))
-            .eq("service_request_id", value: serviceRequestId)
-            .neq("id", value: bidId)
-            .execute()
-        try await supabase.from("service_requests")
-            .update(AcceptOrderPayload(bengkel_id: bengkelId, status: "On Progress", price: price))
-            .eq("id", value: serviceRequestId)
-            .execute()
+    @discardableResult
+    func acceptBid(bidId: String) async throws -> NearbyOrder {
+        return try await supabase.rpc(
+            "accept_bid",
+            params: AcceptBidParams(p_bid_id: bidId)
+        )
+        .single()
+        .execute()
+        .value
     }
 }

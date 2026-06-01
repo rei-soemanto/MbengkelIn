@@ -17,12 +17,16 @@ class ChatViewModel: ObservableObject {
     private let orderRepository = OrderRepository()
     private let storageService = StorageService()
     private var realtimeChannel: RealtimeChannelV2?
+    // realtime reader tasks for this @MainActor view model
+    private var realtimeReaderTasks: [Task<Void, Never>] = []
 
     nonisolated init(serviceRequestId: String) {
         self.serviceRequestId = serviceRequestId
     }
 
     deinit {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
             let client = supabase
             Task { await client.removeChannel(channel) }
@@ -73,7 +77,7 @@ class ChatViewModel: ObservableObject {
             filter: "id=eq.\(serviceRequestId)"
         )
 
-        Task { [weak self] in
+        realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
             await channel.subscribe()
 
@@ -83,29 +87,36 @@ class ChatViewModel: ObservableObject {
             Task { [weak self] in
                 for await _ in orderStream { await self?.loadLockState() }
             }
-        }
+        })
     }
 
+    // @MainActor teardown
     func stopRealtimeSubscription() {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
             Task { await supabase.removeChannel(channel) }
             realtimeChannel = nil
         }
     }
 
+    @MainActor
     func sendText() async {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isLocked else { return }
-        draft = ""
-        await send(content: text, imageUrl: nil)
+        if await send(content: text, imageUrl: nil) {
+            draft = ""
+        }
     }
 
+    @MainActor
     func sendImage(data: Data) async {
         guard !isLocked else { return }
         isSending = true
         errorMessage = nil
         do {
-            let url = try await storageService.uploadChatImage(serviceRequestId: serviceRequestId, data: data)
+            let compressed = ImageCompressor.compressed(data)
+            let url = try await storageService.uploadChatImage(serviceRequestId: serviceRequestId, data: compressed)
             await send(content: nil, imageUrl: url)
         } catch {
             self.errorMessage = error.localizedDescription
@@ -113,7 +124,9 @@ class ChatViewModel: ObservableObject {
         isSending = false
     }
 
-    private func send(content: String?, imageUrl: String?) async {
+    @MainActor
+    @discardableResult
+    private func send(content: String?, imageUrl: String?) async -> Bool {
         isSending = true
         errorMessage = nil
         do {
@@ -125,9 +138,12 @@ class ChatViewModel: ObservableObject {
             )
             try await chatRepository.sendMessage(payload)
             await loadMessages()
+            isSending = false
+            return true
         } catch {
             self.errorMessage = error.localizedDescription
+            isSending = false
+            return false
         }
-        isSending = false
     }
 }

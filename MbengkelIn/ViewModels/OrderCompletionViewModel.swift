@@ -15,6 +15,8 @@ class OrderCompletionViewModel: ObservableObject {
     private let storageService = StorageService()
     private let notificationService = NotificationService()
     private var realtimeChannel: RealtimeChannelV2?
+    // realtime reader tasks for this @MainActor view model
+    private var realtimeReaderTasks: [Task<Void, Never>] = []
     private var hasLoadedOnce = false
 
     nonisolated init(requestId: String, isCustomer: Bool) {
@@ -22,7 +24,10 @@ class OrderCompletionViewModel: ObservableObject {
         self.isCustomer = isCustomer
     }
 
+    // @MainActor view model deinit
     deinit {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
             let client = supabase
             Task { await client.removeChannel(channel) }
@@ -88,14 +93,17 @@ class OrderCompletionViewModel: ObservableObject {
             table: "service_requests",
             filter: "id=eq.\(requestId)"
         )
-        Task { [weak self] in
+        realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
             await channel.subscribe()
             for await _ in stream { await self.refresh() }
-        }
+        })
     }
 
+    // @MainActor teardown
     func stopRealtimeSubscription() {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
             Task { await supabase.removeChannel(channel) }
             realtimeChannel = nil

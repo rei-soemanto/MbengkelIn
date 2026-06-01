@@ -27,11 +27,15 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
     private var iInitiatedCancel = false
     private var channel: RealtimeChannelV2?
     private var serviceRequestId: String?
+    // realtime reader tasks for this @MainActor view model
+    private var realtimeReaderTasks: [Task<Void, Never>] = []
 
     var status: String { order?.status ?? "On Progress" }
     var alreadyRated: Bool { (order?.rating ?? 0) > 0 }
 
     deinit {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = channel {
             let client = supabase
             Task { await client.removeChannel(channel) }
@@ -66,7 +70,7 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
             filter: "id=eq.\(serviceRequestId)"
         )
 
-        Task { [weak self] in
+        realtimeReaderTasks.append(Task { [weak self] in
             guard let self else { return }
             await channel.subscribe()
 
@@ -95,26 +99,17 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
                     }
                 }
             }
-        }
+        })
     }
 
     @MainActor
     func stop() {
         isLive = false
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = channel {
             Task { await supabase.removeChannel(channel) }
             self.channel = nil
-        }
-    }
-
-    @MainActor
-    func cancelOrder() async -> Bool {
-        guard let id = serviceRequestId else { return false }
-        do {
-            try await orderRepository.cancelOrder(id: id)
-            return true
-        } catch {
-            return false
         }
     }
 

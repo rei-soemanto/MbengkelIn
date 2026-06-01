@@ -10,6 +10,7 @@ struct PaymentTarget: Identifiable {
 @MainActor
 class PaymentViewModel: ObservableObject {
     @Published var balance: Double = 0
+    @Published var heldBalance: Double = 0
     @Published var topups: [Topup] = []
     @Published var withdrawals: [Withdrawal] = []
     @Published var isLoading = false
@@ -35,6 +36,9 @@ class PaymentViewModel: ObservableObject {
         !bankAccountNumber.isEmpty && !bankName.isEmpty && !bankAccountName.isEmpty
     }
 
+    // @MainActor (inherited from class) — withdrawable funds excluding escrow.
+    @MainActor var availableBalance: Double { max(0, balance - heldBalance) }
+
     private let authService = AuthService()
     private let userRepository = UserRepository()
     private let topupRepository = TopupRepository()
@@ -42,6 +46,8 @@ class PaymentViewModel: ObservableObject {
     private let paymentService = PaymentService()
 
     private var realtimeChannel: RealtimeChannelV2?
+    // realtime reader tasks for this @MainActor view model
+    private var realtimeReaderTasks: [Task<Void, Never>] = []
 
     // Track which top-ups have already settled as "success" so we can alert
     // exactly once when a new one lands (via the realtime subscription) without
@@ -49,7 +55,10 @@ class PaymentViewModel: ObservableObject {
     private var knownSuccessTopupIds: Set<String> = []
     private var didLoadTopupsOnce = false
 
+    // @MainActor view model deinit
     deinit {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
             let client = supabase
             Task {
@@ -84,7 +93,7 @@ class PaymentViewModel: ObservableObject {
             filter: "user_id=eq.\(uid)"
         )
 
-        Task { [weak self] in
+        realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
             await channel.subscribe()
 
@@ -94,11 +103,14 @@ class PaymentViewModel: ObservableObject {
             Task { [weak self] in
                 for await _ in withdrawalStream { await self?.refresh() }
             }
-        }
+        })
 
     }
 
+    // @MainActor teardown
     func stop() {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
             Task {
                 await supabase.removeChannel(channel)
@@ -107,6 +119,7 @@ class PaymentViewModel: ObservableObject {
         }
     }
 
+    @MainActor
     func refresh() async {
         guard let session = try? await authService.getCurrentSession() else { return }
         let uid = session.user.id.uuidString.lowercased()
@@ -117,6 +130,7 @@ class PaymentViewModel: ObservableObject {
 
             let fetchedUser = try await user
             self.balance = fetchedUser.balance
+            self.heldBalance = fetchedUser.heldBalance ?? 0
             self.bankName = fetchedUser.bankName ?? ""
             self.bankAccountNumber = fetchedUser.bankAccountNumber ?? ""
             self.bankAccountName = fetchedUser.bankAccountName ?? ""

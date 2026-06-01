@@ -31,6 +31,8 @@ class BengkelBiddingViewModel: ObservableObject {
     @Published var myRejectedBids: [Bid] = []
 
     private var realtimeChannel: RealtimeChannelV2?
+    // realtime reader tasks for this @MainActor view model
+    private var realtimeReaderTasks: [Task<Void, Never>] = []
     private let orderRepository = OrderRepository()
     private let notificationService = NotificationService()
     private var knownOrderIds: Set<String> = []
@@ -40,7 +42,10 @@ class BengkelBiddingViewModel: ObservableObject {
     private var providerUid: String?
 
 
+    // @MainActor view model deinit
     deinit {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
             let client = supabase
             Task {
@@ -110,7 +115,8 @@ class BengkelBiddingViewModel: ObservableObject {
             table: "service_requests"
         )
 
-        Task { [weak self] in
+        // @MainActor view model: store the realtime reader task
+        realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
             print("[BengkelRT] subscribing channel mechanic-bids-\(uid)")
             await channel.subscribe()
@@ -135,10 +141,13 @@ class BengkelBiddingViewModel: ObservableObject {
                     await self?.loadOrders()
                 }
             }
-        }
+        })
     }
 
+    // @MainActor teardown
     func stopRealtimeSubscription() {
+        realtimeReaderTasks.forEach { $0.cancel() }
+        realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
             Task {
                 await supabase.removeChannel(channel)
