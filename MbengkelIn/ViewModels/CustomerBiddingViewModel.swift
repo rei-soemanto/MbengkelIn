@@ -269,6 +269,10 @@ final class CustomerBiddingViewModel: ObservableObject {
         Task { [weak self] in
             guard let self = self else { return }
             await channel.subscribe()
+            // Cold-start reconcile after the channel is confirmed subscribed, in
+            // case a bid landed during the subscribe handshake. One-shot, not polling.
+            // @MainActor (class-level annotation also applied to this method).
+            await self.loadReceivedBids()
 
             for await _ in stream {
                 await self.loadReceivedBids()

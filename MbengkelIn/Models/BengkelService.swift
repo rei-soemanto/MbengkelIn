@@ -11,7 +11,6 @@ enum ServiceType: String, Codable, CaseIterable {
     case banGembos = "Ban Gembos"
     case banPecah = "Ban Pecah"
     case akiKering = "Aki Kering"
-    case kehabisanBensin = "Kehabisan Bensin"
     case mogokMesinMati = "Mogok / Mesin Mati"
     case gantiBanSerep = "Ganti Ban Serep"
     case rantaiMotorLepas = "Rantai Motor Lepas"
@@ -22,7 +21,6 @@ enum ServiceType: String, Codable, CaseIterable {
         case .banGembos: return 25000
         case .banPecah: return 40000
         case .akiKering: return 60000
-        case .kehabisanBensin: return 20000
         case .mogokMesinMati: return 50000
         case .gantiBanSerep: return 30000
         case .rantaiMotorLepas: return 25000
@@ -38,7 +36,6 @@ enum ServiceType: String, Codable, CaseIterable {
         switch self {
         case .banGembos, .banPecah, .gantiBanSerep: return "car.side.rear.open.fill"
         case .akiKering: return "minus.plus.batteryblock.fill"
-        case .kehabisanBensin: return "fuelpump.fill"
         case .mogokMesinMati: return "engine.combustion.fill"
         case .rantaiMotorLepas: return "gearshape.2.fill"
         case .mesinOverheat: return "thermometer.high"

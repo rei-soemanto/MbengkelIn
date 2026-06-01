@@ -148,6 +148,17 @@ struct ContentView: View {
         } message: {
             Text(bengkelBiddingViewModel.rejectedBidAlert ?? "")
         }
+        .alert(
+            "Order Dibatalkan",
+            isPresented: Binding(
+                get: { bengkelBiddingViewModel.orderUnavailableAlert != nil },
+                set: { if !$0 { bengkelBiddingViewModel.orderUnavailableAlert = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { bengkelBiddingViewModel.orderUnavailableAlert = nil }
+        } message: {
+            Text(bengkelBiddingViewModel.orderUnavailableAlert ?? "")
+        }
     }
 }
 
