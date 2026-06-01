@@ -25,6 +25,8 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     private let storageService = StorageService()
     private let locationRepository = OrderLocationRepository()
     private let authService = AuthService()
+    private let notificationService = NotificationService()
+    private var iInitiatedCancel = false
 
     private var serviceRequestId: String?
     private var customerCoordinate: CLLocationCoordinate2D?
@@ -55,6 +57,7 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         }
     }
 
+    @MainActor
     func start(order: NearbyOrder) async {
         self.order = order
         self.serviceRequestId = order.id
@@ -92,7 +95,9 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
             Task { [weak self] in
                 for await _ in orderStream {
                     if let updated = try? await self?.orderRepository.fetchOrder(id: order.id) {
+                        let previous = self?.order
                         self?.order = updated
+                        self?.notifyOnCancellation(previous: previous, updated: updated)
                     }
                 }
             }
@@ -106,6 +111,7 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         }
     }
 
+    @MainActor
     func stop() {
         locationManager.stopUpdatingLocation()
         stopChannel()
@@ -115,6 +121,7 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     func reportIssue(reason: String, photoData: Data?) async -> Bool {
         guard let id = serviceRequestId else { return false }
         do {
+            iInitiatedCancel = true
             var proofUrl: String? = nil
             if let photoData,
                let session = try? await authService.getCurrentSession() {
@@ -124,8 +131,19 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
             _ = try await orderRepository.openDispute(requestId: id, reason: reason, proofUrl: proofUrl)
             return true
         } catch {
+            iInitiatedCancel = false
             return false
         }
+    }
+
+    @MainActor
+    private func notifyOnCancellation(previous: NearbyOrder?, updated: NearbyOrder) {
+        guard previous?.status != "Cancelled", updated.status == "Cancelled" else { return }
+        if iInitiatedCancel { iInitiatedCancel = false; return }
+        notificationService.notifyNewOrder(
+            title: "Pesanan dibatalkan",
+            body: "Pelanggan membatalkan pesanan ini."
+        )
     }
 
     private func stopChannel() {

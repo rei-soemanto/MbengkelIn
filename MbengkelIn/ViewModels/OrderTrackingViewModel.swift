@@ -23,6 +23,8 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
 
     private let locationRepository = OrderLocationRepository()
     private let orderRepository = OrderRepository()
+    private let notificationService = NotificationService()
+    private var iInitiatedCancel = false
     private var channel: RealtimeChannelV2?
     private var serviceRequestId: String?
 
@@ -36,8 +38,10 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
         }
     }
 
+    @MainActor
     func start(serviceRequestId: String) async {
         self.serviceRequestId = serviceRequestId
+        // Notification authorization is requested when tracking begins.
 
         // Seed with whatever is already known.
         if let location = try? await locationRepository.fetchLocation(serviceRequestId: serviceRequestId) {
@@ -85,13 +89,16 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
                 for await _ in orderStream {
                     guard let self else { return }
                     if let updated = try? await self.orderRepository.fetchOrder(id: serviceRequestId) {
+                        let previous = self.order
                         self.order = updated
+                        self.notifyOnCancellation(previous: previous, updated: updated)
                     }
                 }
             }
         }
     }
 
+    @MainActor
     func stop() {
         isLive = false
         if let channel = channel {
@@ -115,11 +122,23 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
     func openDispute(reason: String) async -> Bool {
         guard let id = serviceRequestId else { return false }
         do {
+            iInitiatedCancel = true
             _ = try await orderRepository.openDispute(requestId: id, reason: reason)
             return true
         } catch {
+            iInitiatedCancel = false
             return false
         }
+    }
+
+    @MainActor
+    private func notifyOnCancellation(previous: NearbyOrder?, updated: NearbyOrder) {
+        guard previous?.status != "Cancelled", updated.status == "Cancelled" else { return }
+        if iInitiatedCancel { iInitiatedCancel = false; return }
+        notificationService.notifyNewOrder(
+            title: "Pesanan dibatalkan",
+            body: "Bengkel membatalkan pesanan ini."
+        )
     }
 
     private func apply(_ location: OrderLocation) {

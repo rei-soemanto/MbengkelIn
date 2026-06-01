@@ -13,7 +13,9 @@ class OrderCompletionViewModel: ObservableObject {
 
     private let orderRepository = OrderRepository()
     private let storageService = StorageService()
+    private let notificationService = NotificationService()
     private var realtimeChannel: RealtimeChannelV2?
+    private var hasLoadedOnce = false
 
     nonisolated init(requestId: String, isCustomer: Bool) {
         self.requestId = requestId
@@ -33,16 +35,46 @@ class OrderCompletionViewModel: ObservableObject {
         isCustomer ? (order?.customerCompleted ?? false) : (order?.providerCompleted ?? false)
     }
 
+    @MainActor
     func start() async {
+        notificationService.requestAuthorization()
         await refresh()
         startRealtimeSubscription()
     }
 
+    @MainActor
     func refresh() async {
         do {
-            self.order = try await orderRepository.fetchOrder(id: requestId)
+            let updated = try await orderRepository.fetchOrder(id: requestId)
+            notifyOnCounterpartCompletion(previous: order, updated: updated)
+            self.order = updated
         } catch {
             self.errorMessage = error.localizedDescription
+        }
+    }
+
+    // Each device only reacts to the OPPOSITE party's completion flag flipping,
+    // so the actor never notifies itself.
+    @MainActor
+    private func notifyOnCounterpartCompletion(previous: NearbyOrder?, updated: NearbyOrder) {
+        defer { hasLoadedOnce = true }
+        guard hasLoadedOnce, let previous else { return }
+
+        if isCustomer,
+           !(previous.providerCompleted ?? false),
+           (updated.providerCompleted ?? false) {
+            notificationService.notifyNewOrder(
+                title: "Bengkel menyelesaikan pesanan",
+                body: "Bengkel telah menandai pekerjaan selesai."
+            )
+        }
+        if !isCustomer,
+           !(previous.customerCompleted ?? false),
+           (updated.customerCompleted ?? false) {
+            notificationService.notifyNewOrder(
+                title: "Pelanggan menyelesaikan pesanan",
+                body: "Pelanggan telah menandai pekerjaan selesai."
+            )
         }
     }
 
