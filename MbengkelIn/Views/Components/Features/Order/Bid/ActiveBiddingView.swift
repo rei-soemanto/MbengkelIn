@@ -10,6 +10,7 @@ import CoreLocation
 
 struct ActiveBiddingView: View {
     @ObservedObject var viewModel: CustomerBiddingViewModel
+    @State private var showCancelConfirm = false
 
     private var customerCoordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: viewModel.latitude, longitude: viewModel.longitude)
@@ -39,6 +40,27 @@ struct ActiveBiddingView: View {
                     secondsRemaining: viewModel.searchSecondsRemaining,
                     progress: viewModel.searchProgress
                 )
+            }
+
+            Button(role: .destructive) {
+                showCancelConfirm = true
+            } label: {
+                Text("Batalkan Pesanan")
+                    .font(.headline)
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color(.systemBackground))
+            }
+            .confirmationDialog(
+                "Batalkan pesanan ini?",
+                isPresented: $showCancelConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Ya, batalkan", role: .destructive) {
+                    Task { await viewModel.cancel() }
+                }
+                Button("Tidak", role: .cancel) {}
             }
         }
     }

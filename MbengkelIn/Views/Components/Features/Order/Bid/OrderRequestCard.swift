@@ -55,7 +55,7 @@ struct OrderRequestCard: View {
 
     private var serviceChip: some View {
         HStack(spacing: 6) {
-            Image(systemName: "wrench.and.screwdriver.fill")
+            Image(systemName: ServiceType(rawValue: order.serviceType ?? "")?.iconName ?? "wrench.and.screwdriver.fill")
                 .font(.caption).foregroundColor(.white)
                 .padding(5).background(Color.primary).clipShape(Circle())
             Text(order.description ?? order.serviceType ?? "Permintaan servis")

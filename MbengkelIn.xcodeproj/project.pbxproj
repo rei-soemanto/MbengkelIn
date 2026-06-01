@@ -922,8 +922,9 @@
 				DEVELOPMENT_TEAM = 9YRLUY8GD3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BengkelIn butuh akses lokasi untuk mencari mekanik terdekat";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BengkelIn butuh akses lokasi untuk mencari mekanik terdekat dan membagikan lokasi langsung ke pelanggan saat menuju lokasi";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIBackgroundModes = location;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -955,8 +956,9 @@
 				DEVELOPMENT_TEAM = 9YRLUY8GD3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BengkelIn butuh akses lokasi untuk mencari mekanik terdekat";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "BengkelIn butuh akses lokasi untuk mencari mekanik terdekat dan membagikan lokasi langsung ke pelanggan saat menuju lokasi";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIBackgroundModes = location;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

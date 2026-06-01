@@ -15,10 +15,11 @@ import Supabase
 //  2) the order row itself (service_requests) — so the moment it settles to
 //     "Done" we can prompt the customer for a review.
 @MainActor
-class OrderTrackingViewModel: ObservableObject {
+class OrderTrackingViewModel: ObservableObject, Sendable {
     @Published var providerCoordinate: CLLocationCoordinate2D?
     @Published var lastUpdated: String?
     @Published var order: NearbyOrder?
+    @Published var isLive = false
 
     private let locationRepository = OrderLocationRepository()
     private let orderRepository = OrderRepository()
@@ -66,10 +67,17 @@ class OrderTrackingViewModel: ObservableObject {
             await channel.subscribe()
 
             Task { [weak self] in
+                guard let self else { return }
+                for await status in channel.statusChange {
+                    if status != .subscribed { self.isLive = false }
+                }
+            }
+            Task { [weak self] in
                 for await _ in locationStream {
                     guard let self else { return }
                     if let location = try? await self.locationRepository.fetchLocation(serviceRequestId: serviceRequestId) {
                         self.apply(location)
+                        self.isLive = true
                     }
                 }
             }
@@ -85,9 +93,21 @@ class OrderTrackingViewModel: ObservableObject {
     }
 
     func stop() {
+        isLive = false
         if let channel = channel {
             Task { await supabase.removeChannel(channel) }
             self.channel = nil
+        }
+    }
+
+    @MainActor
+    func cancelOrder() async -> Bool {
+        guard let id = serviceRequestId else { return false }
+        do {
+            try await orderRepository.cancelOrder(id: id)
+            return true
+        } catch {
+            return false
         }
     }
 

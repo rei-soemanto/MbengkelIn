@@ -38,23 +38,20 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
     // from a previous order), which is the root cause of far-away matches.
     @Published var hasResolvedLocation: Bool = false
 
+    @MainActor
     var requiresTireCount: Bool {
-        selectedService == "Ban Gembos" || selectedService == "Ban Pecah"
+        guard let selectedService, let type = ServiceType(rawValue: selectedService) else { return false }
+        return type.requiresTireCount
     }
 
-    static let defaultCenter = CLLocationCoordinate2D(latitude: -7.2845, longitude: 112.6315)
+    static let defaultCenter = CLLocationCoordinate2D(latitude: -7.2810899, longitude: 112.6345469)
 
     @Published var region = MKCoordinateRegion(
         center: OrderViewModel.defaultCenter,
         span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
     )
-    
-    let services = ["Ban Gembos", "Ban Pecah", "Aki Kering"]
-    let serviceMinPrices: [String: Int] = [
-        "Ban Gembos": 25000,
-        "Ban Pecah": 40000,
-        "Aki Kering": 60000,
-    ]
+
+    let services = ServiceType.allCases.map(\.rawValue)
     private let locationManager = CLLocationManager()
     private var cancellables = Set<AnyCancellable>()
     
@@ -121,10 +118,21 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
         } else if status == .authorizedWhenInUse || status == .authorizedAlways {
             locationManager.requestLocation()
         } else {
-            self.isFetchingLocation = false
+            self.fallBackToDefaultLocation()
         }
     }
-    
+
+    @MainActor
+    private func fallBackToDefaultLocation() {
+        region = MKCoordinateRegion(
+            center: OrderViewModel.defaultCenter,
+            span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
+        )
+        locationAddress = "Ciputra Hospital Surabaya"
+        hasResolvedLocation = true
+        fetchAddress(from: OrderViewModel.defaultCenter)
+    }
+
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
         Task { @MainActor in
@@ -133,7 +141,11 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
                     manager.requestLocation()
                 }
             } else if status != .notDetermined {
-                self.isFetchingLocation = false
+                if self.isFetchingLocation {
+                    self.fallBackToDefaultLocation()
+                } else {
+                    self.isFetchingLocation = false
+                }
             }
         }
     }
@@ -153,7 +165,7 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
-            self.isFetchingLocation = false
+            self.fallBackToDefaultLocation()
         }
     }
     
@@ -214,7 +226,7 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
             self.isFetchingLocation = false
         }
     }
-    
+
     func selectService(_ service: String) {
         selectedService = service
         tireCount = 1
@@ -238,7 +250,7 @@ class OrderViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, Loc
             estimatedPrice = 0
             return
         }
-        let base = serviceMinPrices[service] ?? 50000
+        let base = ServiceType(rawValue: service)?.minPrice ?? 50000
         estimatedPrice = requiresTireCount ? base * tireCount : base
     }
 

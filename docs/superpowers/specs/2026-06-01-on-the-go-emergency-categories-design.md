@@ -88,9 +88,17 @@ rantaiMotorLepas, mesinOverheat, gantiLampu
 
 ## Data / Backend
 
-- **No DB migration.** `service_requests.service_type` is plain `text`; the
-  `nearby_service_requests` RPCs cast it to `text`. New raw-value strings store
-  fine and don't collide with existing data.
+- **DB migration required (corrected).** `service_requests.service_type` is a
+  Postgres enum type `ServiceType`, not plain `text` — the `nearby_*` RPCs cast
+  it to text, which is exactly what you do with an enum. Inserting a new label
+  fails with `invalid input value for enum ServiceType` until the label is added
+  to the type. Migration `20260601084502_add_service_type_emergency_categories`
+  appends the 6 new labels via `alter type "ServiceType" add value if not
+  exists ...`. (The original spec's "plain text, no migration" claim was wrong.)
+- **Repo/DB migration resync.** The `supabase/migrations/` folder had drifted
+  badly out of sync with the remote DB (8 mis-timestamped files vs 22 applied
+  migrations). It was regenerated from `supabase_migrations.schema_migrations`
+  so every file's `version_name.sql` matches the live migration history 1:1.
 - **Bidding feed verification (open item):** the `bidding` edge function is not
   checked into the repo. During implementation, inspect it via the Supabase MCP
   to confirm whether the mechanic order feed filters by the bengkel's

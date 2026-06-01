@@ -1,6 +1,3 @@
--- Withdrawal (payout request) feature: bank details on profile + withdrawals table.
--- No live Midtrans Iris payout; withdrawals are recorded requests pending admin approval.
-
 alter table public.users
     add column if not exists bank_name text,
     add column if not exists bank_account_number text,
@@ -13,7 +10,7 @@ create table if not exists public.withdrawals (
     bank_name text,
     bank_account_number text,
     bank_account_name text,
-    status text not null default 'pending', -- pending, approved, rejected, paid
+    status text not null default 'pending',
     notes text,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
@@ -29,8 +26,6 @@ create policy "withdrawals_select_own"
     for select
     using (auth.uid() = user_id);
 
--- Atomically validate + hold balance and log a pending withdrawal for the caller.
--- Uses auth.uid() (never trusts a client-passed id). Locks the user row to avoid races.
 create or replace function public.request_withdrawal(p_amount double precision)
 returns uuid
 language plpgsql
@@ -77,8 +72,6 @@ begin
 end;
 $$;
 
--- Admin helper: reject a pending withdrawal and refund the held balance.
--- Not called from the app; for out-of-band admin use so rejection never loses funds.
 create or replace function public.reject_withdrawal(p_withdrawal_id uuid)
 returns void
 language plpgsql

@@ -17,16 +17,12 @@ create index if not exists topups_user_id_idx on public.topups (user_id);
 
 alter table public.topups enable row level security;
 
--- Users can read only their own top-up history.
--- Inserts/updates are performed exclusively by the edge functions using the
--- service-role key, which bypasses RLS — so no write policies are exposed to clients.
 drop policy if exists "topups_select_own" on public.topups;
 create policy "topups_select_own"
     on public.topups
     for select
     using (auth.uid() = user_id);
 
--- Atomic balance credit, called by the webhook edge function on a settled payment.
 create or replace function public.increment_user_balance(p_user_id uuid, p_amount double precision)
 returns void
 language sql

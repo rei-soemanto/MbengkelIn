@@ -51,13 +51,6 @@ final class CustomerBiddingViewModel: ObservableObject {
     private var knownBidIds: Set<String> = []
     private var didLoadBidsOnce = false
 
-    let serviceMinPrices: [String: Int] = [
-        "Aki Kering": 60000,
-        "Ban Gembos": 25000,
-        "Ban Pecah": 40000
-    ]
-
-
     init(serviceType: ServiceType, latitude: Double, longitude: Double, tireCount: Int, photoUrls: [String], vehicleId: String? = nil, vehicleInfo: String? = nil) {
         self.serviceType = serviceType
         self.latitude = latitude
@@ -66,8 +59,8 @@ final class CustomerBiddingViewModel: ObservableObject {
         self.photoUrls = photoUrls
         self.vehicleId = vehicleId
         self.vehicleInfo = vehicleInfo
-        let base = serviceMinPrices[serviceType.rawValue] ?? 40000
-        let isTire = serviceType == .banGembos || serviceType == .banPecah
+        let base = serviceType.minPrice
+        let isTire = serviceType.requiresTireCount
         let min = isTire ? base * tireCount : base
         self.minPrice = min
         self.customerBidPrice = min
@@ -241,6 +234,20 @@ final class CustomerBiddingViewModel: ObservableObject {
             if !photoUrls.isEmpty {
                 try? await storageService.deleteOrderPhotos(urls: photoUrls)
             }
+        }
+        shouldDismiss = true
+    }
+
+    @MainActor
+    func cancel() async {
+        showRetryPrompt = false
+        searchCountdownTask?.cancel()
+        decisionCountdownTask?.cancel()
+        bidExpiryTask?.cancel()
+        bidExpiryTask = nil
+        stopRealtimeSubscription()
+        if let id = serviceRequestId {
+            try? await orderRepository.cancelOrder(id: id)
         }
         shouldDismiss = true
     }

@@ -1,16 +1,3 @@
--- Convert service_requests.photo_urls from text[] to jsonb.
---
--- Why: Supabase Realtime does not reliably serialize Postgres array (text[])
--- columns into postgres_changes payloads. As a result, the INSERT event for an
--- order carrying photos (e.g. a flat-tire request) was never broadcast, so the
--- mechanic's realtime listener never fired and the order never appeared in the
--- "Permintaan Masuk" list. Orders without photos store an empty array, which
--- serializes fine, so battery (aki) orders worked.
---
--- jsonb serializes cleanly over Realtime (the same way bengkels.offered_services
--- already does), and the Swift layer is unchanged: [String] still encodes to a
--- JSON array on insert and a jsonb array still decodes to [String]?.
-
 alter table public.service_requests
   alter column photo_urls drop default;
 
@@ -21,8 +8,6 @@ alter table public.service_requests
 alter table public.service_requests
   alter column photo_urls set default '[]'::jsonb;
 
--- The RPC's RETURNS TABLE type must match the new column type. A return-type
--- change requires dropping and recreating the function.
 drop function if exists public.nearby_service_requests(double precision, double precision, double precision);
 
 create function public.nearby_service_requests(

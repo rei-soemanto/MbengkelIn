@@ -1,9 +1,3 @@
--- 1) Promote topups.status and bids.status to enums (consistency with
---    ServiceStatus / BengkelStatus / WithdrawalStatus). Values unchanged.
--- 2) Refund held balance whenever a withdrawal transitions into 'rejected',
---    via a trigger so it fires no matter how the rejection is performed.
-
--- ── topups.status -> TopupStatus ──
 do $$
 begin
     if not exists (select 1 from pg_type where typname = 'TopupStatus') then
@@ -16,7 +10,6 @@ alter table public.topups
     alter column status type "TopupStatus" using status::"TopupStatus";
 alter table public.topups alter column status set default 'pending';
 
--- ── bids.status -> BidStatus ──
 do $$
 begin
     if not exists (select 1 from pg_type where typname = 'BidStatus') then
@@ -29,7 +22,6 @@ alter table public.bids
     alter column status type "BidStatus" using status::"BidStatus";
 alter table public.bids alter column status set default 'Pending';
 
--- ── Withdrawal rejection refund (trigger-based) ──
 create or replace function public.refund_rejected_withdrawal()
 returns trigger
 language plpgsql
@@ -54,8 +46,6 @@ create trigger trg_refund_rejected_withdrawal
     for each row
     execute function public.refund_rejected_withdrawal();
 
--- reject_withdrawal now only flips status; the trigger performs the refund
--- (prevents double-refund while still validating the transition).
 create or replace function public.reject_withdrawal(p_withdrawal_id uuid)
 returns void
 language plpgsql

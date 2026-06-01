@@ -19,6 +19,7 @@ struct OrderTrackingView: View {
     @State private var region: MKCoordinateRegion
     @State private var showReviewSheet = false
     @State private var didPromptReview = false
+    @State private var showCancelConfirm = false
 
     init(bid: Bid, customerCoordinate: CLLocationCoordinate2D) {
         self.bid = bid
@@ -43,7 +44,7 @@ struct OrderTrackingView: View {
             )
             TrackingInfoCard(
                 bid: bid,
-                isLive: trackingViewModel.providerCoordinate != nil,
+                isLive: trackingViewModel.isLive,
                 unreadCount: chatWatch.unreadCount,
                 onOpenChat: { chatWatch.markAllRead() }
             )
@@ -60,6 +61,28 @@ struct OrderTrackingView: View {
                         .fontWeight(.semibold)
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                if trackingViewModel.status == "On Progress" {
+                    Button(role: .destructive) {
+                        showCancelConfirm = true
+                    } label: {
+                        Text("Batalkan")
+                            .fontWeight(.semibold)
+                    }
+                }
+            }
+        }
+        .confirmationDialog(
+            "Batalkan pesanan ini?",
+            isPresented: $showCancelConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Ya, batalkan pesanan", role: .destructive) {
+                Task { if await trackingViewModel.cancelOrder() { dismiss() } }
+            }
+            Button("Tidak", role: .cancel) {}
+        } message: {
+            Text("Bengkel yang sedang menuju lokasi akan dibatalkan.")
         }
         .task { await trackingViewModel.start(serviceRequestId: bid.serviceRequestId) }
         .task { await chatWatch.start() }

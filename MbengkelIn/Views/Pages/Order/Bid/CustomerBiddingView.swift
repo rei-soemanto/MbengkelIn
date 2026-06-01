@@ -13,6 +13,7 @@ struct CustomerBiddingView: View {
     var popToRoot: () -> Void = {}
 
     @StateObject private var viewModel: CustomerBiddingViewModel
+    @Environment(\.dismiss) private var dismiss
     private let isResuming: Bool
 
     init(serviceType: ServiceType, coordinate: CLLocationCoordinate2D, tireCount: Int = 1, photoUrls: [String] = [], vehicleId: String? = nil, vehicleInfo: String? = nil, popToRoot: @escaping () -> Void = {}) {
@@ -55,6 +56,17 @@ struct CustomerBiddingView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle(viewModel.isSearching ? "Mencari Bengkel" : "Atur Tawaran Anda")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    if viewModel.isSearching { popToRoot() } else { dismiss() }
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .fontWeight(.semibold)
+                }
+            }
+        }
         .alert("Tidak Bisa Melanjutkan", isPresented: Binding(
             get: { viewModel.errorMessage != nil },
             set: { if !$0 { viewModel.errorMessage = nil } }
@@ -85,7 +97,7 @@ struct CustomerBiddingView: View {
             Button("Naikkan harga tawaran") { viewModel.raisePrice() }
             Button("Coba lagi dengan harga sama") { viewModel.retrySamePrice() }
             Button("Batalkan pesanan", role: .destructive) {
-                Task { await viewModel.cancelAndDelete() }
+                Task { await viewModel.cancel() }
             }
         } message: {
             Text("Pesanan akan dibatalkan otomatis dalam 10 detik jika tidak ada pilihan.")

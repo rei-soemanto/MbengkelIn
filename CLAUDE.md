@@ -696,7 +696,7 @@ When refactoring a similar app to match MbengkelIn's architecture:
 | ------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------- |
 | `id`                                        | UUID (PK)            | Server-generated                                                                              |
 | `customer_id`                               | UUID (FK→users)      | (`customer_name` is **not** a column — it's joined from `users` in `nearby_service_requests`) |
-| `service_type`                              | enum `ServiceType`   | "Ban Gembos", "Ban Pecah", "Aki Kering"                                                       |
+| `service_type`                              | enum `ServiceType`   | "Ban Gembos", "Ban Pecah", "Aki Kering", "Kehabisan Bensin", "Mogok / Mesin Mati", "Ganti Ban Serep", "Rantai Motor Lepas", "Mesin Overheat", "Ganti Lampu" — **Postgres enum**: new values need an `alter type ... add value` migration, not just a Swift `ServiceType` case |
 | `description`                               | text?                |                                                                                               |
 | `is_emergency`                              | bool                 |                                                                                               |
 | `latitude` / `longitude`                    | double               |                                                                                               |

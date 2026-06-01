@@ -57,7 +57,7 @@ struct BidPriceSetupView: View {
     private var infoCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Image(systemName: "wrench.and.screwdriver.fill")
+                Image(systemName: serviceType.iconName)
                     .font(.title2)
                     .foregroundColor(.white)
                     .padding(12)
@@ -171,7 +171,7 @@ struct BidPriceSetupView: View {
             }
         }) {
             HStack {
-                Image(systemName: "wrench.and.screwdriver.fill")
+                Image(systemName: serviceType.iconName)
                 Text("Temukan Bengkel")
                     .fontWeight(.bold)
             }

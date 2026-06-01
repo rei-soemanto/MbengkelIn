@@ -40,6 +40,10 @@ struct BidStatusUpdate: Encodable {
     let status: String
 }
 
+struct OrderStatusUpdate: Encodable {
+    let status: String
+}
+
 struct StartSearchPayload: Encodable {
     let price: Int
 }

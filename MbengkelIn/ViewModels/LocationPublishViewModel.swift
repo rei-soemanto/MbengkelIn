@@ -31,6 +31,10 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        // Keep streaming to the customer while the mechanic drives with the
+        // screen locked / app backgrounded (UIBackgroundMode `location` is set).
+        locationManager.allowsBackgroundLocationUpdates = true
+        locationManager.pausesLocationUpdatesAutomatically = false
     }
 
     func start(serviceRequestId: String, customerCoordinate: CLLocationCoordinate2D) {
