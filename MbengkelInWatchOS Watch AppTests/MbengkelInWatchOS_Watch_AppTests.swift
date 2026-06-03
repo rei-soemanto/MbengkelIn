@@ -13,11 +13,12 @@ final class WatchOrderStateWatchTests: XCTestCase {
         let state = WatchOrderState(
             hasActiveOrder: true, stage: "inProgress", serviceType: "Ban Gembos",
             bengkelName: "Bengkel A", agreedPrice: 75000, mySideCompleted: false,
-            alreadyRated: false, requestId: "r1", offers: [offer])
+            canFinish: true, alreadyRated: false, requestId: "r1", offers: [offer])
 
         let data = try JSONEncoder().encode(state)
         let decoded = try JSONDecoder().decode(WatchOrderState.self, from: data)
         XCTAssertEqual(decoded, state)
+        XCTAssertTrue(decoded.canFinish)
         XCTAssertEqual(offer.id, offer.bidId)
     }
 
@@ -32,13 +33,14 @@ final class WatchOrderStateWatchTests: XCTestCase {
         let json = #"""
         {"hasActiveOrder":true,"stage":"inProgress","serviceType":"Ban Gembos",
         "bengkelName":"Bengkel A","agreedPrice":75000,"mySideCompleted":false,
-        "alreadyRated":false,"requestId":"r1",
+        "canFinish":true,"alreadyRated":false,"requestId":"r1",
         "offers":[{"bidId":"b1","bengkelName":"Bengkel A","price":75000,"rating":4.5}]}
         """#
         let state = try JSONDecoder().decode(
             WatchOrderState.self, from: Data(json.utf8))
         XCTAssertEqual(state.stage, "inProgress")
         XCTAssertEqual(state.agreedPrice, 75000)
+        XCTAssertTrue(state.canFinish)
         XCTAssertEqual(state.requestId, "r1")
         XCTAssertEqual(state.offers.first?.bidId, "b1")
         XCTAssertEqual(state.offers.first?.rating, 4.5)

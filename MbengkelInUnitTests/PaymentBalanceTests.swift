@@ -10,29 +10,36 @@ import XCTest
 // as withdrawable — the client mirror of the request_withdrawal RPC's check.
 @MainActor
 final class PaymentBalanceTests: XCTestCase {
+    private var vm: PaymentViewModel!
+
+    override func tearDown() async throws {
+        vm = nil
+        await Task.yield()
+    }
+
     func testAvailableBalanceSubtractsHeld() {
-        let vm = PaymentViewModel()
+        vm = PaymentViewModel()
         vm.balance = 100_000
         vm.heldBalance = 30_000
         XCTAssertEqual(vm.availableBalance, 70_000, accuracy: 0.0001)
     }
 
     func testAvailableBalanceClampsAtZero() {
-        let vm = PaymentViewModel()
+        vm = PaymentViewModel()
         vm.balance = 10_000
         vm.heldBalance = 50_000
         XCTAssertEqual(vm.availableBalance, 0, accuracy: 0.0001)
     }
 
     func testAvailableBalanceEqualsBalanceWhenNoHold() {
-        let vm = PaymentViewModel()
+        vm = PaymentViewModel()
         vm.balance = 42_000
         vm.heldBalance = 0
         XCTAssertEqual(vm.availableBalance, 42_000, accuracy: 0.0001)
     }
 
     func testHasBankDetails() {
-        let vm = PaymentViewModel()
+        vm = PaymentViewModel()
         XCTAssertFalse(vm.hasBankDetails)
         vm.bankName = "BCA"
         vm.bankAccountNumber = "123"

@@ -13,11 +13,12 @@ final class WatchOrderStateAppTests: XCTestCase {
         let state = WatchOrderState(
             hasActiveOrder: true, stage: "inProgress", serviceType: "Ban Gembos",
             bengkelName: "Bengkel A", agreedPrice: 75000, mySideCompleted: false,
-            alreadyRated: false, requestId: "r1", offers: [offer])
+            canFinish: true, alreadyRated: false, requestId: "r1", offers: [offer])
 
         let data = try JSONEncoder().encode(state)
         let decoded = try JSONDecoder().decode(WatchOrderState.self, from: data)
         XCTAssertEqual(decoded, state)
+        XCTAssertTrue(decoded.canFinish)
         XCTAssertEqual(offer.id, offer.bidId)
     }
 

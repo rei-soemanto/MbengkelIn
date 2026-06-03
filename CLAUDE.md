@@ -25,9 +25,26 @@ xcodebuild -project MbengkelIn.xcodeproj -scheme MbengkelIn \
 
 The bundle id is `com.reisoemanto.MbengkelIn`. `scripts/restart-all.sh` (also exposed as the `/restart-all` skill) shuts down all simulators, boots three devices, builds once into `build/` (`-derivedDataPath`), then installs + relaunches the app on all three — useful for testing multi-user flows (customer ↔ bengkel, bidding, chat) side by side.
 
-The project has 6 targets: the `MbengkelIn` iOS app, a fully-implemented `MbengkelInWatchOS Watch App` (a customer-only companion — see **watchOS Companion** below), and four test targets (`MbengkelInUnitTests`, `MbengkelInUITests`, and the two watchOS test bundles). **The four test targets are still empty Xcode template stubs** — there are no tests, no lint config, and no CI. The watch target uses Xcode **file-system-synchronized groups**, so any `.swift` file added under `MbengkelInWatchOS Watch App/` is auto-included in the target with no `.pbxproj` edit. The watch app links **no** Supabase package; it communicates only with the paired iPhone over `WatchConnectivity`.
+The project has 6 targets: the `MbengkelIn` iOS app, a fully-implemented `MbengkelInWatchOS Watch App` (a customer-only companion — see **watchOS Companion** below), and four test targets (`MbengkelInUnitTests`, `MbengkelInUITests`, and the two watchOS test bundles). The four test targets now hold a real **XCTest** suite (see **Testing** below); there is still no lint config and no CI. **All** targets (the watch app and all four test bundles) use Xcode **file-system-synchronized groups**, so any `.swift` file added under their folder is auto-included with no `.pbxproj` edit. The watch app links **no** Supabase package; it communicates only with the paired iPhone over `WatchConnectivity`.
 
 The Supabase URL and publishable key are hard-coded at the top of `MbengkelIn/MbengkelInApp.swift` as a module-level `let supabase = SupabaseClient(...)` — every Repository and Service imports that global directly rather than receiving a client via init.
+
+### Testing
+
+The four test targets hold a working **XCTest** suite (no Swift Testing, no lint, no CI). New `*.swift` test files auto-join their target (synchronized groups).
+
+| Target                              | Kind                                              | Tests | Scope                                                                                                                                                                                                  |
+| ----------------------------------- | ------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `MbengkelInUnitTests`               | unit (`@testable import MbengkelIn`)              | 46    | Model/DTO `Codable` snake_case mapping, `ServiceType` pricing (`minPrice`/`requiresTireCount`), ViewModel **pure logic** (Order/CustomerBidding/Payment), `Rupiah`, `ImageCompressor`, `MKCoordinateRegion.fitting`, money-integrity RPC param DTOs, `WatchOrderState` |
+| `MbengkelInUITests`                 | XCUITest (host = the app)                         | 4     | Tolerant launch + login-screen elements (auth-state agnostic; `XCTSkip` when already signed in) + a launch-screenshot                                                                                  |
+| `MbengkelInWatchOS Watch AppTests`  | unit (`@testable import MbengkelInWatchOS_Watch_App`) | 4 | `WatchOrderState` round-trip, `.empty` defaults, **phone→watch JSON contract** decode, stage-string contract                                                                                           |
+| `MbengkelInWatchOS Watch AppUITests`| XCUITest                                          | 2     | Watch launches to the empty-state copy + a launch-screenshot                                                                                                                                          |
+
+Run unit tests: `xcodebuild test -project MbengkelIn.xcodeproj -scheme MbengkelIn -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:MbengkelInUnitTests` (watch: `-scheme "MbengkelInWatchOS Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)'`).
+
+**Scope ceiling:** Repositories/Services use the global `supabase` client with **no dependency injection**, so network/DB methods are not unit-testable — tests target pure/deterministic logic only.
+
+**`@MainActor` ViewModel teardown gotcha:** a `@MainActor` VM whose `deinit` hops executors (e.g. `Task { await supabase.removeChannel(...) }`) **SIGABRTs** (Swift 6 runtime double-free) if deallocated synchronously at a test method's end. VM test classes must hold the VM in a stored property and release it in `override func tearDown() async throws { vm = nil; await Task.yield() }` — see `CustomerBiddingViewModelTests` / `OrderViewModelLogicTests` / `PaymentBalanceTests`.
 
 ---
 
