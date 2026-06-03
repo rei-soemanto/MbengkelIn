@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import WatchConnectivity
+import CoreLocation
 import Supabase
 
 // Phone-side coordinator: observes the logged-in customer's active order via
@@ -25,11 +26,16 @@ final class WatchSessionManager: NSObject, ObservableObject {
 
     let orderRepository = OrderRepository()
     let userRepository = UserRepository()
+    let locationRepository = OrderLocationRepository()
 
     var customerId: String?
     var requestChannel: RealtimeChannelV2?
     var bidChannel: RealtimeChannelV2?
     var bidChannelRequestId: String?
+    var locationChannel: RealtimeChannelV2?
+    var locationChannelRequestId: String?
+    var hasBeenNear = false
+    var nearTrackingRequestId: String?
     var lastState: WatchOrderState = .empty
 
     var wcSession: WCSession? { WCSession.isSupported() ? WCSession.default : nil }
@@ -56,10 +62,15 @@ final class WatchSessionManager: NSObject, ObservableObject {
     func stop() {
         customerId = nil
         bidChannelRequestId = nil
+        locationChannelRequestId = nil
+        nearTrackingRequestId = nil
+        hasBeenNear = false
         if let requestChannel { Task { await supabase.removeChannel(requestChannel) } }
         if let bidChannel { Task { await supabase.removeChannel(bidChannel) } }
+        if let locationChannel { Task { await supabase.removeChannel(locationChannel) } }
         requestChannel = nil
         bidChannel = nil
+        locationChannel = nil
         lastState = .empty
         pushState(lastState)
     }

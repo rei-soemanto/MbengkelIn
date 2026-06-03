@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreLocation
 import Supabase
 
 // State assembly + execution of the watch's approve/finish/rate commands.
@@ -15,15 +16,27 @@ extension WatchSessionManager {
     // MARK: Build + push state
 
     func rebuildState() async {
-        guard let customerId else { lastState = .empty; pushState(lastState); return }
+        guard let customerId else {
+            nearTrackingRequestId = nil; hasBeenNear = false
+            lastState = .empty; pushState(lastState); return
+        }
         do {
             guard let order = try await orderRepository.fetchActiveOrder(customerId: customerId) else {
+                nearTrackingRequestId = nil; hasBeenNear = false
                 lastState = .empty; pushState(lastState); return
             }
             let status = order.status
             let rating = order.rating ?? 0
             let isActive = status == "To Do" || status == "On Progress" || (status == "Done" && rating == 0)
-            guard isActive else { lastState = .empty; pushState(lastState); return }
+            guard isActive else {
+                nearTrackingRequestId = nil; hasBeenNear = false
+                lastState = .empty; pushState(lastState); return
+            }
+
+            if nearTrackingRequestId != order.id {
+                nearTrackingRequestId = order.id
+                hasBeenNear = false
+            }
 
             await subscribeBidChannel(requestId: order.id)
 
@@ -34,6 +47,7 @@ extension WatchSessionManager {
             var offers: [WatchBidOffer] = []
             var bengkelName: String?
             var agreedPrice: Int? = order.price
+            var canFinish = false
 
             if status == "To Do" {
                 let bids = try await orderRepository.fetchPendingBids(serviceRequestId: order.id)
@@ -46,11 +60,22 @@ extension WatchSessionManager {
                 agreedPrice = accepted.price
             }
 
+            if status == "On Progress" {
+                await subscribeLocationChannel(requestId: order.id)
+                if let loc = try? await locationRepository.fetchLocation(serviceRequestId: order.id) {
+                    let bengkel = CLLocation(latitude: loc.latitude, longitude: loc.longitude)
+                    let here = CLLocation(latitude: order.latitude, longitude: order.longitude)
+                    if bengkel.distance(from: here) <= 80 { hasBeenNear = true }
+                }
+                canFinish = hasBeenNear
+            }
+
             let state = WatchOrderState(
                 hasActiveOrder: true, stage: stage, serviceType: order.serviceType,
                 bengkelName: bengkelName, agreedPrice: agreedPrice,
                 mySideCompleted: order.customerCompleted ?? false,
-                alreadyRated: rating > 0, requestId: order.id, offers: offers
+                canFinish: canFinish, alreadyRated: rating > 0,
+                requestId: order.id, offers: offers
             )
             lastState = state
             pushState(state)
@@ -64,12 +89,12 @@ extension WatchSessionManager {
     func handleCommand(_ message: [String: Any], reply: @escaping ([String: Any]) -> Void) async {
         let command = message["command"] as? String ?? ""
         do {
+            if customerId == nil {
+                customerId = try? await supabase.auth.session.user.id.uuidString.lowercased()
+                if customerId != nil { await subscribeRequestChannel() }
+            }
             switch command {
             case "requestState":
-                if customerId == nil {
-                    customerId = try? await supabase.auth.session.user.id.uuidString.lowercased()
-                    if customerId != nil { await subscribeRequestChannel() }
-                }
                 await rebuildState()
                 if let data = try? JSONEncoder().encode(lastState) { reply(["state": data]) }
                 else { reply(["ok": true]) }
@@ -79,6 +104,8 @@ extension WatchSessionManager {
                 reply(["ok": true])
             case "finishJob":
                 guard let requestId = message["requestId"] as? String else { reply(["error": "Permintaan tidak valid."]); return }
+                await rebuildState()
+                guard lastState.canFinish else { reply(["error": "Menunggu bengkel tiba di lokasi."]); return }
                 _ = try await orderRepository.markOrderCompleted(requestId: requestId)
                 await rebuildState()
                 reply(["ok": true])

@@ -3,63 +3,59 @@
 #  sim-route.sh
 #  MbengkelIn
 #
-#  Drive a booted iOS Simulator's GPS along simulation/route.gpx.
+#  The geospatial test driver: pins the CUSTOMER at a fixed Surabaya location and
+#  drives the BENGKEL toward the customer, so the customer sees the bengkel approach
+#  on the map and the within-range "Selesaikan Pesanan" gate (<= 80 m) unlocks.
 #
-#  Route: (-7.2813896,112.6274774) -> (-7.28229,112.634072)
+#  Pairs with restart-with-watch.sh (which only boots the 3 emulators + the app):
+#    scripts/restart-with-watch.sh        # boot the emulators + install/launch
+#    scripts/sim-route.sh init            # place customer + bengkel (run this first)
+#    scripts/sim-route.sh go              # drive the bengkel to the customer
+#    scripts/sim-route.sh go --speed=25   # drive faster (m/s, default 12)
+#    scripts/sim-route.sh clear           # clear both GPS overrides
 #
-#  Usage:
-#    scripts/sim-route.sh init            # set the INITIAL (start) location only
-#    scripts/sim-route.sh go              # replay the full route (start -> end)
-#    scripts/sim-route.sh go --speed=5    # replay slower (m/s, default 9)
-#    scripts/sim-route.sh clear           # stop sim & clear the override
-#
-#  Target device: defaults to "iPhone 17 Pro" (emulator 1).
-#  Override with:  DEVICE="iPhone Air" scripts/sim-route.sh go
-#  or a UDID:      DEVICE=AE9CC18C-... scripts/sim-route.sh go
+#  Devices default to restart-with-watch.sh's: customer = iPhone 17 Pro,
+#  bengkel = iPhone 17. Override with env vars, e.g.:
+#    CUSTOMER="iPhone 17 Pro" BENGKEL="iPhone Air" scripts/sim-route.sh go
 #
 set -euo pipefail
 
-DEVICE="${DEVICE:-iPhone 17 Pro}"
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GPX="$HERE/simulation/route.gpx"
+CUSTOMER="${CUSTOMER:-${PHONE1_NAME:-iPhone 17 Pro}}"   # the customer's phone
+BENGKEL="${BENGKEL:-${PHONE2_NAME:-iPhone 17}}"         # the bengkel's phone
 
-START_LAT="-7.2813896"
-START_LON="112.6274774"
+# Customer is fixed; the bengkel starts ~600 m away and drives to the customer.
+CUST_LAT="${CUST_LAT:--7.2845}";  CUST_LON="${CUST_LON:-112.6315}"
+BENG_LAT="${BENG_LAT:--7.2814}";  BENG_LON="${BENG_LON:-112.6275}"
 
 cmd="${1:-go}"
 shift || true
-SPEED="1080"   # 120x the original ~9 m/s (4x, 3x, then 10x)
+SPEED="12"   # ~12 m/s (~43 km/h); the ~600 m drive plays over ~50s
 for arg in "$@"; do
-  case "$arg" in
-    --speed=*) SPEED="${arg#*=}" ;;
-  esac
+  case "$arg" in --speed=*) SPEED="${arg#*=}" ;; esac
 done
-
-# Pull "lat,lon" waypoints out of the GPX (handles wpt/trkpt).
-waypoints() {
-  /usr/bin/python3 - "$GPX" <<'PY'
-import re, sys
-txt = open(sys.argv[1]).read()
-for lat, lon in re.findall(r'lat="([-0-9.]+)"\s+lon="([-0-9.]+)"', txt):
-    print(f"{lat},{lon}")
-PY
-}
 
 case "$cmd" in
   init)
-    echo "Setting initial location on '$DEVICE' -> $START_LAT,$START_LON"
-    xcrun simctl location "$DEVICE" set "$START_LAT,$START_LON"
+    echo "Placing customer '$CUSTOMER' -> $CUST_LAT,$CUST_LON"
+    xcrun simctl location "$CUSTOMER" set "$CUST_LAT,$CUST_LON"
+    echo "Placing bengkel  '$BENGKEL' -> $BENG_LAT,$BENG_LON"
+    xcrun simctl location "$BENGKEL" set "$BENG_LAT,$BENG_LON"
     ;;
   go)
-    echo "Replaying route on '$DEVICE' at ${SPEED} m/s ..."
-    # Waypoints have negative latitudes (leading '-'), which simctl would treat
-    # as flags, so feed them via stdin ('-' = read waypoints from stdin).
-    waypoints | xcrun simctl location "$DEVICE" start --speed="$SPEED" -
-    echo "Route playback started. Run '$0 clear' to stop."
+    echo "Pinning customer '$CUSTOMER' -> $CUST_LAT,$CUST_LON"
+    xcrun simctl location "$CUSTOMER" set "$CUST_LAT,$CUST_LON"
+    echo "Driving bengkel  '$BENGKEL' to the customer at ${SPEED} m/s ..."
+    # Waypoints start with '-' (negative latitude), which simctl would read as
+    # flags, so feed them via stdin ('-' = read waypoints from stdin). simctl
+    # interpolates from the bengkel's start to the customer over time.
+    printf '%s\n%s\n' "$BENG_LAT,$BENG_LON" "$CUST_LAT,$CUST_LON" \
+      | xcrun simctl location "$BENGKEL" start --speed="$SPEED" -
+    echo "Bengkel en route to the customer. Run '$0 clear' to stop."
     ;;
   clear)
-    echo "Clearing location override on '$DEVICE'"
-    xcrun simctl location "$DEVICE" clear
+    echo "Clearing GPS overrides on '$CUSTOMER' and '$BENGKEL'"
+    xcrun simctl location "$CUSTOMER" clear 2>/dev/null || true
+    xcrun simctl location "$BENGKEL" clear 2>/dev/null || true
     ;;
   *)
     echo "Unknown command: $cmd" >&2

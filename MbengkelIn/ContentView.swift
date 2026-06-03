@@ -49,6 +49,7 @@ struct ContentView: View {
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 Task { await bengkelBiddingViewModel.refreshOnForeground() }
+                Task { await WatchSessionManager.shared.refreshOnForeground() }
             }
         }
         .onChange(of: network.isConnected) { connected in

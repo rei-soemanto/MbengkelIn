@@ -19,6 +19,7 @@ struct WatchOrderState: Codable, Equatable {
     var bengkelName: String?
     var agreedPrice: Int?
     var mySideCompleted: Bool
+    var canFinish: Bool
     var alreadyRated: Bool
     var requestId: String?
     var offers: [WatchBidOffer]
@@ -26,7 +27,7 @@ struct WatchOrderState: Codable, Equatable {
     static let empty = WatchOrderState(
         hasActiveOrder: false, stage: "finding", serviceType: nil,
         bengkelName: nil, agreedPrice: nil, mySideCompleted: false,
-        alreadyRated: false, requestId: nil, offers: []
+        canFinish: false, alreadyRated: false, requestId: nil, offers: []
     )
 }
 

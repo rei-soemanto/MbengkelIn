@@ -9,12 +9,16 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var client: WatchConnectivityClient
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Group {
             if client.state.hasActiveOrder { activeOrderView } else { emptyState }
         }
         .onAppear { client.requestState() }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active { client.requestState() }
+        }
     }
 
     private var emptyState: some View {
@@ -76,6 +80,9 @@ struct ContentView: View {
             if client.state.mySideCompleted {
                 Label("Menunggu konfirmasi pihak lain", systemImage: "clock.fill")
                     .font(.caption).foregroundStyle(.orange)
+            } else if !client.state.canFinish {
+                Label("Menunggu bengkel tiba di lokasi", systemImage: "location.circle")
+                    .font(.caption).foregroundStyle(.secondary)
             } else {
                 Button { client.finishJob() } label: {
                     Label("Selesaikan Pesanan", systemImage: "checkmark.circle.fill").frame(maxWidth: .infinity)
