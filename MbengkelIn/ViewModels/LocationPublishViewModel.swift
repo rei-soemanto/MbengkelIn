@@ -34,10 +34,6 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
-        // Background location updates require the `location` UIBackgroundMode in
-        // the bundle's Info.plist; enabling them without it throws at runtime.
-        // Guard so the app never crashes if that capability isn't built in — the
-        // mechanic still streams live while the app is in the foreground.
         if let backgroundModes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String],
            backgroundModes.contains("location") {
             locationManager.allowsBackgroundLocationUpdates = true
@@ -68,11 +64,11 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
         self.statusChannel = channel
         let stream = channel.postgresChange(
             AnyAction.self, schema: "public", table: "service_requests",
-            filter: "id=eq.\(requestId)"
+            filter: .eq("id", value: requestId)
         )
         statusReaderTask = Task { [weak self] in
             guard let self else { return }
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
             for await _ in stream {
                 if let order = try? await self.orderRepository.fetchOrder(id: requestId),
                    order.status != "On Progress" {
@@ -99,8 +95,7 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
     deinit {
         statusReaderTask?.cancel()
         if let statusChannel {
-            let client = supabase
-            Task { await client.removeChannel(statusChannel) }
+            Task { await supabase.removeChannel(statusChannel) }
         }
     }
 

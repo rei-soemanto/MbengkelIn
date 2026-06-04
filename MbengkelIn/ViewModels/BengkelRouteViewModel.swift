@@ -40,10 +40,6 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
-        // Background location updates require the `location` UIBackgroundMode in
-        // the bundle's Info.plist; enabling them without it throws at runtime.
-        // Guard so the app never crashes if that capability isn't built in — the
-        // mechanic still streams live while the app is in the foreground.
         if let backgroundModes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String],
            backgroundModes.contains("location") {
             locationManager.allowsBackgroundLocationUpdates = true
@@ -55,8 +51,7 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
         if let channel = channel {
-            let client = supabase
-            Task { await client.removeChannel(channel) }
+            Task { await supabase.removeChannel(channel) }
         }
     }
 
@@ -83,17 +78,17 @@ class BengkelRouteViewModel: NSObject, ObservableObject, CLLocationManagerDelega
             AnyAction.self,
             schema: "public",
             table: "service_requests",
-            filter: "id=eq.\(order.id)"
+            filter: .eq("id", value: order.id)
         )
         let customerLocationStream = channel.postgresChange(
             AnyAction.self,
             schema: "public",
             table: "customer_locations",
-            filter: "service_request_id=eq.\(order.id)"
+            filter: .eq("service_request_id", value: order.id)
         )
         realtimeReaderTasks.append(Task { [weak self] in
             guard let self else { return }
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
             Task { [weak self] in
                 for await _ in orderStream {
                     if let updated = try? await self?.orderRepository.fetchOrder(id: order.id) {

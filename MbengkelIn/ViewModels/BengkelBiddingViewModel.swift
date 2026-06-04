@@ -24,8 +24,6 @@ class BengkelBiddingViewModel: ObservableObject {
     @Published var activeBengkelOrder: NearbyOrder?
     // Set when the customer declines our offer — we can re-bid a different amount.
     @Published var rejectedBidAlert: String?
-    // Set when the mechanic tries to bid on an order that's no longer available
-    // (cancelled / taken / deleted) — surfaced as an alert so it isn't silent.
     @Published var orderUnavailableAlert: String?
     // Orders where our latest bid was declined (kept visible so we can re-bid).
     @Published var myRejectedBids: [Bid] = []
@@ -45,9 +43,8 @@ class BengkelBiddingViewModel: ObservableObject {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
-            let client = supabase
             Task {
-                await client.removeChannel(channel)
+                await supabase.removeChannel(channel)
             }
         }
     }
@@ -93,16 +90,14 @@ class BengkelBiddingViewModel: ObservableObject {
         stopRealtimeSubscription()
         guard let uid = providerUid else { return }
 
-        let channel = supabase.channel("mechanic-bids-\(uid)")
+        let channel = supabase.channel("bengkel-bids-\(uid)")
         self.realtimeChannel = channel
 
-        // Primary signal: this mechanic's own bids. When the customer accepts
-        // or rejects a bid, the row changes and we refresh in real time.
         let bidsStream = channel.postgresChange(
             AnyAction.self,
             schema: "public",
             table: "bids",
-            filter: "provider_uid=eq.\(uid)"
+            filter: .eq("provider_uid", value: uid)
         )
 
         // Secondary signal: nearby service_requests change (new orders, price edits).
@@ -114,8 +109,8 @@ class BengkelBiddingViewModel: ObservableObject {
 
         realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
-            print("[BengkelRT] subscribing channel mechanic-bids-\(uid)")
-            await channel.subscribe()
+            print("[BengkelRT] subscribing channel bengkel-bids-\(uid)")
+            try? await channel.subscribeWithError()
             print("[BengkelRT] channel subscribed")
             // Cold-start reconcile: the first realtime events after launch can
             // arrive during the subscribe handshake and be missed. Refetch once
@@ -154,7 +149,7 @@ class BengkelBiddingViewModel: ObservableObject {
         errorMessage = nil
         do {
             let body = OrdersRequest(
-                action: "ordersForMechanic",
+                action: "ordersForBengkel",
                 latitude: bengkel.latitude,
                 longitude: bengkel.longitude,
                 radiusMeters: 5000
@@ -254,11 +249,6 @@ class BengkelBiddingViewModel: ObservableObject {
 
     func placeBid(order: NearbyOrder, price: Int, notes: String) async {
         guard let bengkel = myBengkel, let bengkelId = bengkel.id else { return }
-        // Re-verify the order is still open before bidding. It may have been
-        // cancelled or taken while sitting in the feed; bidding on a dead order
-        // pushes the mechanic into a stale active-order screen and crashes.
-        // A cancelled/taken/deleted order fails the open-orders RLS read, so a
-        // nil/failed fetch is also treated as "no longer available".
         guard let latest = try? await orderRepository.fetchOrder(id: order.id),
               latest.status == "To Do", latest.bengkelId == nil else {
             self.errorMessage = "Order sudah tidak tersedia."

@@ -78,7 +78,7 @@ struct OrderTrackingView: View {
         }
         .task { await trackingViewModel.start(serviceRequestId: bid.serviceRequestId) }
         .task { await chatWatch.start() }
-        .onChange(of: trackingViewModel.order?.status) { status in
+        .onChange(of: trackingViewModel.order?.status) { _, status in
             if status == "On Progress" {
                 locationPublisher.start(serviceRequestId: bid.serviceRequestId)
             }
@@ -90,12 +90,12 @@ struct OrderTrackingView: View {
                 activeSheet = .review
             }
         }
-        .onChange(of: trackingViewModel.status) { newStatus in
+        .onChange(of: trackingViewModel.status) { _, newStatus in
             if newStatus == "Cancelled" {
                 popToRoot()
             }
         }
-        .onChange(of: trackingViewModel.providerCoordinate?.latitude) { _ in
+        .onChange(of: trackingViewModel.providerCoordinate?.latitude) {
             fitBothIfNeeded()
             if isBengkelNear { hasBeenNear = true }
             if isBengkelNear, !didNotifyNear {

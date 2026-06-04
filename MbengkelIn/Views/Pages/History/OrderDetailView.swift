@@ -42,10 +42,10 @@ struct OrderDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                Map(coordinateRegion: .constant(region), annotationItems: [order]) { item in
-                    MapMarker(coordinate: CLLocationCoordinate2D(
-                        latitude: item.latitude,
-                        longitude: item.longitude
+                Map(position: .constant(.region(region)), interactionModes: []) {
+                    Marker("Lokasi", coordinate: CLLocationCoordinate2D(
+                        latitude: order.latitude,
+                        longitude: order.longitude
                     ))
                 }
                 .frame(height: 220)

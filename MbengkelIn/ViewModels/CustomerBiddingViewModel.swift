@@ -101,9 +101,8 @@ final class CustomerBiddingViewModel: ObservableObject {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
-            let client = supabase
             Task {
-                await client.removeChannel(channel)
+                await supabase.removeChannel(channel)
             }
         }
     }
@@ -271,12 +270,12 @@ final class CustomerBiddingViewModel: ObservableObject {
             AnyAction.self,
             schema: "public",
             table: "bids",
-            filter: "service_request_id=eq.\(serviceRequestId)"
+            filter: .eq("service_request_id", value: serviceRequestId)
         )
 
         realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
             // Cold-start reconcile after the channel is confirmed subscribed, in
             // case a bid landed during the subscribe handshake.
             await self.loadReceivedBids()
@@ -433,7 +432,7 @@ final class CustomerBiddingViewModel: ObservableObject {
         }
         guard !overdue.isEmpty else { scheduleBidExpiry(); return } // woke early -> re-arm
         for bid in overdue {
-            try? await supabase.from("bids")
+            _ = try? await supabase.from("bids")
                 .update(BidStatusUpdate(status: "Expired"))
                 .eq("id", value: bid.id)
                 .execute()

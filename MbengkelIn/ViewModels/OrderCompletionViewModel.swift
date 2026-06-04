@@ -28,8 +28,7 @@ class OrderCompletionViewModel: ObservableObject {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
-            let client = supabase
-            Task { await client.removeChannel(channel) }
+            Task { await supabase.removeChannel(channel) }
         }
     }
 
@@ -87,11 +86,11 @@ class OrderCompletionViewModel: ObservableObject {
             AnyAction.self,
             schema: "public",
             table: "service_requests",
-            filter: "id=eq.\(requestId)"
+            filter: .eq("id", value: requestId)
         )
         realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
             for await _ in stream { await self.refresh() }
         })
     }

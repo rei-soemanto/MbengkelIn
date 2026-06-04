@@ -1,6 +1,6 @@
 import Foundation
 
-struct NearbyMechanic: Codable, Identifiable {
+struct NearbyBengkel: Codable, Identifiable {
     var id: String
     var providerUid: String
     var name: String

@@ -81,10 +81,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
         requestChannel = channel
         let stream = channel.postgresChange(
             AnyAction.self, schema: "public", table: "service_requests",
-            filter: "customer_id=eq.\(customerId)"
+            filter: .eq("customer_id", value: customerId)
         )
         Task { [weak self] in
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
             for await _ in stream { await self?.rebuildState() }
         }
     }
@@ -97,10 +97,10 @@ final class WatchSessionManager: NSObject, ObservableObject {
         bidChannelRequestId = requestId
         let stream = channel.postgresChange(
             AnyAction.self, schema: "public", table: "bids",
-            filter: "service_request_id=eq.\(requestId)"
+            filter: .eq("service_request_id", value: requestId)
         )
         Task { [weak self] in
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
             for await _ in stream { await self?.rebuildState() }
         }
     }

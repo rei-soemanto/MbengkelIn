@@ -57,7 +57,6 @@ struct RateOrderParams: Encodable {
     let p_review: String?
 }
 
-// Mechanic Bidding DTOs
 struct OrdersRequest: Encodable {
     let action: String
     let latitude: Double

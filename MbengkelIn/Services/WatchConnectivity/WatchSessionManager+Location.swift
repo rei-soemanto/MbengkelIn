@@ -20,10 +20,10 @@ extension WatchSessionManager {
         locationChannelRequestId = requestId
         let stream = channel.postgresChange(
             AnyAction.self, schema: "public", table: "order_locations",
-            filter: "service_request_id=eq.\(requestId)"
+            filter: .eq("service_request_id", value: requestId)
         )
         Task { [weak self] in
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
             for await _ in stream { await self?.rebuildState() }
         }
     }

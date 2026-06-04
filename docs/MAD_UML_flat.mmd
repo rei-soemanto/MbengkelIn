@@ -1,0 +1,435 @@
+---
+config:
+  class:
+    hideEmptyMembersBox: true
+  layout: elk
+title: MbengkelIn — Class Diagram
+---
+classDiagram
+direction LR
+    class User {
+	    +String id
+	    +String name
+	    +Double balance
+	    +Double heldBalance
+	    +Double pendingBalance
+	    +String role
+	    +String? bankName
+	    +String? bankAccountNumber
+    }
+
+    class Vehicle {
+	    +String? id
+	    +String customerId
+	    +String manufacturer
+	    +String model
+	    +Int year
+	    +String licensePlate
+	    +String color
+    }
+
+    class Bengkel {
+	    +String? id
+	    +String providerUid
+	    +String name
+	    +String address
+	    +Double latitude
+	    +Double longitude
+	    +String status
+	    +Double averageRating
+	    +Int totalReviews
+    }
+
+    class BengkelService {
+	    +String id
+	    +ServiceType serviceType
+	    +Bool isActive
+    }
+
+    class ServiceType {
+	    banGembos
+	    banPecah
+	    akiKering
+	    mogokMesinMati
+	    gantiBanSerep
+	    rantaiMotorLepas
+	    mesinOverheat
+    }
+
+    class NearbyOrder {
+	    +String id
+	    +String customerId
+	    +String? bengkelId
+	    +String? vehicleId
+	    +String? serviceType
+	    +Double latitude
+	    +Double longitude
+	    +Int? price
+	    +String status
+	    +Int? rating
+	    +Bool? customerCompleted
+	    +Bool? providerCompleted
+    }
+
+    class NearbyBengkel {
+	    +String id
+	    +String providerUid
+	    +String name
+	    +Double averageRating
+	    +Int totalReviews
+	    +Double distanceM
+    }
+
+    class Bid {
+	    +String id
+	    +String serviceRequestId
+	    +String providerUid
+	    +String bengkelId
+	    +Int price
+	    +String status
+	    +Bengkel? bengkel
+    }
+
+    class ChatMessage {
+	    +String id
+	    +String serviceRequestId
+	    +String senderId
+	    +String? content
+	    +String? imageUrl
+    }
+
+    class OrderLocation {
+	    +String serviceRequestId
+	    +String? providerUid
+	    +Double latitude
+	    +Double longitude
+    }
+
+    class CustomerLocation {
+	    +String serviceRequestId
+	    +String? customerId
+	    +Double latitude
+	    +Double longitude
+    }
+
+    class Topup {
+	    +String? id
+	    +String userId
+	    +Double grossAmount
+	    +String status
+	    +String? snapToken
+    }
+
+    class Withdrawal {
+	    +String? id
+	    +String userId
+	    +Double amount
+	    +String status
+	    +String? bankName
+    }
+
+    class IndonesianBank {
+	    +String id
+	    +String name
+	    +Int[] accountLengths
+	    +isValidAccountNumber(String) Bool
+    }
+
+    class WatchOrderState {
+	    +Bool hasActiveOrder
+	    +String stage
+	    +String? bengkelName
+	    +Int? agreedPrice
+	    +Bool canFinish
+	    +Bool alreadyRated
+    }
+
+    class WatchBidOffer {
+	    +String bidId
+	    +String bengkelName
+	    +Int price
+	    +Double? rating
+    }
+
+    class PhotonSearchResponse {
+	    +PhotonSearchFeature[] features
+    }
+
+    class PhotonSearchFeature {
+	    +PhotonSearchProperties properties
+	    +PhotonSearchGeometry geometry
+    }
+
+    class LocationSearchable {
+	    +String locationAddress
+	    +Bool isEditingLocation
+	    +Bool isFetchingLocation
+	    +useCurrentLocation()
+	    +selectSearchResult(PhotonSearchFeature)
+	    +updateLocationFromMap(CLLocationCoordinate2D)
+    }
+
+    class UserRepository {
+	    +fetchUser(String) User
+	    +updateProfile(String, ProfileUpdatePayload)
+	    +deleteUser(String)
+    }
+
+    class VehicleRepository {
+	    +fetchVehicles(String) Vehicle[]
+	    +insertVehicle(Vehicle)
+	    +updateVehicle(String, VehicleUpdatePayload)
+	    +deleteVehicle(String)
+    }
+
+    class BengkelRepository {
+	    +fetchBengkel(String) Bengkel
+	    +insertBengkel(Bengkel)
+	    +updateBengkel(String, BengkelUpdatePayload)
+	    +deleteBengkel(String)
+    }
+
+    class OrderRepository {
+	    +createOrder(ServiceRequestPayload) CreatedServiceRequest
+	    +fetchOrders(String) NearbyOrder[]
+	    +fetchOrder(String) NearbyOrder
+	    +fetchActiveOrder(String) NearbyOrder?
+	    +acceptBid(String) NearbyOrder
+	    +markOrderCompleted(String, String?) NearbyOrder
+	    +submitRating(String, Int, String?)
+	    +cancelOrder(String)
+    }
+
+    class ChatRepository {
+	    +fetchMessages(String) ChatMessage[]
+	    +sendMessage(ChatMessagePayload)
+    }
+
+    class OrderLocationRepository {
+	    +upsertLocation(OrderLocationPayload)
+	    +fetchLocation(String) OrderLocation?
+	    +upsertCustomerLocation(CustomerLocationPayload)
+	    +fetchCustomerLocation(String) CustomerLocation?
+    }
+
+    class TopupRepository {
+	    +fetchTopups(String) Topup[]
+    }
+
+    class WithdrawalRepository {
+	    +fetchWithdrawals(String) Withdrawal[]
+	    +requestWithdrawal(Double)
+    }
+
+    class BehaviorReportRepository {
+	    +submit(String, String, String)
+    }
+
+    class AuthService {
+	    +getCurrentSession() Session
+	    +currentUID() String
+	    +signIn(String, String) Session
+	    +signUp(SignUpRequest)
+	    +signOut()
+    }
+
+    class StorageService {
+	    +uploadAvatar(String, Data) String
+	    +uploadOrderPhoto(String, Data) String
+	    +uploadChatImage(String, Data) String
+	    +deleteOrderPhotos(String[])
+    }
+
+    class LocationService {
+	    +searchOSM(String, CLLocationCoordinate2D) PhotonSearchFeature[]
+	    +fetchAddress(CLLocationCoordinate2D) String?
+    }
+
+    class NotificationService {
+	    +requestAuthorization()
+	    +notifyNewOrder(String, String)
+    }
+
+    class PaymentService {
+	    +createTopup(Int) CreateTopupResponse
+    }
+
+    class WatchSessionManager {
+	    +startObserving(String)
+	    +pushState(WatchOrderState)
+	    +forwardNotification(String, String)
+    }
+
+    class NetworkMonitor {
+	    +isConnected Bool
+    }
+
+    class AuthViewModel {
+	    +userSession User?
+	    +currentUser User?
+	    +appMode AppMode
+    }
+
+    class ProfileViewModel {
+	    +isLoading Bool
+    }
+
+    class VehicleViewModel {
+	    +userVehicles Vehicle[]
+    }
+
+    class BengkelViewModel {
+	    +myBengkel Bengkel?
+	    +todaysEarnings Double
+    }
+
+    class OrderViewModel {
+	    +locationAddress String
+	    +selectedService String?
+	    +estimatedPrice Int
+	    +vehicles Vehicle[]
+    }
+
+    class CustomerBiddingViewModel {
+	    +bids Bid[]
+	    +acceptedBid Bid?
+	    +balance Double
+    }
+
+    class BengkelBiddingViewModel {
+	    +orders NearbyOrder[]
+	    +myBengkel Bengkel?
+	    +myPendingBids Bid[]
+    }
+
+    class BengkelRouteViewModel {
+	    +order NearbyOrder?
+    }
+
+    class OrderTrackingViewModel {
+	    +order NearbyOrder?
+	    +isLive Bool
+    }
+
+    class OrderCompletionViewModel {
+	    +order NearbyOrder?
+    }
+
+    class OrderRatingViewModel {
+	    +isSubmitting Bool
+    }
+
+    class ChatViewModel {
+	    +messages ChatMessage[]
+	    +draft String
+    }
+
+    class HistoryViewModel {
+	    +orders NearbyOrder[]
+    }
+
+    class BengkelHistoryViewModel {
+	    +orders NearbyOrder[]
+    }
+
+    class PaymentViewModel {
+	    +balance Double
+	    +topups Topup[]
+	    +withdrawals Withdrawal[]
+    }
+
+    class LocationPublishViewModel {
+	    +isPublishing Bool
+    }
+
+    class CustomerLocationPublishViewModel {
+	    +isPublishing Bool
+    }
+
+    class BehaviorReportViewModel {
+	    +isSubmitting Bool
+    }
+
+    }
+
+	<<enumeration>> ServiceType
+	<<interface>> LocationSearchable
+	<<singleton>> WatchSessionManager
+	<<MainActor>> AuthViewModel
+	<<MainActor>> ProfileViewModel
+	<<MainActor>> VehicleViewModel
+	<<MainActor>> BengkelViewModel
+	<<MainActor>> OrderViewModel
+	<<MainActor>> CustomerBiddingViewModel
+	<<MainActor>> BengkelBiddingViewModel
+	<<MainActor>> BengkelRouteViewModel
+	<<MainActor>> OrderTrackingViewModel
+	<<MainActor>> OrderCompletionViewModel
+	<<MainActor>> OrderRatingViewModel
+	<<MainActor>> ChatViewModel
+	<<MainActor>> HistoryViewModel
+	<<MainActor>> BengkelHistoryViewModel
+	<<MainActor>> PaymentViewModel
+	<<MainActor>> LocationPublishViewModel
+	<<MainActor>> CustomerLocationPublishViewModel
+	<<MainActor>> BehaviorReportViewModel
+
+    User "1" --> "*" Vehicle
+    User "1" --> "0..1" Bengkel
+    User "1" --> "*" NearbyOrder
+    User "1" --> "*" Bid
+    User "1" --> "*" ChatMessage
+    User "1" --> "*" Topup
+    User "1" --> "*" Withdrawal
+    Bengkel "1" *-- "*" BengkelService
+    BengkelService --> ServiceType
+    Bengkel ..> NearbyBengkel
+    Vehicle "0..1" --> "*" NearbyOrder
+    NearbyOrder "1" --> "*" Bid
+    NearbyOrder "1" --> "*" ChatMessage
+    NearbyOrder "1" --> "0..1" OrderLocation
+    NearbyOrder "1" --> "0..1" CustomerLocation
+    Bid "*" --> "1" Bengkel
+    Withdrawal "*" --> "1" IndonesianBank
+    WatchOrderState "1" *-- "*" WatchBidOffer
+    PhotonSearchResponse "1" *-- "*" PhotonSearchFeature
+    OrderViewModel ..|> LocationSearchable
+    BengkelViewModel ..|> LocationSearchable
+    UserRepository ..> User
+    VehicleRepository ..> Vehicle
+    BengkelRepository ..> Bengkel
+    OrderRepository ..> NearbyOrder
+    ChatRepository ..> ChatMessage
+    OrderLocationRepository ..> OrderLocation
+    TopupRepository ..> Topup
+    WithdrawalRepository ..> Withdrawal
+    LocationService ..> PhotonSearchFeature
+    WatchSessionManager ..> WatchOrderState
+    AuthViewModel ..> AuthService
+    AuthViewModel ..> UserRepository
+    ProfileViewModel ..> UserRepository
+    ProfileViewModel ..> StorageService
+    VehicleViewModel ..> VehicleRepository
+    BengkelViewModel ..> BengkelRepository
+    BengkelViewModel ..> OrderRepository
+    BengkelViewModel ..> LocationService
+    OrderViewModel ..> AuthService
+    CustomerBiddingViewModel ..> OrderRepository
+    BengkelBiddingViewModel ..> OrderRepository
+    BengkelBiddingViewModel ..> NotificationService
+    BengkelRouteViewModel ..> OrderLocationRepository
+    BengkelRouteViewModel ..> OrderRepository
+    OrderTrackingViewModel ..> OrderLocationRepository
+    OrderCompletionViewModel ..> OrderRepository
+    OrderCompletionViewModel ..> StorageService
+    OrderRatingViewModel ..> OrderRepository
+    ChatViewModel ..> ChatRepository
+    ChatViewModel ..> StorageService
+    HistoryViewModel ..> OrderRepository
+    BengkelHistoryViewModel ..> OrderRepository
+    PaymentViewModel ..> TopupRepository
+    PaymentViewModel ..> WithdrawalRepository
+    PaymentViewModel ..> PaymentService
+    LocationPublishViewModel ..> OrderLocationRepository
+    CustomerLocationPublishViewModel ..> OrderLocationRepository
+    BehaviorReportViewModel ..> BehaviorReportRepository

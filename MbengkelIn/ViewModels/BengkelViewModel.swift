@@ -194,9 +194,8 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
-            let client = supabase
             Task {
-                await client.removeChannel(channel)
+                await supabase.removeChannel(channel)
             }
         }
     }
@@ -227,12 +226,12 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
             AnyAction.self,
             schema: "public",
             table: "bengkels",
-            filter: "provider_uid=eq.\(uid)"
+            filter: .eq("provider_uid", value: uid)
         )
 
         realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
             for await _ in stream {
                 await self.refreshBengkelQuietly(uid: uid)
             }

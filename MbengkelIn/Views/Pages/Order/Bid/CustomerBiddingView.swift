@@ -103,7 +103,7 @@ struct CustomerBiddingView: View {
         } message: {
             Text("Pesanan akan dibatalkan otomatis dalam 10 detik jika tidak ada pilihan.")
         }
-        .onChange(of: viewModel.shouldDismiss) { dismissNow in
+        .onChange(of: viewModel.shouldDismiss) { _, dismissNow in
             if dismissNow { popToRoot() }
         }
         .task {

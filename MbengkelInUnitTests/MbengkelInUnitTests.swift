@@ -1,60 +1,57 @@
-//
-//  MbengkelInUnitTests.swift
-//  MbengkelInUnitTests
-//
-
-import XCTest
+import Testing
 @testable import MbengkelIn
 
-final class ServiceTypeTests: XCTestCase {
-    func testRawValueRoundTrip() {
-        XCTAssertEqual(ServiceType(rawValue: "Aki Kering"), .akiKering)
-        XCTAssertEqual(ServiceType.banPecah.rawValue, "Ban Pecah")
-        XCTAssertEqual(ServiceType.banGembos.rawValue, "Ban Gembos")
+@Suite("ServiceType")
+struct ServiceTypeTests {
+    @Test func rawValueRoundTrip() {
+        #expect(ServiceType(rawValue: "Aki Kering") == .akiKering)
+        #expect(ServiceType.banPecah.rawValue == "Ban Pecah")
+        #expect(ServiceType.banGembos.rawValue == "Ban Gembos")
     }
 
-    func testUnknownRawValue() {
-        XCTAssertNil(ServiceType(rawValue: "nope"))
+    @Test func unknownRawValue() {
+        #expect(ServiceType(rawValue: "nope") == nil)
     }
 
-    func testAllCasesCount() {
-        XCTAssertEqual(ServiceType.allCases.count, 7)
+    @Test func allCasesCount() {
+        #expect(ServiceType.allCases.count == 7)
     }
 
-    func testMinPriceForAllCases() {
-        XCTAssertEqual(ServiceType.banGembos.minPrice, 25000)
-        XCTAssertEqual(ServiceType.banPecah.minPrice, 40000)
-        XCTAssertEqual(ServiceType.akiKering.minPrice, 60000)
-        XCTAssertEqual(ServiceType.mogokMesinMati.minPrice, 50000)
-        XCTAssertEqual(ServiceType.gantiBanSerep.minPrice, 30000)
-        XCTAssertEqual(ServiceType.rantaiMotorLepas.minPrice, 25000)
-        XCTAssertEqual(ServiceType.mesinOverheat.minPrice, 35000)
+    @Test func minPriceForAllCases() {
+        #expect(ServiceType.banGembos.minPrice == 25000)
+        #expect(ServiceType.banPecah.minPrice == 40000)
+        #expect(ServiceType.akiKering.minPrice == 60000)
+        #expect(ServiceType.mogokMesinMati.minPrice == 50000)
+        #expect(ServiceType.gantiBanSerep.minPrice == 30000)
+        #expect(ServiceType.rantaiMotorLepas.minPrice == 25000)
+        #expect(ServiceType.mesinOverheat.minPrice == 35000)
     }
 
-    func testRequiresTireCount() {
-        XCTAssertTrue(ServiceType.banGembos.requiresTireCount)
-        XCTAssertTrue(ServiceType.banPecah.requiresTireCount)
+    @Test func requiresTireCount() {
+        #expect(ServiceType.banGembos.requiresTireCount)
+        #expect(ServiceType.banPecah.requiresTireCount)
         let others = ServiceType.allCases.filter { $0 != .banGembos && $0 != .banPecah }
         for type in others {
-            XCTAssertFalse(type.requiresTireCount)
+            #expect(!type.requiresTireCount)
         }
     }
 }
 
-final class FormattingTests: XCTestCase {
-    func testFormatIntHasRpPrefixAndDigits() {
+@Suite("Formatting")
+struct FormattingTests {
+    @Test func formatIntHasRpPrefixAndDigits() {
         let out = Rupiah.format(25000)
-        XCTAssertTrue(out.hasPrefix("Rp"))
-        XCTAssertEqual(String(out.filter(\.isNumber)), "25000")
+        #expect(out.hasPrefix("Rp"))
+        #expect(String(out.filter(\.isNumber)) == "25000")
     }
 
-    func testFormatZero() {
-        XCTAssertTrue(Rupiah.format(0).hasPrefix("Rp"))
+    @Test func formatZero() {
+        #expect(Rupiah.format(0).hasPrefix("Rp"))
     }
 
-    func testFormatDoubleDigits() {
+    @Test func formatDoubleDigits() {
         let out = Rupiah.format(1250000.0)
-        XCTAssertTrue(out.hasPrefix("Rp"))
-        XCTAssertEqual(String(out.filter(\.isNumber)), "1250000")
+        #expect(out.hasPrefix("Rp"))
+        #expect(String(out.filter(\.isNumber)) == "1250000")
     }
 }

@@ -52,20 +52,22 @@ struct BengkelRouteView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Map(coordinateRegion: $region, annotationItems: pins) { item in
-                MapAnnotation(coordinate: item.coordinate) {
-                    VStack(spacing: 2) {
-                        Image(systemName: item.icon)
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(10)
-                            .background(item.tint)
-                            .clipShape(Circle())
-                        Text(item.label)
-                            .font(.caption2.bold())
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Color(.systemBackground))
-                            .cornerRadius(6)
+            Map(position: .constant(.region(region)), interactionModes: [.zoom, .pan]) {
+                ForEach(pins) { item in
+                    Annotation(item.label, coordinate: item.coordinate) {
+                        VStack(spacing: 2) {
+                            Image(systemName: item.icon)
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(10)
+                                .background(item.tint)
+                                .clipShape(Circle())
+                            Text(item.label)
+                                .font(.caption2.bold())
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Color(.systemBackground))
+                                .cornerRadius(6)
+                        }
                     }
                 }
             }
@@ -83,8 +85,8 @@ struct BengkelRouteView: View {
         }
         .task { await viewModel.start(order: order) }
         .task { await chatWatch.start() }
-        .onChange(of: viewModel.bengkelCoordinate?.latitude) { _ in fitBothIfNeeded() }
-        .onChange(of: viewModel.status) { newStatus in
+        .onChange(of: viewModel.bengkelCoordinate?.latitude) { fitBothIfNeeded() }
+        .onChange(of: viewModel.status) { _, newStatus in
             if newStatus == "Cancelled" {
                 dismiss()
             }
@@ -114,7 +116,7 @@ struct BengkelRouteView: View {
                         .background(Color(.systemGray6))
                         .cornerRadius(12)
                     }
-                    .onChange(of: reportPhotoItem) { item in
+                    .onChange(of: reportPhotoItem) { _, item in
                         guard let item else { return }
                         Task {
                             if let data = try? await item.loadTransferable(type: Data.self) {

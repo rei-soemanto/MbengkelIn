@@ -143,7 +143,7 @@ struct BengkelDashboardView: View {
                 await bengkelViewModel.startWatching(uid: uid)
             }
         }
-        .onChange(of: scenePhase) { phase in
+        .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await bengkelViewModel.loadTodaysEarnings() } }
         }
         .onDisappear {

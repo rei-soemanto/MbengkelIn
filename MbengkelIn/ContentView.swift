@@ -46,13 +46,13 @@ struct ContentView: View {
             }
         }
         .tint(.primary)
-        .onChange(of: scenePhase) { phase in
+        .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await bengkelBiddingViewModel.refreshOnForeground() }
                 Task { await WatchSessionManager.shared.refreshOnForeground() }
             }
         }
-        .onChange(of: network.isConnected) { connected in
+        .onChange(of: network.isConnected) { _, connected in
             if connected {
                 Task { await authViewModel.loadInitialSession() }
             }

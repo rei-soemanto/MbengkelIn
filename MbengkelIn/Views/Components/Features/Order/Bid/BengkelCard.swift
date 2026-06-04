@@ -1,18 +1,18 @@
 import SwiftUI
 
-struct MechanicCard: View {
-    let mechanic: NearbyMechanic
+struct BengkelCard: View {
+    let bengkel: NearbyBengkel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(mechanic.name)
+                Text(bengkel.name)
                     .font(.headline)
                 Spacer()
-                DistanceBadge(meters: mechanic.distanceM)
+                DistanceBadge(meters: bengkel.distanceM)
             }
 
-            Text(mechanic.address)
+            Text(bengkel.address)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .lineLimit(2)
@@ -21,10 +21,10 @@ struct MechanicCard: View {
                 Image(systemName: "star.fill")
                     .font(.caption)
                     .foregroundColor(.yellow)
-                Text(String(format: "%.1f", mechanic.averageRating))
+                Text(String(format: "%.1f", bengkel.averageRating))
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                Text("(\(mechanic.totalReviews) ulasan)")
+                Text("(\(bengkel.totalReviews) ulasan)")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -38,7 +38,7 @@ struct MechanicCard: View {
 }
 
 #Preview {
-    MechanicCard(mechanic: NearbyMechanic(
+    BengkelCard(bengkel: NearbyBengkel(
         id: "1",
         providerUid: "u1",
         name: "Bengkel Jaya",
