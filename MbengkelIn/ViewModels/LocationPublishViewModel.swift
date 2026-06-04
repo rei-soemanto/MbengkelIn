@@ -34,10 +34,6 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
-        // Background location updates require the `location` UIBackgroundMode in
-        // the bundle's Info.plist; enabling them without it throws at runtime.
-        // Guard so the app never crashes if that capability isn't built in — the
-        // mechanic still streams live while the app is in the foreground.
         if let backgroundModes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String],
            backgroundModes.contains("location") {
             locationManager.allowsBackgroundLocationUpdates = true

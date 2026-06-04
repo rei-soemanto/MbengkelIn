@@ -47,7 +47,7 @@ Deno.serve(async (req: Request) => {
   const radiusMeters = (payload.radiusMeters as number) ?? 5000;
 
   switch (action) {
-    case "ordersForMechanic": {
+    case "ordersForBengkel": {
       const { data, error } = await supabase.rpc("nearby_service_requests", {
         p_lat: payload.latitude,
         p_lon: payload.longitude,
@@ -56,14 +56,14 @@ Deno.serve(async (req: Request) => {
       if (error) return json({ error: error.message }, 400);
       return json({ orders: data });
     }
-    case "mechanicsForCustomer": {
+    case "bengkelsForCustomer": {
       const { data, error } = await supabase.rpc("nearby_bengkels", {
         p_lat: payload.latitude,
         p_lon: payload.longitude,
         p_radius_m: radiusMeters,
       });
       if (error) return json({ error: error.message }, 400);
-      return json({ mechanics: data });
+      return json({ bengkels: data });
     }
     case "placeBid": {
       // Guard: the order must still be open for bidding, and a customer must not

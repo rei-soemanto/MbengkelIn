@@ -28,11 +28,11 @@ create policy "Customers update own service requests."
   using (auth.uid() = customer_id)
   with check (auth.uid() = customer_id);
 
-create policy "Mechanics insert own bids."
+create policy "Bengkels insert own bids."
   on public.bids for insert
   with check (auth.uid() = provider_uid);
 
-create policy "Mechanics view own bids."
+create policy "Bengkels view own bids."
   on public.bids for select
   using (auth.uid() = provider_uid);
 

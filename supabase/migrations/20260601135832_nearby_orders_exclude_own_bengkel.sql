@@ -1,4 +1,4 @@
--- Exclude the querying provider's OWN orders from their mechanic feed: a
+-- Exclude the querying provider's OWN orders from their bengkel feed: a
 -- customer who is also a bengkel owner shouldn't be matched with their own
 -- bengkel (they can't bid on their own request). `auth.uid()` is the calling
 -- provider (the RPC is invoked with the user's JWT). `is distinct from` keeps

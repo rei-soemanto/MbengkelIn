@@ -26,7 +26,7 @@ vehicle's location and fix it on the spot. No towing, no shop-only repairs.
 
 Deliberately excluded as "awkward": *Jumper Aki* (overlaps Aki Kering),
 *Rem Blong* (needs towing), *Tambah Angin Ban* (trivial, overlaps Ban Gembos),
-*Kunci Tertinggal di Dalam* (locksmith, not a mechanic task).
+*Kunci Tertinggal di Dalam* (locksmith, not a bengkel task).
 
 ## Inputs
 
@@ -101,7 +101,7 @@ rantaiMotorLepas, mesinOverheat, gantiLampu
   so every file's `version_name.sql` matches the live migration history 1:1.
 - **Bidding feed verification (open item):** the `bidding` edge function is not
   checked into the repo. During implementation, inspect it via the Supabase MCP
-  to confirm whether the mechanic order feed filters by the bengkel's
+  to confirm whether the bengkel order feed filters by the bengkel's
   `offered_services`. If it filters, providers must add the new services to
   their profile before those orders appear (acceptable — the picker now offers
   them). If it shows all nearby orders, no action needed. Flag findings; do not
@@ -116,7 +116,7 @@ Manual verification (no test infra exists in this repo):
    estimated price; only Ban Gembos / Ban Pecah show the tire count + photo grid.
 3. Bengkel service form lists all 9 categories in the picker.
 4. Create one order for a new category (e.g. Kehabisan Bensin) end-to-end and
-   confirm it appears in the mechanic feed and can be bid on.
+   confirm it appears in the bengkel feed and can be bid on.
 
 ## Out of Scope
 
