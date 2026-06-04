@@ -24,20 +24,22 @@ struct TrackingMapView: View {
     let bengkelName: String
 
     var body: some View {
-        Map(coordinateRegion: $region, annotationItems: pins) { item in
-            MapAnnotation(coordinate: item.coordinate) {
-                VStack(spacing: 2) {
-                    Image(systemName: item.icon)
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(10)
-                        .background(item.tint)
-                        .clipShape(Circle())
-                    Text(item.label)
-                        .font(.caption2.bold())
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Color(.systemBackground))
-                        .cornerRadius(6)
+        Map(position: .constant(.region(region)), interactionModes: []) {
+            ForEach(pins) { item in
+                Annotation(item.label, coordinate: item.coordinate) {
+                    VStack(spacing: 2) {
+                        Image(systemName: item.icon)
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(10)
+                            .background(item.tint)
+                            .clipShape(Circle())
+                        Text(item.label)
+                            .font(.caption2.bold())
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color(.systemBackground))
+                            .cornerRadius(6)
+                    }
                 }
             }
         }

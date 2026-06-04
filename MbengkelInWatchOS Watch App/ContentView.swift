@@ -16,8 +16,8 @@ struct ContentView: View {
             if client.state.hasActiveOrder { activeOrderView } else { emptyState }
         }
         .onAppear { client.requestState() }
-        .onChange(of: scenePhase) { phase in
-            if phase == .active { client.requestState() }
+        .onChange(of: scenePhase) {
+            if scenePhase == .active { client.requestState() }
         }
     }
 

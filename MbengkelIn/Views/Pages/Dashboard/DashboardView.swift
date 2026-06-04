@@ -37,7 +37,7 @@ struct DashboardView: View {
                 }
             }
             .task { await authViewModel.fetchUser() }
-            .onChange(of: scenePhase) { phase in
+            .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await authViewModel.fetchUser() } }
             }
         }

@@ -64,11 +64,11 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
         self.statusChannel = channel
         let stream = channel.postgresChange(
             AnyAction.self, schema: "public", table: "service_requests",
-            filter: "id=eq.\(requestId)"
+            filter: .eq("id", value: requestId)
         )
         statusReaderTask = Task { [weak self] in
             guard let self else { return }
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
             for await _ in stream {
                 if let order = try? await self.orderRepository.fetchOrder(id: requestId),
                    order.status != "On Progress" {
@@ -95,8 +95,7 @@ class LocationPublishViewModel: NSObject, ObservableObject, CLLocationManagerDel
     deinit {
         statusReaderTask?.cancel()
         if let statusChannel {
-            let client = supabase
-            Task { await client.removeChannel(statusChannel) }
+            Task { await supabase.removeChannel(statusChannel) }
         }
     }
 

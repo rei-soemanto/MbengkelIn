@@ -1,13 +1,10 @@
-//
-//  WatchOrderStateAppTests.swift
-//  MbengkelInUnitTests
-//
-
-import XCTest
+import Testing
+import Foundation
 @testable import MbengkelIn
 
-final class WatchOrderStateAppTests: XCTestCase {
-    func testRoundTrip() throws {
+@Suite("WatchOrderState (iOS)")
+@MainActor struct WatchOrderStateAppTests {
+    @Test func roundTrip() throws {
         let offer = WatchBidOffer(
             bidId: "b1", bengkelName: "Bengkel A", price: 75000, rating: 4.5)
         let state = WatchOrderState(
@@ -17,15 +14,15 @@ final class WatchOrderStateAppTests: XCTestCase {
 
         let data = try JSONEncoder().encode(state)
         let decoded = try JSONDecoder().decode(WatchOrderState.self, from: data)
-        XCTAssertEqual(decoded, state)
-        XCTAssertTrue(decoded.canFinish)
-        XCTAssertEqual(offer.id, offer.bidId)
+        #expect(decoded == state)
+        #expect(decoded.canFinish)
+        #expect(offer.id == offer.bidId)
     }
 
-    func testEmptyDefaults() {
+    @Test func emptyDefaults() {
         let empty = WatchOrderState.empty
-        XCTAssertFalse(empty.hasActiveOrder)
-        XCTAssertEqual(empty.stage, "finding")
-        XCTAssertTrue(empty.offers.isEmpty)
+        #expect(!empty.hasActiveOrder)
+        #expect(empty.stage == "finding")
+        #expect(empty.offers.isEmpty)
     }
 }

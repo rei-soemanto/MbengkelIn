@@ -26,7 +26,7 @@ struct CompleteOrderButton: View {
             }
         }
         .task { await viewModel.start() }
-        .onChange(of: scenePhase) { phase in
+        .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await viewModel.refresh() }
             }
@@ -61,7 +61,7 @@ struct CompleteOrderButton: View {
                 buttonLabel
             }
             .disabled(viewModel.isLoading)
-            .onChange(of: photoItem) { item in
+            .onChange(of: photoItem) { _, item in
                 guard let item else { return }
                 Task {
                     if let data = try? await item.loadTransferable(type: Data.self) {

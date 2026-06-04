@@ -41,8 +41,7 @@ final class ChatWatchViewModel: ObservableObject {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
         if let channel = channel {
-            let client = supabase
-            Task { await client.removeChannel(channel) }
+            Task { await supabase.removeChannel(channel) }
         }
     }
 
@@ -80,11 +79,11 @@ final class ChatWatchViewModel: ObservableObject {
             AnyAction.self,
             schema: "public",
             table: "chat_messages",
-            filter: "service_request_id=eq.\(serviceRequestId)"
+            filter: .eq("service_request_id", value: serviceRequestId)
         )
 
         realtimeReaderTasks.append(Task { [weak self] in
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
             for await _ in stream { await self?.reload() }
         })
     }

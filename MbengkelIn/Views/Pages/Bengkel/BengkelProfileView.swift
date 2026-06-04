@@ -151,7 +151,7 @@ struct BengkelProfileView: View {
                                         Button(action: {
                                             Task {
                                                 guard let bengkelId = bengkelViewModel.myBengkel?.id else { return }
-                                                await bengkelViewModel.deleteService(bengkelId: bengkelId, serviceId: service.id)
+                                                _ = await bengkelViewModel.deleteService(bengkelId: bengkelId, serviceId: service.id)
                                             }
                                         }) {
                                             Image(systemName: "xmark")

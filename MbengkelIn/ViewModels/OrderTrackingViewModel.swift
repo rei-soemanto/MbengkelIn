@@ -36,8 +36,7 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
         if let channel = channel {
-            let client = supabase
-            Task { await client.removeChannel(channel) }
+            Task { await supabase.removeChannel(channel) }
         }
     }
 
@@ -59,18 +58,18 @@ class OrderTrackingViewModel: ObservableObject, Sendable {
             AnyAction.self,
             schema: "public",
             table: "order_locations",
-            filter: "service_request_id=eq.\(serviceRequestId)"
+            filter: .eq("service_request_id", value: serviceRequestId)
         )
         let orderStream = channel.postgresChange(
             AnyAction.self,
             schema: "public",
             table: "service_requests",
-            filter: "id=eq.\(serviceRequestId)"
+            filter: .eq("id", value: serviceRequestId)
         )
 
         realtimeReaderTasks.append(Task { [weak self] in
             guard let self else { return }
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
 
             Task { [weak self] in
                 guard let self else { return }

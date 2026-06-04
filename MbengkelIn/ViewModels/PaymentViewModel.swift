@@ -58,9 +58,8 @@ class PaymentViewModel: ObservableObject {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
-            let client = supabase
             Task {
-                await client.removeChannel(channel)
+                await supabase.removeChannel(channel)
             }
         }
     }
@@ -82,18 +81,18 @@ class PaymentViewModel: ObservableObject {
             AnyAction.self,
             schema: "public",
             table: "topups",
-            filter: "user_id=eq.\(uid)"
+            filter: .eq("user_id", value: uid)
         )
         let withdrawalStream = channel.postgresChange(
             AnyAction.self,
             schema: "public",
             table: "withdrawals",
-            filter: "user_id=eq.\(uid)"
+            filter: .eq("user_id", value: uid)
         )
 
         realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
 
             Task { [weak self] in
                 for await _ in topupStream { await self?.refresh() }

@@ -27,8 +27,7 @@ class BengkelHistoryViewModel: ObservableObject, Sendable {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
         if let channel = channel {
-            let client = supabase
-            Task { await client.removeChannel(channel) }
+            Task { await supabase.removeChannel(channel) }
         }
     }
 
@@ -60,10 +59,10 @@ class BengkelHistoryViewModel: ObservableObject, Sendable {
             AnyAction.self,
             schema: "public",
             table: "service_requests",
-            filter: "bengkel_id=eq.\(bengkelId)"
+            filter: .eq("bengkel_id", value: bengkelId)
         )
         realtimeReaderTasks.append(Task { [weak self] in
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
             for await _ in stream {
                 await self?.reload()
             }

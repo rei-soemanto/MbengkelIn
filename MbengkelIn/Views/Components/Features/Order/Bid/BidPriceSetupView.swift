@@ -108,7 +108,7 @@ struct BidPriceSetupView: View {
                 TextField("0", text: $priceText)
                     .font(.system(size: 32, weight: .bold))
                     .keyboardType(.numberPad)
-                    .onChange(of: priceText) { newValue in
+                    .onChange(of: priceText) { _, newValue in
                         let filtered = newValue.filter { "0123456789".contains($0) }
                         if let parsed = Int(filtered) {
                             inputPrice = parsed

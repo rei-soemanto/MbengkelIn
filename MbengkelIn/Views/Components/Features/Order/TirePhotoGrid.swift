@@ -53,7 +53,7 @@ struct TirePhotoSlot: View {
             .background(Color(.systemGray6))
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .onChange(of: item) { newItem in
+        .onChange(of: item) { _, newItem in
             Task {
                 if let loaded = try? await newItem?.loadTransferable(type: Data.self) {
                     data = loaded

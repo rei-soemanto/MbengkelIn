@@ -43,9 +43,8 @@ class BengkelBiddingViewModel: ObservableObject {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
-            let client = supabase
             Task {
-                await client.removeChannel(channel)
+                await supabase.removeChannel(channel)
             }
         }
     }
@@ -98,7 +97,7 @@ class BengkelBiddingViewModel: ObservableObject {
             AnyAction.self,
             schema: "public",
             table: "bids",
-            filter: "provider_uid=eq.\(uid)"
+            filter: .eq("provider_uid", value: uid)
         )
 
         // Secondary signal: nearby service_requests change (new orders, price edits).
@@ -111,7 +110,7 @@ class BengkelBiddingViewModel: ObservableObject {
         realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
             print("[BengkelRT] subscribing channel bengkel-bids-\(uid)")
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
             print("[BengkelRT] channel subscribed")
             // Cold-start reconcile: the first realtime events after launch can
             // arrive during the subscribe handshake and be missed. Refetch once

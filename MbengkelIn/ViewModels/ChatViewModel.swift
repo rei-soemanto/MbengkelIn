@@ -28,8 +28,7 @@ class ChatViewModel: ObservableObject {
         realtimeReaderTasks.forEach { $0.cancel() }
         realtimeReaderTasks.removeAll()
         if let channel = realtimeChannel {
-            let client = supabase
-            Task { await client.removeChannel(channel) }
+            Task { await supabase.removeChannel(channel) }
         }
     }
 
@@ -68,18 +67,18 @@ class ChatViewModel: ObservableObject {
             AnyAction.self,
             schema: "public",
             table: "chat_messages",
-            filter: "service_request_id=eq.\(serviceRequestId)"
+            filter: .eq("service_request_id", value: serviceRequestId)
         )
         let orderStream = channel.postgresChange(
             AnyAction.self,
             schema: "public",
             table: "service_requests",
-            filter: "id=eq.\(serviceRequestId)"
+            filter: .eq("id", value: serviceRequestId)
         )
 
         realtimeReaderTasks.append(Task { [weak self] in
             guard let self = self else { return }
-            await channel.subscribe()
+            try? await channel.subscribeWithError()
 
             Task { [weak self] in
                 for await _ in messageStream { await self?.loadMessages() }

@@ -1,13 +1,9 @@
-//
-//  ImageCompressorTests.swift
-//  MbengkelInUnitTests
-//
-
-import XCTest
+import Testing
 import UIKit
 @testable import MbengkelIn
 
-final class ImageCompressorTests: XCTestCase {
+@Suite("ImageCompressor")
+struct ImageCompressorTests {
     private func makeJPEG(width: CGFloat, height: CGFloat) -> Data {
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = 1
@@ -18,27 +14,26 @@ final class ImageCompressorTests: XCTestCase {
         return image.jpegData(compressionQuality: 1.0)!
     }
 
-    func testLargeImageDownscaledToMaxDimension() throws {
+    @Test func largeImageDownscaledToMaxDimension() throws {
         let data = makeJPEG(width: 3000, height: 2000)
         let out = ImageCompressor.compressed(data)
-        let img = try XCTUnwrap(UIImage(data: out))
-        let cg = try XCTUnwrap(img.cgImage)
-        XCTAssertLessThanOrEqual(max(cg.width, cg.height), 1281, "longest side must be clamped to ~1280px")
-        // 3:2 aspect ratio preserved
-        XCTAssertEqual(Double(cg.width) / Double(cg.height), 1.5, accuracy: 0.02)
+        let img = try #require(UIImage(data: out))
+        let cg = try #require(img.cgImage)
+        #expect(max(cg.width, cg.height) <= 1281)
+        #expect(abs(Double(cg.width) / Double(cg.height) - 1.5) < 0.02)
     }
 
-    func testSmallImageNotUpscaled() throws {
+    @Test func smallImageNotUpscaled() throws {
         let data = makeJPEG(width: 200, height: 150)
         let out = ImageCompressor.compressed(data)
-        let img = try XCTUnwrap(UIImage(data: out))
-        let cg = try XCTUnwrap(img.cgImage)
-        XCTAssertLessThanOrEqual(max(cg.width, cg.height), 201, "small image must not be upscaled past its size")
+        let img = try #require(UIImage(data: out))
+        let cg = try #require(img.cgImage)
+        #expect(max(cg.width, cg.height) <= 201)
     }
 
-    func testInvalidDataReturnsOriginalBytes() {
+    @Test func invalidDataReturnsOriginalBytes() {
         let garbage = Data([0x00, 0x01, 0x02, 0x03, 0x04])
         let out = ImageCompressor.compressed(garbage)
-        XCTAssertEqual(out, garbage, "undecodable data must fall back to the original bytes")
+        #expect(out == garbage)
     }
 }
