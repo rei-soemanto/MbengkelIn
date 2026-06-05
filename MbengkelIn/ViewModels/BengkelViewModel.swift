@@ -29,8 +29,8 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
     )
 
-    private let authService = AuthService()
-    private let bengkelRepository = BengkelRepository()
+    private let authService: any AuthServiceProtocol
+    private let bengkelRepository: any BengkelRepositoryProtocol
     private let orderRepository = OrderRepository()
     private let locationService = LocationService()
     private let locationManager = CLLocationManager()
@@ -38,7 +38,12 @@ class BengkelViewModel: NSObject, ObservableObject, CLLocationManagerDelegate, L
     private var realtimeChannel: RealtimeChannelV2?
     private var realtimeReaderTasks: [Task<Void, Never>] = []
 
-    override init() {
+    init(
+        authService: any AuthServiceProtocol = AuthService(),
+        bengkelRepository: any BengkelRepositoryProtocol = BengkelRepository()
+    ) {
+        self.authService = authService
+        self.bengkelRepository = bengkelRepository
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest

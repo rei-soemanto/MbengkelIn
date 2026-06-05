@@ -22,14 +22,21 @@ class AuthViewModel: ObservableObject {
     @Published var isInitializing = true
     @Published var errorMessage: String?
     @Published var successMessage: String?
-    
+
     @Published var appMode: AppMode = .customer
-    
-    private let authService = AuthService()
-    private let userRepository = UserRepository()
+
+    private let authService: any AuthServiceProtocol
+    private let userRepository: any UserRepositoryProtocol
     private var authStateTask: Task<Void, Never>?
 
-    init() {
+    init(
+        authService: any AuthServiceProtocol = AuthService(),
+        userRepository: any UserRepositoryProtocol = UserRepository(),
+        startObserving: Bool = true
+    ) {
+        self.authService = authService
+        self.userRepository = userRepository
+        guard startObserving else { return }
         Task { await loadInitialSession() }
         authStateTask = Task { [weak self] in
             guard let self else { return }

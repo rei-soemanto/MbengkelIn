@@ -15,9 +15,17 @@ class VehicleViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var successMessage: String?
-    
-    private let authService = AuthService()
-    private let vehicleRepository = VehicleRepository()
+
+    private let authService: any AuthServiceProtocol
+    private let vehicleRepository: any VehicleRepositoryProtocol
+
+    init(
+        authService: any AuthServiceProtocol = AuthService(),
+        vehicleRepository: any VehicleRepositoryProtocol = VehicleRepository()
+    ) {
+        self.authService = authService
+        self.vehicleRepository = vehicleRepository
+    }
     
     func fetchVehicles() async {
         guard let session = try? await authService.getCurrentSession() else { return }
