@@ -4,7 +4,7 @@
 >
 > It documents **every unit test that covers Eugene's features** — the money/backend layer (escrow, top-up, withdrawal, completion settlement), live-location tracking, order completion & rating, and disputes/behavior reports — what each test asserts, **which production bug it prevents**, what is deliberately *not* covered, and how to run them.
 >
-> Every assertion below is quoted from the actual test files with `file:line` citations; nothing is paraphrased.
+> **Framework:** the suite has been migrated to **Swift Testing** (`import Testing`, `@Suite`/`@Test`, `#expect`/`#require`) — not XCTest. Every assertion below is quoted from the actual test files with `file:line` citations; nothing is paraphrased.
 
 ---
 
@@ -17,9 +17,8 @@
 5. [Order completion & rating](#5-order-completion--rating)
 6. [Live-location tracking](#6-live-location-tracking)
 7. [Coverage gaps (what is *not* tested, and why)](#7-coverage-gaps)
-8. [Known issue — a build-breaking typo](#8-known-issue--a-build-breaking-typo)
-9. [Test patterns & gotchas](#9-test-patterns--gotchas)
-10. [How to run](#10-how-to-run)
+8. [Test patterns & gotchas (Swift Testing)](#8-test-patterns--gotchas-swift-testing)
+9. [How to run](#9-how-to-run)
 
 ---
 
@@ -42,19 +41,21 @@ That second category is more valuable than it sounds. There is **no compile-time
 
 ## 2. Feature → test-file map
 
-| Eugene feature | Test file | Tests | What it pins |
+| Eugene feature | Test file (`@Suite`) | Tests | What it pins |
 |---|---|---|---|
-| Money model (escrow, available balance) | [PaymentBalanceTests.swift](MbengkelInUnitTests/PaymentBalanceTests.swift) | 4 | `availableBalance = max(0, balance − held)`; bank-details gate |
-| Money model (User decode) | [ModelCodableTests.swift](MbengkelInUnitTests/ModelCodableTests.swift) | 2 (of 6) | `held_balance` mapping + `availableBalance` from decoded rows |
-| Money-integrity RPCs (accept/cancel) | [MoneyIntegrityDTOTests.swift](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift) | 2 (of 6) | `AcceptBidParams`, `CancelOrderParams` arg names |
+| Money model (escrow, available balance) | [PaymentBalanceTests.swift](MbengkelInUnitTests/PaymentBalanceTests.swift) (`PaymentBalance`) | 4 | `availableBalance = max(0, balance − held)`; bank-details gate |
+| Money model (User decode) | [ModelCodableTests.swift](MbengkelInUnitTests/ModelCodableTests.swift) (`ModelCodable`) | 2 (of 6) | `held_balance` mapping + `availableBalance` from decoded rows |
+| Money-integrity RPCs (accept/cancel) | [MoneyIntegrityDTOTests.swift](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift) (`MoneyIntegrityDTO`) | 2 (of 6) | `AcceptBidParams`, `CancelOrderParams` arg names |
 | Order completion (settlement) | [MoneyIntegrityDTOTests.swift](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift) | 2 (of 6) | `MarkCompletedParams` (+ nil-photo omission) |
-| Completion earnings read-back | [OrderDTOTests.swift](MbengkelInUnitTests/OrderDTOTests.swift) | 2 (of 3) | `TodaysEarningRow` price present / null |
+| Completion earnings read-back | [OrderDTOTests.swift](MbengkelInUnitTests/OrderDTOTests.swift) (`OrderDTO`) | 2 (of 3) | `TodaysEarningRow` price present / null |
 | Rating | [MoneyIntegrityDTOTests.swift](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift) | 2 (of 6) | `RateOrderParams` (+ nil-review omission) |
 | Rating (aggregate read) | [ModelCodableTests.swift](MbengkelInUnitTests/ModelCodableTests.swift) | 1 (of 6) | `Bengkel.average_rating` / `total_reviews` decode |
-| Live-location (camera auto-fit) | [RegionFitTests.swift](MbengkelInUnitTests/RegionFitTests.swift) | 4 | `MKCoordinateRegion.fitting` edge cases |
-| Live-location (row decode) | [ModelDecodeTests.swift](MbengkelInUnitTests/ModelDecodeTests.swift) | 1 (of 4) | `OrderLocation` decode + `Identifiable` id |
+| Live-location (camera auto-fit) | [RegionFitTests.swift](MbengkelInUnitTests/RegionFitTests.swift) (`RegionFit`) | 4 | `MKCoordinateRegion.fitting` edge cases |
+| Live-location (row decode) | [ModelDecodeTests.swift](MbengkelInUnitTests/ModelDecodeTests.swift) (`ModelDecode`) | 1 (of 4) | `OrderLocation` decode + `Identifiable` id |
 
 **Total directly attributable to Eugene's features: ~20 tests** across 5 files (the three money/location-dedicated files plus the relevant subsets of the model/DTO files). The remaining unit tests in the target (bidding VM logic, order VM logic, image compression, watch state) belong to other contributors' features and are out of scope here.
+
+> ⚠️ **Regression from the migration:** the move to Swift Testing reverted `MoneyIntegrityDTOTests` to its original **6** tests — the three previously-added dispute/behavior-report tests (`openDisputeParams`, `openDisputeParamsNilProofOmitsKey`, `behaviorReportPayload`) were **dropped**. That coverage gap is now reopened — see [§7](#7-coverage-gaps).
 
 ---
 
@@ -62,26 +63,34 @@ That second category is more valuable than it sounds. There is **no compile-time
 
 ### `availableBalance` — the escrow guard
 
-[PaymentBalanceTests.swift:20-39](MbengkelInUnitTests/PaymentBalanceTests.swift#L20-L39):
+[PaymentBalanceTests.swift:6-31](MbengkelInUnitTests/PaymentBalanceTests.swift#L6-L31):
 
 ```swift
-func testAvailableBalanceSubtractsHeld() {
-    vm = PaymentViewModel()
+@Test func availableBalanceSubtractsHeld() async {
+    let vm = PaymentViewModel()
     vm.balance = 100_000
     vm.heldBalance = 30_000
-    XCTAssertEqual(vm.availableBalance, 70_000, accuracy: 0.0001)
+    #expect(abs(vm.availableBalance - 70_000) < 0.0001)
+    _ = consume vm
+    await Task.yield()
 }
 
-func testAvailableBalanceClampsAtZero() {
+@Test func availableBalanceClampsAtZero() async {
+    let vm = PaymentViewModel()
     vm.balance = 10_000
     vm.heldBalance = 50_000
-    XCTAssertEqual(vm.availableBalance, 0, accuracy: 0.0001)   // never negative
+    #expect(abs(vm.availableBalance - 0) < 0.0001)   // never negative
+    _ = consume vm
+    await Task.yield()
 }
 
-func testAvailableBalanceEqualsBalanceWhenNoHold() {
+@Test func availableBalanceEqualsBalanceWhenNoHold() async {
+    let vm = PaymentViewModel()
     vm.balance = 42_000
     vm.heldBalance = 0
-    XCTAssertEqual(vm.availableBalance, 42_000, accuracy: 0.0001)
+    #expect(abs(vm.availableBalance - 42_000) < 0.0001)
+    _ = consume vm
+    await Task.yield()
 }
 ```
 
@@ -89,15 +98,20 @@ func testAvailableBalanceEqualsBalanceWhenNoHold() {
 
 **Bug it prevents:** if held (escrowed) funds counted as withdrawable, a customer with an active order could withdraw money already reserved for it → **double-spend / negative wallet**. The clamp test stops a held > balance situation from showing a negative spendable amount. (The server RPC is the real gate — this test ensures the UI never *invites* an over-withdrawal that the RPC would then reject confusingly.)
 
+> The `_ = consume vm; await Task.yield()` tail is the Swift Testing replacement for the old XCTest `tearDown` dance — see [§8](#8-test-patterns--gotchas-swift-testing).
+
 ### `hasBankDetails` — the withdrawal precondition
 
-[PaymentBalanceTests.swift:41-48](MbengkelInUnitTests/PaymentBalanceTests.swift#L41-L48):
+[PaymentBalanceTests.swift:33-42](MbengkelInUnitTests/PaymentBalanceTests.swift#L33-L42):
 
 ```swift
-func testHasBankDetails() {
-    XCTAssertFalse(vm.hasBankDetails)
+@Test func hasBankDetails() async {
+    let vm = PaymentViewModel()
+    #expect(!vm.hasBankDetails)
     vm.bankName = "BCA"; vm.bankAccountNumber = "123"; vm.bankAccountName = "Budi"
-    XCTAssertTrue(vm.hasBankDetails)
+    #expect(vm.hasBankDetails)
+    _ = consume vm
+    await Task.yield()
 }
 ```
 
@@ -105,22 +119,22 @@ func testHasBankDetails() {
 
 ### User decode + `availableBalance` from a DB row
 
-[ModelCodableTests.swift:12-27](MbengkelInUnitTests/ModelCodableTests.swift#L12-L27):
+[ModelCodableTests.swift:9-24](MbengkelInUnitTests/ModelCodableTests.swift#L9-L24):
 
 ```swift
-func testUserWithHeldBalance() throws {
+@Test func userWithHeldBalance() throws {
     let json = #"{"id":"u1","name":"Budi","balance":100000,"held_balance":30000,"role":"USER"}"#
     let user = try decoder.decode(User.self, from: Data(json.utf8))
-    XCTAssertEqual(user.heldBalance, 30000)
-    XCTAssertEqual(user.availableBalance, 70000)
-    XCTAssertNil(user.email)        // email/phone are NOT DB columns (merged from auth later)
+    #expect(user.heldBalance == 30000)
+    #expect(user.availableBalance == 70000)
+    #expect(user.email == nil)        // email/phone are NOT DB columns (merged from auth later)
 }
 
-func testUserWithoutHeldBalance() throws {
+@Test func userWithoutHeldBalance() throws {
     let json = #"{"id":"u2","name":"Ani","balance":50000,"role":"USER"}"#
     let user = try decoder.decode(User.self, from: Data(json.utf8))
-    XCTAssertNil(user.heldBalance)
-    XCTAssertEqual(user.availableBalance, user.balance)   // nil hold ⇒ full balance available
+    #expect(user.heldBalance == nil)
+    #expect(user.availableBalance == user.balance)   // nil hold ⇒ full balance available
 }
 ```
 
@@ -130,36 +144,36 @@ func testUserWithoutHeldBalance() throws {
 
 ## 4. Money-integrity RPC DTO contracts
 
-[MoneyIntegrityDTOTests.swift](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift) — the single most important test file for Eugene's backend, because it guards the Swift↔Postgres argument-name contract that has no compiler to protect it. The file's own header says it best:
+[MoneyIntegrityDTOTests.swift](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift) — the single most important test file for Eugene's backend, because it guards the Swift↔Postgres argument-name contract that has no compiler to protect it. The suite is `@Suite("MoneyIntegrityDTO") @MainActor struct MoneyIntegrityDTOTests`, and its header comment says it best:
 
 > *"The snake_case keys must match the Postgres RPC argument names exactly, or the `rpc()` call silently misbinds."*
 
-A shared helper round-trips a DTO through `JSONEncoder` to a dictionary:
+A shared helper round-trips a DTO through `JSONEncoder` to a dictionary ([MoneyIntegrityDTOTests.swift:7-10](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift#L7-L10)):
 
 ```swift
 private func json(_ value: Encodable) throws -> [String: Any] {
     let data = try JSONEncoder().encode(value)
-    return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 }
 ```
 
-*(NOTE: in the current working tree this line reads `JSONSeriablization` — a typo that fails to compile. See [§8](#8-known-issue--a-build-breaking-typo).)*
+(`#require` is Swift Testing's unwrap-or-fail — the equivalent of XCTest's `XCTUnwrap`.)
 
 ### Accept bid / cancel order
 
-[MoneyIntegrityDTOTests.swift:18-28](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift#L18-L28):
+[MoneyIntegrityDTOTests.swift:12-22](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift#L12-L22):
 
 ```swift
-func testAcceptBidParams() throws {
+@Test func acceptBidParams() throws {
     let obj = try json(AcceptBidParams(p_bid_id: "bid-1"))
-    XCTAssertEqual(obj["p_bid_id"] as? String, "bid-1")
-    XCTAssertEqual(obj.count, 1)            // exactly one key — no stray fields
+    #expect(obj["p_bid_id"] as? String == "bid-1")
+    #expect(obj.count == 1)            // exactly one key — no stray fields
 }
 
-func testCancelOrderParams() throws {
+@Test func cancelOrderParams() throws {
     let obj = try json(CancelOrderParams(p_request_id: "req-1"))
-    XCTAssertEqual(obj["p_request_id"] as? String, "req-1")
-    XCTAssertEqual(obj.count, 1)
+    #expect(obj["p_request_id"] as? String == "req-1")
+    #expect(obj.count == 1)
 }
 ```
 
@@ -167,20 +181,20 @@ func testCancelOrderParams() throws {
 
 ### Rating (with nil-omission)
 
-[MoneyIntegrityDTOTests.swift:30-41](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift#L30-L41):
+[MoneyIntegrityDTOTests.swift:24-35](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift#L24-L35):
 
 ```swift
-func testRateOrderParamsWithReview() throws {
+@Test func rateOrderParamsWithReview() throws {
     let obj = try json(RateOrderParams(p_request_id: "req-2", p_rating: 5, p_review: "Mantap"))
-    XCTAssertEqual(obj["p_request_id"] as? String, "req-2")
-    XCTAssertEqual(obj["p_rating"] as? Int, 5)
-    XCTAssertEqual(obj["p_review"] as? String, "Mantap")
+    #expect(obj["p_request_id"] as? String == "req-2")
+    #expect(obj["p_rating"] as? Int == 5)
+    #expect(obj["p_review"] as? String == "Mantap")
 }
 
-func testRateOrderParamsNilReviewOmitsKey() throws {
+@Test func rateOrderParamsNilReviewOmitsKey() throws {
     let obj = try json(RateOrderParams(p_request_id: "req-3", p_rating: 4, p_review: nil))
-    XCTAssertEqual(obj["p_rating"] as? Int, 4)
-    XCTAssertNil(obj["p_review"], "nil review must be omitted, not sent as null-key")
+    #expect(obj["p_rating"] as? Int == 4)
+    #expect(obj["p_review"] == nil)
 }
 ```
 
@@ -188,18 +202,19 @@ func testRateOrderParamsNilReviewOmitsKey() throws {
 
 ### Completion (with nil-photo omission)
 
-[MoneyIntegrityDTOTests.swift:43-53](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift#L43-L53):
+[MoneyIntegrityDTOTests.swift:37-47](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift#L37-L47):
 
 ```swift
-func testMarkCompletedParamsWithPhoto() throws {
+@Test func markCompletedParamsWithPhoto() throws {
     let obj = try json(MarkCompletedParams(p_request_id: "req-4", p_completion_photo_url: "https://x/y.jpg"))
-    XCTAssertEqual(obj["p_request_id"] as? String, "req-4")
-    XCTAssertEqual(obj["p_completion_photo_url"] as? String, "https://x/y.jpg")
+    #expect(obj["p_request_id"] as? String == "req-4")
+    #expect(obj["p_completion_photo_url"] as? String == "https://x/y.jpg")
 }
 
-func testMarkCompletedParamsNilPhotoOmitsKey() throws {
+@Test func markCompletedParamsNilPhotoOmitsKey() throws {
     let obj = try json(MarkCompletedParams(p_request_id: "req-5", p_completion_photo_url: nil))
-    XCTAssertNil(obj["p_completion_photo_url"])
+    #expect(obj["p_request_id"] as? String == "req-5")
+    #expect(obj["p_completion_photo_url"] == nil)
 }
 ```
 
@@ -213,17 +228,17 @@ func testMarkCompletedParamsNilPhotoOmitsKey() throws {
 
 ### Completion earnings read-back
 
-[OrderDTOTests.swift:39-49](MbengkelInUnitTests/OrderDTOTests.swift#L39-L49):
+[OrderDTOTests.swift:34-44](MbengkelInUnitTests/OrderDTOTests.swift#L34-L44):
 
 ```swift
-func testTodaysEarningRowWithPrice() throws {
+@Test func todaysEarningRowWithPrice() throws {
     let row = try JSONDecoder().decode(TodaysEarningRow.self, from: Data(#"{"price":50000}"#.utf8))
-    XCTAssertEqual(row.price, 50000)
+    #expect(row.price == 50000)
 }
 
-func testTodaysEarningRowNullPrice() throws {
+@Test func todaysEarningRowNullPrice() throws {
     let row = try JSONDecoder().decode(TodaysEarningRow.self, from: Data(#"{"price":null}"#.utf8))
-    XCTAssertNil(row.price)
+    #expect(row.price == nil)
 }
 ```
 
@@ -231,14 +246,14 @@ func testTodaysEarningRowNullPrice() throws {
 
 ### Rating aggregate (read side)
 
-[ModelCodableTests.swift:54-65](MbengkelInUnitTests/ModelCodableTests.swift#L54-L65):
+[ModelCodableTests.swift:51-62](MbengkelInUnitTests/ModelCodableTests.swift#L51-L62):
 
 ```swift
-func testBengkelDecode() throws {
+@Test func bengkelDecode() throws {
     // ... "average_rating":4.5,"total_reviews":10 ...
     let bengkel = try decoder.decode(Bengkel.self, from: Data(json.utf8))
-    XCTAssertEqual(bengkel.averageRating, 4.5)
-    XCTAssertEqual(bengkel.totalReviews, 10)
+    #expect(bengkel.averageRating == 4.5)
+    #expect(bengkel.totalReviews == 10)
 }
 ```
 
@@ -246,7 +261,7 @@ func testBengkelDecode() throws {
 
 ### Completion flag on the order (partial)
 
-[ModelCodableTests.swift:29-42](MbengkelInUnitTests/ModelCodableTests.swift#L29-L42) (`testNearbyOrderFull`) decodes a `NearbyOrder` including `"customer_completed":true`, asserting `order.customerCompleted == true`. This pins that the dual-completion boolean survives the round-trip into the model the History/Tracking screens read.
+[ModelCodableTests.swift:26-39](MbengkelInUnitTests/ModelCodableTests.swift#L26-L39) (`nearbyOrderFull`) decodes a `NearbyOrder` including `"customer_completed":true`, asserting `order.customerCompleted == true`. This pins that the dual-completion boolean survives the round-trip into the model the History/Tracking screens read.
 
 ---
 
@@ -254,49 +269,49 @@ func testBengkelDecode() throws {
 
 ### Camera auto-fit — `MKCoordinateRegion.fitting`
 
-The tracking map shows two live pins (customer + mechanic) and auto-zooms to frame both. That framing math is the one piece of tracking that's pure and therefore testable. [RegionFitTests.swift](MbengkelInUnitTests/RegionFitTests.swift):
+The tracking map shows two live pins (customer + mechanic) and auto-zooms to frame both. That framing math is the one piece of tracking that's pure and therefore testable. [RegionFitTests.swift:8-41](MbengkelInUnitTests/RegionFitTests.swift#L8-L41):
 
 ```swift
-func testSingleValidCoordinate() {                       // one pin only
+@Test func singleValidCoordinate() {                     // one pin only
     let region = MKCoordinateRegion.fitting(
         CLLocationCoordinate2D(latitude: -7.28, longitude: 112.63), nil)
-    XCTAssertEqual(region.center.latitude, -7.28, accuracy: 0.0001)
-    XCTAssertEqual(region.span.latitudeDelta, 0.02, accuracy: 0.0001)   // sensible default zoom
+    #expect(abs(region.center.latitude - (-7.28)) < 0.0001)
+    #expect(abs(region.span.latitudeDelta - 0.02) < 0.0001)   // sensible default zoom
 }
 
-func testInvalidFirstFallsBackToOrigin() {               // NaN GPS → no crash
+@Test func invalidFirstFallsBackToOrigin() {             // NaN GPS → no crash
     let region = MKCoordinateRegion.fitting(
         CLLocationCoordinate2D(latitude: .nan, longitude: .nan), nil)
-    XCTAssertEqual(region.center.latitude, 0, accuracy: 0.0001)
+    #expect(abs(region.center.latitude) < 0.0001)
 }
 
-func testClosePairUsesMidpoint() {                       // two nearby pins
-    // center == midpoint; span finite and within [0.005, 160]×[0.005, 300]
+@Test func closePairUsesMidpoint() {                     // two nearby pins
+    // center == midpoint; span finite and within [0.005, 160] × [0.005, 300]
 }
 
-func testFarPairFallsBackToFirst() {                     // Surabaya + New York
+@Test func farPairFallsBackToFirst() {                   // Surabaya + New York
     // refuses to zoom out to the whole globe; centers on the first, default span
 }
 ```
 
 **Bugs these prevent:**
-- **NaN guard** (`testInvalidFirstFallsBackToOrigin`): a bad GPS fix (`.nan`) must not propagate into an `MKCoordinateRegion` — an invalid region can crash MapKit or render a blank map. It falls back to origin instead.
-- **Sane span bounds** (`testClosePairUsesMidpoint`): the computed zoom stays finite and within bounds, so two close pins don't produce a degenerate (zero) or absurd span.
-- **Far-pair sanity** (`testFarPairFallsBackToFirst`): if the two coordinates are implausibly far apart (stale/garbage data), it doesn't zoom out to show the entire planet — it centers on the first pin at a usable zoom.
+- **NaN guard** (`invalidFirstFallsBackToOrigin`): a bad GPS fix (`.nan`) must not propagate into an `MKCoordinateRegion` — an invalid region can crash MapKit or render a blank map. It falls back to origin instead.
+- **Sane span bounds** (`closePairUsesMidpoint`): the computed zoom stays finite and within bounds, so two close pins don't produce a degenerate (zero) or absurd span.
+- **Far-pair sanity** (`farPairFallsBackToFirst`): if the two coordinates are implausibly far apart (stale/garbage data), it doesn't zoom out to show the entire planet — it centers on the first pin at a usable zoom.
 
 This is exactly the kind of edge-case math worth unit-testing: it's pure, deterministic, and its failure modes (crash, blank map, world-view zoom) are user-visible.
 
 ### Live-location row decode
 
-[ModelDecodeTests.swift:27-39](MbengkelInUnitTests/ModelDecodeTests.swift#L27-L39):
+[ModelDecodeTests.swift:24-36](MbengkelInUnitTests/ModelDecodeTests.swift#L24-L36):
 
 ```swift
-func testOrderLocationDecode() throws {
+@Test func orderLocationDecode() throws {
     // {"service_request_id":"r1","provider_uid":"p1","latitude":-7.28,"longitude":112.63,...}
     let location = try decoder.decode(OrderLocation.self, from: Data(json.utf8))
-    XCTAssertEqual(location.serviceRequestId, "r1")
-    XCTAssertEqual(location.providerUid, "p1")
-    XCTAssertEqual(location.id, "r1")          // Identifiable id == serviceRequestId
+    #expect(location.serviceRequestId == "r1")
+    #expect(location.providerUid == "p1")
+    #expect(location.id == "r1")          // Identifiable id == serviceRequestId
 }
 ```
 
@@ -310,7 +325,7 @@ What is **deliberately or incidentally NOT covered** — important so a green ru
 
 1. **All SQL is untested in Swift.** The RPCs (`accept_bid`, `mark_order_completed`, `rate_order`, `request_withdrawal`, `settle_topup`, `open_dispute`) and the `handle_order_balance` trigger — i.e. the entire money-movement and authorization core — are never executed by the test bundle (no DI; see [§1](#1-the-testability-ceiling)). Their correctness rests on the SQL itself and manual/integration testing.
 
-2. **Disputes & behavior reports have NO dedicated DTO test.** `OpenDisputeParams` (feeds `open_dispute`) and `BehaviorReportPayload` (inserted into `behavior_reports`) are **not** pinned by `MoneyIntegrityDTOTests` or any other file. If someone renamed `p_reason`/`p_proof_url`/`reporter_id`, no test would catch the silent misbind. **This is the most actionable gap** — these DTOs are exactly the kind the existing money-integrity tests already protect for other RPCs, so adding `testOpenDisputeParams` / `testBehaviorReportPayload` would be low-effort, high-value.
+2. **Disputes & behavior reports have NO dedicated DTO test (regressed by the migration).** `OpenDisputeParams` (feeds `open_dispute`) and `BehaviorReportPayload` (inserted into `behavior_reports`) are **not** pinned by `MoneyIntegrityDTOTests` or any other file. Tests for them existed briefly but were **dropped** when the suite was rewritten to Swift Testing. If someone renamed `p_reason`/`p_proof_url`/`reporter_id`, no test would catch the silent misbind. **This is the most actionable gap** — these DTOs are exactly the kind the existing money-integrity tests already protect for the other RPCs, so re-adding `openDisputeParams` / `behaviorReportPayload` (now in Swift Testing style) is low-effort, high-value.
 
 3. **Top-up / Midtrans is untested on the Swift side.** `startTopup` validation, `PaymentService.createTopup`, and the webhook→`settle_topup` settlement aren't unit-tested (network + edge function + signature verification all live outside the bundle).
 
@@ -320,47 +335,48 @@ What is **deliberately or incidentally NOT covered** — important so a green ru
 
 ---
 
-## 8. Known issue — a build-breaking typo
+## 8. Test patterns & gotchas (Swift Testing)
 
-**[MoneyIntegrityDTOTests.swift:15](MbengkelInUnitTests/MoneyIntegrityDTOTests.swift#L15) currently reads `JSONSeriablization` instead of `JSONSerialization`.**
+The suite now uses **Swift Testing**. The primitives in play:
 
-```swift
-return try XCTUnwrap(JSONSeriablization.jsonObject(with: data) as? [String: Any])
-//                   ^^^^^^^^^^^^^^^^^ typo — no such type
-```
+| Concept | Swift Testing (now) | XCTest (before) |
+|---|---|---|
+| Suite | `@Suite("Name") struct/class` | `class …: XCTestCase` |
+| Test | `@Test func name()` | `func testName()` |
+| Equality | `#expect(a == b)` | `XCTAssertEqual(a, b)` |
+| Nil | `#expect(x == nil)` | `XCTAssertNil(x)` |
+| Unwrap | `try #require(x)` | `try XCTUnwrap(x)` |
+| Float tolerance | `#expect(abs(a - b) < 0.0001)` | `XCTAssertEqual(a, b, accuracy: 0.0001)` |
 
-- It's a misspelling of Foundation's `JSONSerialization` (spelled correctly in [OrderDTOTests.swift:27](MbengkelInUnitTests/OrderDTOTests.swift#L27)).
-- A repo-wide search finds the token in **only this one line**, defined nowhere — so it is not a local alias/shim.
-- **Effect:** the `MoneyIntegrityDTOTests` file fails to compile, which fails the **entire `MbengkelInUnitTests` target** — meaning *all* the tests in this document currently can't run until it's fixed.
-- The file is shown as **modified/unstaged** in git, so this looks like a work-in-progress edit that introduced the typo.
+**Three patterns specific to Eugene's tests:**
 
-**Fix:** change `JSONSeriablization` → `JSONSerialization` on that line. (One-character-class edit; nothing else depends on it.)
+1. **The JSON round-trip helper** (in `MoneyIntegrityDTOTests` / `OrderDTOTests`): `encode → JSONSerialization.jsonObject → [String: Any]`, unwrapped with `#require`, then `#expect` on keys. This is the standard way to prove a DTO's *wire shape* (key names, presence/omission) without a live server.
 
----
+2. **Float comparison is manual.** `#expect` has no `accuracy:` parameter, so float assertions use `#expect(abs(actual - expected) < tolerance)`. You'll see this throughout `PaymentBalanceTests` and `RegionFitTests`.
 
-## 9. Test patterns & gotchas
-
-**Two reusable patterns appear across Eugene's tests:**
-
-1. **The JSON round-trip helper** (in `MoneyIntegrityDTOTests`): `encode → JSONSerialization.jsonObject → [String: Any]`, then assert on keys. This is the standard way to prove a DTO's *wire shape* (key names, presence/omission) without a live server.
-
-2. **`@MainActor` ViewModel teardown** (in `PaymentBalanceTests`):
+3. **`@MainActor` ViewModel teardown via `consume`** (in `PaymentBalanceTests`):
    ```swift
-   @MainActor
-   final class PaymentBalanceTests: XCTestCase {
-       private var vm: PaymentViewModel!
-       override func tearDown() async throws { vm = nil; await Task.yield() }
+   @Suite("PaymentBalance") @MainActor
+   final class PaymentBalanceTests {
+       @Test func availableBalanceSubtractsHeld() async {
+           let vm = PaymentViewModel()
+           // ... assertions ...
+           _ = consume vm        // deterministically end vm's lifetime → run its deinit
+           await Task.yield()    // let the executor-hopping deinit settle
+       }
    }
    ```
-   The VM is held in a **stored property** and released in `tearDown`, not created-and-dropped inside the test method. This is mandatory for `@MainActor` ViewModels whose `deinit` hops executors (e.g. `Task { await supabase.removeChannel(...) }`): releasing one synchronously at a method's end **SIGABRTs** (a Swift 6 runtime double-free). The `await Task.yield()` lets the teardown settle. The same pattern is required in `CustomerBiddingViewModelTests` and `OrderViewModelLogicTests`.
+   Swift Testing has no `tearDown` lifecycle method, so the cleanup is **inlined per test**. `consume vm` (Swift's ownership *consume* operator) ends the value's lifetime *right there*, forcing `deinit` to run before the test returns; `await Task.yield()` then lets a `@MainActor` ViewModel whose `deinit` hops executors (e.g. `Task { await supabase.removeChannel(...) }`) finish settling. Without it, releasing such a VM can **SIGABRT** (Swift 6 runtime double-free). This is the Swift Testing equivalent of the old XCTest `tearDown { vm = nil; await Task.yield() }`. Note `PaymentBalanceTests` is a `final class` (the other suites are `struct`s) — the reference type makes the VM-lifetime handling explicit.
 
-**Framework:** plain **XCTest** (`@testable import MbengkelIn`) — no Swift Testing, no mocking library, no lint, no CI.
+**`@MainActor` on suites:** suites touching main-actor types (`PaymentBalanceTests`, `MoneyIntegrityDTOTests`, `ModelCodableTests`, `OrderDTOTests`, `ModelDecodeTests`) are annotated `@MainActor`. `RegionFitTests` is **not** — its `MKCoordinateRegion.fitting` math is pure and actor-agnostic.
+
+> **Doc drift to fix:** `CLAUDE.md` still describes the suite as "XCTest … no Swift Testing." That line is now stale — the unit target has been migrated. Worth updating `CLAUDE.md`'s Testing section.
 
 ---
 
-## 10. How to run
+## 9. How to run
 
-Run the whole unit target (once the [§8](#8-known-issue--a-build-breaking-typo) typo is fixed):
+Run the whole unit target:
 
 ```sh
 xcodebuild test \
@@ -370,10 +386,9 @@ xcodebuild test \
   -only-testing:MbengkelInUnitTests
 ```
 
-Run only Eugene's feature tests (example — the money/location-dedicated files):
+Run only Eugene's feature suites (example — the money/location-dedicated files; `-only-testing` targets the type name, which equals the suite):
 
 ```sh
-# append one -only-testing per class
 -only-testing:MbengkelInUnitTests/MoneyIntegrityDTOTests \
 -only-testing:MbengkelInUnitTests/PaymentBalanceTests \
 -only-testing:MbengkelInUnitTests/RegionFitTests
@@ -383,4 +398,4 @@ New `*.swift` files dropped into `MbengkelInUnitTests/` auto-join the target (Xc
 
 ---
 
-*Generated from a direct read of the test sources. Every `file:line` reference and quoted assertion was read from the repository; the testability ceiling and coverage gaps reflect the no-DI architecture documented in CLAUDE.md and [Eugene-Features-Explained.md §13](Eugene-Features-Explained.md).*
+*Generated from a direct read of the (Swift Testing-migrated) test sources. Every `file:line` reference and quoted assertion was read from the repository; the testability ceiling and coverage gaps reflect the no-DI architecture documented in CLAUDE.md and [Eugene-Features-Explained.md §13](Eugene-Features-Explained.md).*
