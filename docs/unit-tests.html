@@ -60,6 +60,23 @@
     font-size: 12px; background: #f0f0f0; padding: 1px 4px; border-radius: 3px;
   }
   .legend { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+
+  .results { margin-bottom: 44px; }
+  .results-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .results-title { font-size: 14px; color: var(--muted); }
+  .badge {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
+    border-radius: 999px; padding: 4px 12px; white-space: nowrap;
+  }
+  .badge.pass { color: #fff; background: #1a7f37; }
+  .results table th {
+    text-align: left; white-space: nowrap; width: 150px;
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--muted); border-bottom: 1px solid #ddd; vertical-align: top;
+  }
+  @media print {
+    .badge.pass { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
   footer { margin-top: 56px; border-top: 1px solid #ddd; padding-top: 16px; color: var(--muted); font-size: 12px; }
   @media print {
     body { padding: 0; }
@@ -76,6 +93,24 @@
   <p class="sub">XCTest / Swift Testing suite, grouped per ViewModel.</p>
   <p class="meta">Target: <code>MbengkelInUnitTests</code> &nbsp;·&nbsp; 9 ViewModels &nbsp;·&nbsp; 62 test cases</p>
 </header>
+
+<!-- Run results -->
+<section class="results" aria-label="Latest test run results">
+  <div class="results-head">
+    <span class="badge pass">✔ ALL PASSED</span>
+    <span class="results-title">Latest run — <code>** TEST SUCCEEDED **</code></span>
+  </div>
+  <table>
+    <tbody>
+      <tr><th>Result</th><td><strong>98 / 98 passed</strong> · 0 failed · 0 skipped</td></tr>
+      <tr><th>ViewModel cases</th><td>62 documented below (the rest of the 98 are DTO / model <code>Codable</code> / helper tests in the same target)</td></tr>
+      <tr><th>Command</th><td><code>xcodebuild test -project MbengkelIn.xcodeproj -scheme MbengkelIn -only-testing:MbengkelInUnitTests</code></td></tr>
+      <tr><th>Destination</th><td>iOS Simulator · iPhone 17 Pro · iOS 26.4</td></tr>
+      <tr><th>Framework</th><td>Swift Testing (<code>@Suite</code> / <code>@Test</code> / <code>#expect</code>)</td></tr>
+      <tr><th>Run date</th><td>12 Jun 2026</td></tr>
+    </tbody>
+  </table>
+</section>
 
 <!-- AuthViewModel -->
 <section>
