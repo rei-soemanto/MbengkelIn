@@ -1,0 +1,122 @@
+---
+title: Manajemen Kendaraan — Class Diagram
+config:
+  layout: elk
+  elk:
+    mergeEdges: true
+    nodePlacementStrategy: SIMPLE
+---
+classDiagram
+    direction LR
+
+    class ProfileView {
+        <<View>>
+        +AuthViewModel authViewModel
+        -ProfileViewModel profileViewModel
+        -VehicleViewModel vehicleViewModel
+        +some View body
+    }
+
+    class VehicleCardRow {
+        <<View>>
+        +VehicleViewModel vehicleViewModel
+        +Vehicle vehicle
+        +some View body
+    }
+
+    class VehicleFormView {
+        <<View>>
+        +VehicleViewModel vehicleViewModel
+        +Vehicle? vehicleToEdit
+        -DismissAction dismiss
+        -String manufacturer
+        -String model
+        -String yearStr
+        -String licensePlate
+        -String color
+        -Bool isEditing
+        +some View body
+    }
+
+    class VehicleViewModel {
+        <<ViewModel @MainActor>>
+        +[Vehicle] userVehicles
+        +Bool isLoading
+        +String? errorMessage
+        +String? successMessage
+        -AuthServiceProtocol authService
+        -VehicleRepositoryProtocol vehicleRepository
+        +init(authService, vehicleRepository)
+        +fetchVehicles() async Void
+        +addVehicle(manufacturer, model, year, licensePlate, color) async Bool
+        +updateVehicle(vehicleId, manufacturer, model, year, licensePlate, color) async Bool
+        +deleteVehicle(vehicleId) async Bool
+    }
+
+    class VehicleRepositoryProtocol {
+        <<protocol>>
+        +fetchVehicles(customerId) async [Vehicle]
+        +insertVehicle(Vehicle) async Void
+        +updateVehicle(vehicleId, payload) async Void
+        +deleteVehicle(vehicleId) async Void
+    }
+
+    class VehicleRepository {
+        <<Repository>>
+        +fetchVehicles(customerId) async [Vehicle]
+        +insertVehicle(vehicle) async Void
+        +updateVehicle(vehicleId, payload) async Void
+        +deleteVehicle(vehicleId) async Void
+    }
+
+    class AuthServiceProtocol {
+        <<protocol>>
+        +getCurrentSession() async Session
+        +cachedSession() Session?
+        +authStateChanges() AsyncStream
+        +signIn(email, password) async Session
+        +signUp(request) async Void
+        +signOut() async Void
+        +resetPassword(email) async Void
+    }
+
+    class Vehicle {
+        <<Model>>
+        +String? id
+        +String customerId
+        +String manufacturer
+        +String model
+        +Int year
+        +String licensePlate
+        +String color
+        +Date? createdAt
+        +enum CodingKeys
+    }
+
+    class VehicleUpdatePayload {
+        <<DTO Encodable>>
+        +String manufacturer
+        +String model
+        +Int year
+        +String license_plate
+        +String color
+    }
+
+    %% ---- Relationships ----
+    ProfileView *-- VehicleViewModel : owns @StateObject
+    ProfileView ..> VehicleCardRow : renders list
+    ProfileView ..> VehicleFormView : routes (add)
+    VehicleCardRow --> VehicleViewModel : observes
+    VehicleCardRow ..> VehicleFormView : routes
+    VehicleCardRow o-- Vehicle : embeds
+    VehicleFormView --> VehicleViewModel : observes
+    VehicleFormView o-- Vehicle : embeds
+
+    VehicleViewModel o-- "0..*" Vehicle : manages
+    VehicleViewModel --> VehicleRepositoryProtocol : delegates to
+    VehicleViewModel --> AuthServiceProtocol : authenticates via
+    VehicleViewModel ..> VehicleUpdatePayload : builds
+
+    VehicleRepository ..|> VehicleRepositoryProtocol : realizes
+    VehicleRepository ..> Vehicle : persists
+    VehicleRepository ..> VehicleUpdatePayload : sends

@@ -1,0 +1,159 @@
+---
+title: MbengkelIn — Authentication Feature Class Diagram
+config:
+  layout: elk
+  elk:
+    nodePlacementStrategy: NETWORK_SIMPLEX
+    mergeEdges: false
+---
+classDiagram
+    direction TB
+
+    %% ============ VIEWS ============
+    class ContentView["ContentView"] {
+        <<SwiftUI View>>
+        -AuthViewModel authViewModel
+        -NetworkMonitor network
+        -BengkelBiddingViewModel bengkelBiddingViewModel
+        -NearbyOrder? bidOrder
+        -ScenePhase scenePhase
+        -Bool isProvider
+        -Bool isBengkelMode
+        +some View body
+        -some View mainTabView
+    }
+
+    class LoginView["LoginView"] {
+        <<SwiftUI View>>
+        +AuthViewModel authViewModel
+        -String email
+        -String password
+        +some View body
+    }
+
+    class RegistrationView["RegistrationView"] {
+        <<SwiftUI View>>
+        +AuthViewModel authViewModel
+        -DismissAction dismiss
+        -String email
+        -String password
+        -String name
+        -String phoneNumber
+        +some View body
+    }
+
+    %% ============ VIEWMODEL ============
+    class AuthViewModel["AuthViewModel"] {
+        <<ViewModel / ObservableObject>>
+        +SupabaseUser? userSession
+        +User? currentUser
+        +Bool isLoading
+        +Bool isInitializing
+        +String? errorMessage
+        +String? successMessage
+        +AppMode appMode
+        -AuthServiceProtocol authService
+        -UserRepositoryProtocol userRepository
+        -Task authStateTask
+        +init(authService, userRepository, startObserving)
+        +loadInitialSession() async
+        +login(email, password) async
+        +signUp(email, password, name, phoneNumber) async
+        +fetchUser() async
+        +sendPasswordResetEmail() async
+        +deleteAccount(password) async
+        +signOut()
+        -deinit()
+    }
+
+    class AppMode["AppMode"] {
+        <<enumeration>>
+        customer
+        bengkel
+    }
+
+    %% ============ PROTOCOLS ============
+    class AuthServiceProtocol["AuthServiceProtocol"] {
+        <<interface>>
+        +getCurrentSession() Session
+        +cachedSession() Session?
+        +authStateChanges() AsyncStream
+        +signIn(email, password) Session
+        +signUp(request) void
+        +signOut() void
+        +resetPassword(email) void
+    }
+
+    class UserRepositoryProtocol["UserRepositoryProtocol"] {
+        <<interface>>
+        +fetchUser(uid) User
+        +deleteUser(uid) void
+    }
+
+    %% ============ SERVICE / REPOSITORY ============
+    class AuthService["AuthService"] {
+        <<Service>>
+        +getCurrentSession() Session
+        +currentUID() String
+        +cachedSession() Session?
+        +authStateChanges() AsyncStream
+        +signIn(email, password) Session
+        +signUp(request) void
+        +signOut() void
+        +resetPassword(email) void
+    }
+
+    class UserRepository["UserRepository"] {
+        <<Repository>>
+        +fetchUser(uid) User
+        +updateProfile(uid, payload) void
+        +updateProfileImageUrl(uid, payload) void
+        +updateBankDetails(uid, payload) void
+        +deleteUser(uid) void
+    }
+
+    %% ============ DTO / MODEL ============
+    class SignUpRequest["SignUpRequest"] {
+        <<DTO>>
+        +String email
+        +String password
+        +String name
+        +String phoneNumber
+    }
+
+    class User["User"] {
+        <<Model>>
+        +String id
+        +String name
+        +String? profileImageUrl
+        +Double balance
+        +Double? heldBalance
+        +Double? pendingBalance
+        +String? email
+        +String? phoneNumber
+        +String role
+        +String? bankName
+        +String? bankAccountNumber
+        +String? bankAccountName
+        +Double availableBalance
+        +CodingKeys
+    }
+
+    %% ============ RELATIONSHIPS ============
+    ContentView "1" *-- "1" AuthViewModel : owns (@StateObject)
+    ContentView ..> LoginView : routes to
+    LoginView ..> RegistrationView : routes to (NavigationLink)
+    LoginView --> AuthViewModel : observes (@ObservedObject)
+    RegistrationView --> AuthViewModel : observes (@ObservedObject)
+
+    AuthViewModel o-- AuthServiceProtocol : delegates to
+    AuthViewModel o-- UserRepositoryProtocol : delegates to
+    AuthViewModel *-- AppMode : embeds
+    AuthViewModel --> User : holds (currentUser)
+    AuthViewModel ..> SignUpRequest : builds
+
+    AuthService ..|> AuthServiceProtocol : realizes
+    UserRepository ..|> UserRepositoryProtocol : realizes
+
+    AuthService ..> SignUpRequest : consumes
+    UserRepository --> User : returns

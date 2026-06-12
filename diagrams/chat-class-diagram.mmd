@@ -1,0 +1,202 @@
+---
+title: MbengkelIn — Chat Feature Class Diagram
+config:
+  layout: elk
+  elk:
+    mergeEdges: false
+    nodePlacementStrategy: NETWORK_SIMPLEX
+---
+classDiagram
+    direction LR
+
+    %% ============ VIEWS ============
+    class ChatView["ChatView"] {
+        <<SwiftUI View>>
+        +String title
+        -ChatViewModel viewModel
+        -PhotosPickerItem? photoItem
+        -ZoomableImageURL? fullScreenImage
+        +init(serviceRequestId, title)
+        +some View body
+        -some View messagesList
+        -some View bubble(message)
+        -some View inputBar
+        -some View lockedBanner
+    }
+
+    class FullScreenImageView["FullScreenImageView"] {
+        <<SwiftUI View (private)>>
+        +String urlString
+        -DismissAction dismiss
+        -CGFloat scale
+        +some View body
+    }
+
+    class ZoomableImageURL["ZoomableImageURL"] {
+        <<View Model Struct (private)>>
+        +UUID id
+        +String url
+    }
+
+    %% ============ VIEWMODELS ============
+    class ChatViewModel["ChatViewModel"] {
+        <<ViewModel / ObservableObject>>
+        +[ChatMessage] messages
+        +String draft
+        +Bool isSending
+        +Bool isLocked
+        +String? errorMessage
+        +String serviceRequestId
+        +String currentUserId
+        -ChatRepository chatRepository
+        -OrderRepository orderRepository
+        -StorageService storageService
+        -AuthService authService
+        -RealtimeChannelV2? realtimeChannel
+        -Task[] realtimeReaderTasks
+        +init(serviceRequestId) nonisolated
+        ~deinit()
+        +start() async
+        +loadMessages() async
+        +loadLockState() async
+        +startRealtimeSubscription()
+        +stopRealtimeSubscription()
+        +sendText() async
+        +sendImage(data) async
+        -send(content, imageUrl) async Bool
+    }
+
+    class ChatWatchViewModel["ChatWatchViewModel"] {
+        <<ViewModel / ObservableObject (final)>>
+        +Int unreadCount
+        -String serviceRequestId
+        -String counterpartName
+        -ChatReadCursor cursor
+        -String currentUserId
+        -ChatRepository chatRepository
+        -NotificationService notificationService
+        -AuthService authService
+        -RealtimeChannelV2? channel
+        -Task[] realtimeReaderTasks
+        -Set~String~ notifiedIds
+        -Bool didLoadOnce
+        +init(serviceRequestId, counterpartName) nonisolated
+        ~deinit()
+        +start() async
+        +stop()
+        +markAllRead()
+        -subscribe()
+        -reload() async
+        -notificationBody(for message) String
+    }
+
+    %% ============ REPOSITORY ============
+    class ChatRepository["ChatRepository"] {
+        <<Repository>>
+        +fetchMessages(serviceRequestId) async [ChatMessage]
+        +sendMessage(payload) async
+    }
+
+    %% ============ SERVICES (Chat-owned) ============
+    class ChatPresence["ChatPresence"] {
+        <<Service (Singleton)>>
+        +ChatPresence shared$
+        +String? activeServiceRequestId
+        -init()
+    }
+
+    class ChatReadCursor["ChatReadCursor"] {
+        <<Service / Value Type>>
+        +String serviceRequestId
+        -String key
+        +Date lastReadAt
+        +markRead(at date)
+        +unreadCount(in incoming) Int
+        +date(of message) Date$
+    }
+
+    %% ============ MODEL / DTO ============
+    class ChatMessage["ChatMessage"] {
+        <<Model>>
+        +String id
+        +String serviceRequestId
+        +String senderId
+        +String? content
+        +String? imageUrl
+        +String? createdAt
+        +CodingKeys
+    }
+
+    class ChatMessagePayload["ChatMessagePayload"] {
+        <<DTO>>
+        +String service_request_id
+        +String sender_id
+        +String? content
+        +String? image_url
+    }
+
+    %% ============ COLLABORATORS (referenced, not Chat-owned) ============
+    class OrderRepository["OrderRepository"] {
+        <<Repository>>
+        +fetchOrder(id) async NearbyOrder
+    }
+
+    class StorageService["StorageService"] {
+        <<Service>>
+        +uploadChatImage(serviceRequestId, data) async String
+    }
+
+    class AuthService["AuthService"] {
+        <<Service>>
+        +currentUID() async String
+    }
+
+    class NotificationService["NotificationService"] {
+        <<Service>>
+        +requestAuthorization()
+        +notifyNewOrder(title, body)
+    }
+
+    class ImageCompressor["ImageCompressor"] {
+        <<Utility>>
+        +compressed(data) Data$
+    }
+
+    class RealtimeChannelV2["RealtimeChannelV2"] {
+        <<Supabase SDK>>
+        +subscribeWithError() async
+        +postgresChange(...) AsyncStream
+    }
+
+    %% ============ RELATIONSHIPS ============
+    %% View layer
+    ChatView "1" *-- "1" ChatViewModel : manages (@StateObject)
+    ChatView "1" *-- "0..1" ZoomableImageURL : contains
+    ChatView ..> FullScreenImageView : routes to (fullScreenCover)
+    ChatView ..> ChatPresence : observes (active screen)
+    ChatView ..> ChatMessage : renders
+    ZoomableImageURL ..> FullScreenImageView : provides url to
+
+    %% ChatViewModel collaborations
+    ChatViewModel o-- "*" ChatMessage : holds
+    ChatViewModel --> ChatRepository : has a
+    ChatViewModel --> OrderRepository : has a
+    ChatViewModel --> StorageService : has a
+    ChatViewModel --> AuthService : has a
+    ChatViewModel ..> ChatMessagePayload : builds
+    ChatViewModel ..> ImageCompressor : uses
+    ChatViewModel ..> RealtimeChannelV2 : observes
+
+    %% ChatWatchViewModel collaborations
+    ChatWatchViewModel "1" *-- "1" ChatReadCursor : has a
+    ChatWatchViewModel --> ChatRepository : has a
+    ChatWatchViewModel --> NotificationService : has a
+    ChatWatchViewModel --> AuthService : has a
+    ChatWatchViewModel ..> ChatPresence : observes (shared)
+    ChatWatchViewModel o-- "*" ChatMessage : processes
+    ChatWatchViewModel ..> RealtimeChannelV2 : observes
+
+    %% Repository / Cursor data flow
+    ChatRepository --> ChatMessage : returns
+    ChatRepository ..> ChatMessagePayload : inserts
+    ChatReadCursor ..> ChatMessage : reads timestamps of

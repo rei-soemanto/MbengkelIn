@@ -1,0 +1,403 @@
+---
+config:
+  layout: elk
+  elk:
+    mergeEdges: false
+    nodePlacementStrategy: NETWORK_SIMPLEX
+---
+classDiagram
+    direction LR
+
+    %% ============================================================
+    %% VIEW LAYER — Pages & Components
+    %% ============================================================
+
+    class OrderView {
+        <<View>>
+        +()→Void popToRoot
+        -OrderViewModel viewModel
+        -PresentationMode presentationMode
+        +some View body
+        -Bool isCreateDisabled
+    }
+
+    class OrderMapView {
+        <<View UIViewRepresentable>>
+        +MKCoordinateRegion region
+        +Bool isEditing
+        +(CLLocationCoordinate2D)→Void onRegionChange
+        +makeUIView(context) MKMapView
+        +updateUIView(uiView, context) Void
+        +makeCoordinator() Coordinator
+    }
+
+    class OSMTileOverlay {
+        <<MKTileOverlay>>
+        +loadTile(at path, result) Void
+    }
+
+    class Coordinator {
+        <<MKMapViewDelegate>>
+        +OrderMapView parent
+        +Bool isProgrammaticChange
+        -DispatchWorkItem? geocodeWorkItem
+        -CLLocationCoordinate2D? lastGeocodedCoordinate
+        +init(parent)
+        +mapView(rendererFor overlay) MKOverlayRenderer
+        +mapView(regionDidChangeAnimated) Void
+    }
+
+    class LocationInputCard {
+        <<View>>
+        +String address
+        +Bool isFocused
+        +Bool isFetchingLocation
+        +()→Void onCurrentLocationTapped
+        +some View body
+    }
+
+    class LocationSearchView~VM~ {
+        <<View>>
+        +VM viewModel
+        -Bool isTextFieldFocused
+        +some View body
+    }
+
+    class ServicePill {
+        <<View>>
+        +String title
+        +Bool isSelected
+        +()→Void action
+        +some View body
+    }
+
+    class PrimaryButton {
+        <<View>>
+        +String title
+        +String? iconName
+        +()→Void action
+        +some View body
+    }
+
+    class VehiclePicker {
+        <<View>>
+        +[Vehicle] vehicles
+        +String? selectedVehicleId
+        +(String)→Void onSelect
+        +some View body
+    }
+
+    class VehicleChip {
+        <<View private>>
+        +Vehicle vehicle
+        +Bool isSelected
+        +()→Void action
+        +some View body
+    }
+
+    class TireCountSelector {
+        <<View>>
+        +Int selectedCount
+        +(Int)→Void onSelect
+        +some View body
+    }
+
+    class TirePhotoGrid {
+        <<View>>
+        +Int count
+        +[Data?] photos
+        -[GridItem] columns
+        +some View body
+        -binding(for index) Binding~Data?~
+    }
+
+    class TirePhotoSlot {
+        <<View>>
+        +Int index
+        +Data? data
+        -PhotosPickerItem? item
+        +some View body
+    }
+
+    %% ============================================================
+    %% VIEWMODEL LAYER
+    %% ============================================================
+
+    class OrderViewModel {
+        <<ViewModel @MainActor>>
+        +String locationAddress
+        +String? selectedService
+        +Int estimatedPrice
+        +Bool isFetchingLocation
+        +Bool isEditingLocation
+        +[PhotonSearchFeature] searchResults
+        +String? errorMessage
+        +Int tireCount
+        +[Data?] photosData
+        +ServiceType? pendingServiceType
+        +Int pendingTireCount
+        +[String] pendingPhotoUrls
+        +Bool navigateToBidding
+        +LoadingPhase loadingPhase
+        +[Vehicle] vehicles
+        +String? selectedVehicleId
+        +String? pendingVehicleId
+        +String? pendingVehicleInfo
+        +Bool hasResolvedLocation
+        +Bool requiresTireCount
+        +MKCoordinateRegion region
+        +[String] services
+        +CLLocationCoordinate2D defaultCenter$
+        -AuthService authService
+        -CLLocationManager locationManager
+        -Set~AnyCancellable~ cancellables
+        -LocationService locationService
+        -OrderRepository orderRepository
+        -StorageService storageService
+        -VehicleRepository vehicleRepository
+        +init()
+        -searchOSM(query) Void
+        +selectSearchResult(result) Void
+        +useCurrentLocation() Void
+        -fallBackToDefaultLocation() Void
+        +locationManagerDidChangeAuthorization(manager) Void
+        +locationManager(manager, didUpdateLocations) Void
+        +locationManager(manager, didFailWithError) Void
+        +updateLocationFromMap(coordinate) Void
+        +loadVehicles() async Void
+        +prepareForNewOrder() Void
+        -fetchAddress(from coordinate) Void
+        +selectService(service) Void
+        +setTireCount(count) Void
+        -calculateEstimate() Void
+        +createOrder() Void
+        +cancelLoading() Void
+    }
+
+    %% ============================================================
+    %% PROTOCOL LAYER
+    %% ============================================================
+
+    class LocationSearchable {
+        <<protocol @MainActor>>
+        +String locationAddress
+        +Bool isEditingLocation
+        +Bool isFetchingLocation
+        +[PhotonSearchFeature] searchResults
+        +MKCoordinateRegion region
+        +useCurrentLocation() Void
+        +selectSearchResult(result) Void
+        +updateLocationFromMap(coordinate) Void
+    }
+
+    %% ============================================================
+    %% SERVICE LAYER
+    %% ============================================================
+
+    class LocationService {
+        <<Service>>
+        +searchOSM(query, coordinate) async [PhotonSearchFeature]
+        +fetchAddress(from coordinate) async String?
+    }
+
+    class StorageService {
+        <<Service external>>
+        +uploadOrderPhoto(uid, data) async String
+    }
+
+    class AuthService {
+        <<Service external>>
+        +currentUID() async String
+        +getCurrentSession() async Session
+    }
+
+    %% ============================================================
+    %% REPOSITORY LAYER
+    %% ============================================================
+
+    class OrderRepository {
+        <<Repository>>
+        +createOrder(payload) async CreatedServiceRequest
+        +fetchOrders(customerId) async [NearbyOrder]
+        +fetchTodaysEarnings(bengkelId) async Double
+        +fetchBengkelOrders(bengkelId) async [NearbyOrder]
+        +fetchOrder(id) async NearbyOrder
+        +deleteOrder(id) async Void
+        +cancelOrder(id) async Void
+        +openDispute(requestId, reason, proofUrl) async NearbyOrder
+        +fetchAcceptedBid(serviceRequestId) async Bid?
+        +submitRating(requestId, rating, review) async Void
+        +markOrderCompleted(requestId, completionPhotoUrl) async NearbyOrder
+        +fetchActiveOrder(customerId) async NearbyOrder?
+        +fetchPendingBids(serviceRequestId) async [Bid]
+        +acceptBid(bidId) async NearbyOrder
+    }
+
+    class VehicleRepository {
+        <<Repository external>>
+        +fetchVehicles(customerId) async [Vehicle]
+    }
+
+    %% ============================================================
+    %% MODEL & DTO LAYER
+    %% ============================================================
+
+    class ServiceType {
+        <<enum String>>
+        banGembos
+        banPecah
+        akiKering
+        mogokMesinMati
+        gantiBanSerep
+        rantaiMotorLepas
+        mesinOverheat
+        +Int minPrice
+        +Bool requiresTireCount
+        +String iconName
+    }
+
+    class NearbyOrder {
+        <<Model>>
+        +String id
+        +String customerId
+        +String? customerName
+        +String? serviceType
+        +String? description
+        +Bool? isEmergency
+        +Double latitude
+        +Double longitude
+        +Int? price
+        +String status
+        +Int? tireCount
+        +[String]? photoUrls
+        +String? vehicleId
+        +String? vehicleInfo
+        +String? bengkelId
+        +Int? rating
+        +String? review
+        +Bool? customerCompleted
+        +Bool? providerCompleted
+        +String? completionPhotoUrl
+        +String? createdAt
+        +Double? distanceM
+        +enum CodingKeys
+    }
+
+    class Vehicle {
+        <<Model>>
+        +String? id
+        +String customerId
+        +String manufacturer
+        +String model
+        +Int year
+        +String licensePlate
+        +String color
+        +Date? createdAt
+    }
+
+    class PhotonSearchResponse {
+        <<Model Codable>>
+        +[PhotonSearchFeature] features
+    }
+
+    class PhotonSearchFeature {
+        <<Model Identifiable>>
+        +UUID id
+        +PhotonSearchProperties properties
+        +PhotonSearchGeometry geometry
+        +enum CodingKeys
+        +== (lhs, rhs) Bool$
+        +hash(into hasher) Void
+    }
+
+    class PhotonSearchProperties {
+        <<Model Codable>>
+        +Int? osm_id
+        +String? name
+        +String? street
+        +String? city
+        +String? state
+    }
+
+    class PhotonSearchGeometry {
+        <<Model Codable>>
+        +[Double] coordinates
+    }
+
+    class ServiceRequestPayload {
+        <<DTO Encodable>>
+        +String customer_id
+        +ServiceType service_type
+        +String description
+        +Double latitude
+        +Double longitude
+        +Int price
+        +Bool is_emergency
+        +String status
+        +Int tire_count
+        +[String]? photo_urls
+        +String? vehicle_id
+        +String? vehicle_info
+    }
+
+    class CreatedServiceRequest {
+        <<DTO Decodable>>
+        +String id
+    }
+
+    class CustomerBiddingView {
+        <<View external>>
+    }
+
+    %% ============================================================
+    %% RELATIONSHIPS
+    %% ============================================================
+
+    %% --- View composition ---
+    OrderView --> OrderViewModel : observes
+    OrderView *-- OrderMapView : contains
+    OrderView *-- LocationInputCard : contains
+    OrderView *-- LocationSearchView : contains
+    OrderView *-- ServicePill : contains
+    OrderView *-- VehiclePicker : contains
+    OrderView *-- TireCountSelector : contains
+    OrderView *-- TirePhotoGrid : contains
+    OrderView *-- PrimaryButton : contains
+    OrderView ..> CustomerBiddingView : routes
+
+    %% --- Map internals ---
+    OrderMapView *-- Coordinator : creates
+    OrderMapView ..> OSMTileOverlay : renders
+    Coordinator --> OrderMapView : references
+
+    %% --- Sub-component composition ---
+    VehiclePicker *-- VehicleChip : contains
+    VehiclePicker o-- Vehicle : embeds
+    VehicleChip o-- Vehicle : embeds
+    TirePhotoGrid *-- TirePhotoSlot : contains
+    LocationSearchView ..> LocationSearchable : observes
+
+    %% --- ViewModel wiring ---
+    OrderViewModel ..|> LocationSearchable : realizes
+    OrderViewModel --> LocationService : delegates to
+    OrderViewModel --> OrderRepository : holds
+    OrderViewModel --> VehicleRepository : delegates to
+    OrderViewModel --> StorageService : uploads via
+    OrderViewModel --> AuthService : authenticates via
+    OrderViewModel o-- "0..*" Vehicle : manages
+    OrderViewModel o-- "0..*" PhotonSearchFeature : manages
+    OrderViewModel ..> ServiceType : uses
+
+    %% --- Service / Repository data flow ---
+    LocationService ..> PhotonSearchResponse : decodes
+    LocationService ..> PhotonSearchFeature : returns
+    VehicleRepository ..> Vehicle : persists
+    OrderRepository ..> ServiceRequestPayload : sends
+    OrderRepository ..> CreatedServiceRequest : returns
+    OrderRepository ..> NearbyOrder : persists
+
+    %% --- Model containment ---
+    PhotonSearchResponse o-- "*" PhotonSearchFeature : contains
+    PhotonSearchFeature *-- PhotonSearchProperties : has a
+    PhotonSearchFeature *-- PhotonSearchGeometry : has a
+    ServiceRequestPayload o-- ServiceType : has a

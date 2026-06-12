@@ -1,0 +1,38 @@
+%% MbengkelIn — Compact ERD (relationships only, no columns)
+%% Slide-friendly: stays legible when shrunk. Full-detail version: erd.mmd
+%% Pure black & white, ELK adaptive layout.
+
+%%{init: {'theme': 'base', 'layout': 'elk', 'themeVariables': {
+  'primaryColor': '#ffffff',
+  'primaryBorderColor': '#000000',
+  'primaryTextColor': '#000000',
+  'lineColor': '#000000',
+  'textColor': '#000000',
+  'fontFamily': 'monospace'
+}}}%%
+
+erDiagram
+    AUTH_USERS ||--|| USERS : extends
+
+    USERS ||--o{ VEHICLES          : owns
+    USERS ||--o{ BENGKELS          : operates
+    USERS ||--o{ SERVICE_REQUESTS  : requests
+    USERS ||--o{ BIDS              : places
+    USERS ||--o{ CHAT_MESSAGES     : sends
+    USERS ||--o{ ORDER_LOCATIONS   : publishes
+    USERS ||--o{ CUSTOMER_LOCATIONS: publishes
+    USERS ||--o{ BEHAVIOR_REPORTS  : files
+    USERS ||--o{ ORDER_DISPUTES    : initiates
+    USERS ||--o{ TOPUPS            : "tops up"
+    USERS ||--o{ WITHDRAWALS       : withdraws
+
+    BENGKELS ||--o{ SERVICE_REQUESTS : "assigned to"
+    BENGKELS ||--o{ BIDS             : "bids via"
+    VEHICLES ||--o{ SERVICE_REQUESTS : "used in"
+
+    SERVICE_REQUESTS ||--o{ BIDS               : receives
+    SERVICE_REQUESTS ||--o{ CHAT_MESSAGES      : has
+    SERVICE_REQUESTS ||--|| ORDER_LOCATIONS    : tracks
+    SERVICE_REQUESTS ||--|| CUSTOMER_LOCATIONS : tracks
+    SERVICE_REQUESTS ||--o{ BEHAVIOR_REPORTS   : "reported in"
+    SERVICE_REQUESTS ||--o{ ORDER_DISPUTES     : "disputed in"

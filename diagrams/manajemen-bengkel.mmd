@@ -1,0 +1,248 @@
+---
+title: Manajemen Bengkel — Class Diagram
+config:
+  layout: elk
+  elk:
+    nodePlacementStrategy: NETWORK_SIMPLEX
+    mergeEdges: false
+---
+classDiagram
+    direction TB
+
+    class BengkelViewModel {
+        <<ViewModel @MainActor>>
+        +Bengkel? myBengkel
+        +Bool isLoading
+        +String? errorMessage
+        +String? successMessage
+        +Double todaysEarnings
+        +String locationAddress
+        +Bool isEditingLocation
+        +Bool isFetchingLocation
+        +PhotonSearchFeature[] searchResults
+        +MKCoordinateRegion region
+        -AuthServiceProtocol authService
+        -BengkelRepositoryProtocol bengkelRepository
+        -OrderRepository orderRepository
+        -LocationService locationService
+        -CLLocationManager locationManager
+        -Set~AnyCancellable~ cancellables
+        -RealtimeChannelV2? realtimeChannel
+        -Task[] realtimeReaderTasks
+        +init(authService, bengkelRepository)
+        -searchOSM(query)
+        +selectSearchResult(result)
+        +useCurrentLocation()
+        +locationManagerDidChangeAuthorization(manager)
+        +locationManager(manager, didUpdateLocations)
+        +locationManager(manager, didFailWithError)
+        +updateLocationFromMap(coordinate)
+        -fetchAddress(from coordinate)
+        +registerBengkel(name, address) Bool
+        +fetchMyBengkel(uid)
+        +refreshBengkelQuietly(uid)
+        +updateBengkel(bengkelId, name, address) Bool
+        +deleteBengkel(bengkelId, password, email) Bool
+        +addService(bengkelId, serviceType, isActive) Bool
+        +updateService(bengkelId, serviceId, serviceType, isActive) Bool
+        +deleteService(bengkelId, serviceId) Bool
+        +loadTodaysEarnings()
+        +startWatching(uid)
+        -startRealtimeSubscription(uid)
+        +stopWatching()
+        +deinit()
+    }
+
+    class LocationSearchable {
+        <<interface>>
+        +String locationAddress
+        +Bool isEditingLocation
+        +Bool isFetchingLocation
+        +PhotonSearchFeature[] searchResults
+        +MKCoordinateRegion region
+        +useCurrentLocation()
+        +selectSearchResult(result)
+        +updateLocationFromMap(coordinate)
+    }
+
+    class BengkelRepositoryProtocol {
+        <<interface>>
+        +fetchBengkel(providerUid) Bengkel
+        +insertBengkel(bengkel)
+        +updateBengkel(bengkelId, payload)
+        +updateServices(bengkelId, payload)
+        +deleteBengkel(bengkelId)
+    }
+
+    class BengkelRepository {
+        <<Repository>>
+        +fetchBengkel(providerUid) Bengkel
+        +insertBengkel(bengkel)
+        +updateBengkel(bengkelId, payload)
+        +updateServices(bengkelId, payload)
+        +deleteBengkel(bengkelId)
+    }
+
+    class AuthServiceProtocol {
+        <<interface>>
+        +getCurrentSession() Session
+        +cachedSession() Session?
+        +authStateChanges() AsyncStream
+        +signIn(email, password) Session
+        +signUp(request)
+        +signOut()
+        +resetPassword(email)
+    }
+
+    class OrderRepository {
+        <<Repository>>
+        +fetchTodaysEarnings(bengkelId) Double
+    }
+
+    class LocationService {
+        <<Service>>
+        +searchOSM(query, coordinate) PhotonSearchFeature[]
+        +fetchAddress(from coordinate) String?
+    }
+
+    class Bengkel {
+        <<Model>>
+        +String? id
+        +String providerUid
+        +String name
+        +String address
+        +Double latitude
+        +Double longitude
+        +String status
+        +BengkelService[] offeredServices
+        +Double averageRating
+        +Int totalReviews
+        +Date? createdAt
+    }
+
+    class BengkelService {
+        <<Model>>
+        +String id
+        +ServiceType serviceType
+        +Bool isActive
+    }
+
+    class ServiceType {
+        <<enumeration>>
+        banGembos
+        banPecah
+        akiKering
+        mogokMesinMati
+        gantiBanSerep
+        rantaiMotorLepas
+        mesinOverheat
+        +Int minPrice
+        +Bool requiresTireCount
+        +String iconName
+    }
+
+    class BengkelUpdatePayload {
+        <<DTO>>
+        +String name
+        +String address
+        +Double latitude
+        +Double longitude
+    }
+
+    class BengkelServicesUpdatePayload {
+        <<DTO>>
+        +BengkelService[] offered_services
+    }
+
+    class PhotonSearchFeature {
+        <<Model>>
+        +UUID id
+        +PhotonSearchProperties properties
+        +PhotonSearchGeometry geometry
+    }
+
+    class CLLocationManager {
+        <<External>>
+    }
+
+    %% ---- Views ----
+    class RegisterBengkelView {
+        <<View>>
+        +BengkelViewModel viewModel
+        +String bengkelName
+        +Bool showSuccessAlert
+        +body() some View
+    }
+
+    class UpdateBengkelView {
+        <<View>>
+        +BengkelViewModel bengkelViewModel
+        +AuthViewModel authViewModel
+        +Bengkel bengkel
+        +String name
+        +body() some View
+    }
+
+    class BengkelDashboardView {
+        <<View>>
+        +AuthViewModel authViewModel
+        +BengkelBiddingViewModel bengkelBiddingViewModel
+        +BengkelViewModel bengkelViewModel
+        +NearbyOrder? selectedOrder
+        +Double realShopRating
+        +body() some View
+    }
+
+    class BengkelProfileView {
+        <<View>>
+        +AuthViewModel authViewModel
+        +BengkelViewModel bengkelViewModel
+        +Bool showDeleteBengkelAlert
+        +String passwordForDeletion
+        +Bengkel? previewBengkel
+        +body() some View
+    }
+
+    class BengkelServiceFormView {
+        <<View>>
+        +BengkelViewModel bengkelViewModel
+        +BengkelService? serviceToEdit
+        +ServiceType serviceType
+        +Bool isActive
+        +body() some View
+    }
+
+    %% ---- Realizations (conforms to) ----
+    BengkelViewModel ..|> LocationSearchable : realizes
+    BengkelRepository ..|> BengkelRepositoryProtocol : realizes
+
+    %% ---- Collaboration / dependencies ----
+    BengkelViewModel --> BengkelRepositoryProtocol : routes CRUD through
+    BengkelViewModel --> AuthServiceProtocol : authenticates via
+    BengkelViewModel --> OrderRepository : reads earnings from
+    BengkelViewModel --> LocationService : geocodes via
+    BengkelViewModel o-- CLLocationManager : owns
+    BengkelViewModel --> Bengkel : manages
+    BengkelViewModel ..> Bengkel : observes (realtime)
+    BengkelViewModel ..> BengkelUpdatePayload : builds
+    BengkelViewModel ..> BengkelServicesUpdatePayload : builds
+    BengkelViewModel "1" *-- "*" PhotonSearchFeature : contains
+
+    %% ---- Data composition ----
+    Bengkel "1" *-- "*" BengkelService : embeds (JSONB)
+    BengkelService --> ServiceType : has a
+    BengkelRepository ..> Bengkel : persists
+    BengkelRepository ..> BengkelUpdatePayload : applies
+    BengkelRepository ..> BengkelServicesUpdatePayload : applies
+    LocationService --> PhotonSearchFeature : produces
+
+    %% ---- View → ViewModel ----
+    RegisterBengkelView *-- BengkelViewModel : owns @StateObject
+    BengkelDashboardView *-- BengkelViewModel : owns @StateObject
+    BengkelProfileView *-- BengkelViewModel : owns @StateObject
+    UpdateBengkelView --> BengkelViewModel : observes @ObservedObject
+    BengkelServiceFormView --> BengkelViewModel : observes @ObservedObject
+    BengkelProfileView ..> UpdateBengkelView : navigates to
+    BengkelProfileView ..> BengkelServiceFormView : navigates to
+    BengkelProfileView ..> Bengkel : renders
+    BengkelServiceFormView ..> ServiceType : selects

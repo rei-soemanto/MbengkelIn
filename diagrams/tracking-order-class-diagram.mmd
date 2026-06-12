@@ -1,0 +1,373 @@
+---
+config:
+  layout: elk
+  elk:
+    nodePlacementStrategy: NETWORK_SIMPLEX
+    mergeEdges: false
+    cycleBreakingStrategy: DEPTH_FIRST
+---
+classDiagram
+    direction TB
+
+    %% ============ CUSTOMER-SIDE VIEWS ============
+    class OrderTrackingView["OrderTrackingView"] {
+        <<SwiftUI View>>
+        +Bid bid
+        +CLLocationCoordinate2D customerCoordinate
+        +Closure popToRoot
+        -OrderTrackingViewModel trackingViewModel
+        -ChatWatchViewModel chatWatch
+        -CustomerLocationPublishViewModel locationPublisher
+        -MKCoordinateRegion region
+        -Bool didPromptReview
+        -Bool didFitBoth
+        -ActiveSheet~opt~ activeSheet
+        -String cancelReason
+        -Bool didNotifyNear
+        -Bool hasBeenNear
+        +init(bid, customerCoordinate, popToRoot)
+        +some_View body
+        -CLLocationDistance~opt~ bengkelDistanceMeters
+        -Bool isBengkelNear
+        -CLLocationCoordinate2D~opt~ liveBengkelCoordinate
+        -fitBothIfNeeded() Void
+    }
+
+    %% ============ BENGKEL-SIDE VIEWS ============
+    class BengkelRouteView["BengkelRouteView"] {
+        <<SwiftUI View>>
+        +NearbyOrder order
+        -BengkelRouteViewModel viewModel
+        -ChatWatchViewModel chatWatch
+        -MKCoordinateRegion region
+        -Bool didFitBoth
+        -Bool showReportSheet
+        -String reportReason
+        -PhotosPickerItem~opt~ reportPhotoItem
+        -Data~opt~ reportPhotoData
+        +init(order)
+        +some_View body
+        -CLLocationCoordinate2D customerCoordinate
+        -CLLocationDistance~opt~ customerDistanceMeters
+        -Bool isCustomerNear
+        -List~TrackingPin~ pins
+        -some_View controlCard
+        -fitBothIfNeeded() Void
+        -statusLine(text, icon, color) View
+    }
+
+    class OrderDetailView["OrderDetailView"] {
+        <<SwiftUI View>>
+        -LocationPublishViewModel locationPublisher
+    }
+
+    %% ============ SHARED COMPONENT VIEWS ============
+    class TrackingMapView["TrackingMapView"] {
+        <<SwiftUI View>>
+        +MKCoordinateRegion region
+        +CLLocationCoordinate2D customerCoordinate
+        +CLLocationCoordinate2D~opt~ bengkelCoordinate
+        +String bengkelName
+        +some_View body
+        -List~TrackingPin~ pins
+    }
+
+    class TrackingInfoCard["TrackingInfoCard"] {
+        <<SwiftUI View>>
+        +Bid bid
+        +Bool isLive
+        +String status
+        +Int unreadCount
+        +Closure onOpenChat
+        +Bool canComplete
+        +Closure onCancel
+        +some_View body
+        -some_View statusLine
+    }
+
+    class UnreadBadge["UnreadBadge"] {
+        <<SwiftUI View>>
+        +Int count
+        +some_View body
+    }
+
+    %% ============ VIEWMODELS ============
+    class OrderTrackingViewModel["OrderTrackingViewModel"] {
+        <<ViewModel / ObservableObject>>
+        +CLLocationCoordinate2D~opt~ providerCoordinate
+        +String~opt~ lastUpdated
+        +NearbyOrder~opt~ order
+        +Bool isLive
+        -OrderLocationRepository locationRepository
+        -OrderRepository orderRepository
+        -NotificationService notificationService
+        -Bool iInitiatedCancel
+        -RealtimeChannelV2~opt~ channel
+        -String~opt~ serviceRequestId
+        -List~Task~ realtimeReaderTasks
+        +String status
+        +Bool alreadyRated
+        +start(serviceRequestId) async
+        +stop() Void
+        +openDispute(reason) Bool
+        +notifyBengkelNear() Void
+        -notifyOnCancellation(previous, updated) Void
+        -apply(location) Void
+        -deinit() Void
+    }
+
+    class BengkelRouteViewModel["BengkelRouteViewModel"] {
+        <<ViewModel / ObservableObject>>
+        +NearbyOrder~opt~ order
+        +CLLocationCoordinate2D~opt~ bengkelCoordinate
+        +CLLocationCoordinate2D~opt~ customerLiveCoordinate
+        -CLLocationManager locationManager
+        -OrderRepository orderRepository
+        -StorageService storageService
+        -OrderLocationRepository locationRepository
+        -AuthService authService
+        -NotificationService notificationService
+        -Bool iInitiatedCancel
+        -String~opt~ serviceRequestId
+        -CLLocationCoordinate2D~opt~ customerCoordinate
+        -Date~opt~ lastPublishedAt
+        -RealtimeChannelV2~opt~ channel
+        -List~Task~ realtimeReaderTasks
+        +String status
+        +init()
+        +start(order) async
+        +stop() Void
+        +reportIssue(reason, photoData) Bool
+        +locationManagerDidChangeAuthorization(manager) Void
+        +locationManager(didUpdateLocations) Void
+        +locationManager(didFailWithError) Void
+        -notifyOnCancellation(previous, updated) Void
+        -stopChannel() Void
+        -interval(forDistance) TimeInterval
+        -publish(coordinate, requestId) async
+        -deinit() Void
+    }
+
+    class CustomerLocationPublishViewModel["CustomerLocationPublishViewModel"] {
+        <<ViewModel / ObservableObject>>
+        +Bool isPublishing
+        +String~opt~ errorMessage
+        -CLLocationManager locationManager
+        -OrderLocationRepository repository
+        -AuthService authService
+        -String~opt~ serviceRequestId
+        -Date~opt~ lastPublishedAt
+        -TimeInterval minInterval
+        +init()
+        +start(serviceRequestId) Void
+        +stop() Void
+        +locationManagerDidChangeAuthorization(manager) Void
+        +locationManager(didUpdateLocations) Void
+        +locationManager(didFailWithError) Void
+        -publish(coordinate, requestId) async
+    }
+
+    class LocationPublishViewModel["LocationPublishViewModel"] {
+        <<ViewModel / ObservableObject>>
+        +Bool isPublishing
+        +String~opt~ errorMessage
+        -CLLocationManager locationManager
+        -OrderLocationRepository repository
+        -AuthService authService
+        -OrderRepository orderRepository
+        -String~opt~ serviceRequestId
+        -CLLocationCoordinate2D~opt~ customerCoordinate
+        -Date~opt~ lastPublishedAt
+        -RealtimeChannelV2~opt~ statusChannel
+        -Task~opt~ statusReaderTask
+        +init()
+        +start(serviceRequestId, customerCoordinate) Void
+        +stop() Void
+        +locationManagerDidChangeAuthorization(manager) Void
+        +locationManager(didUpdateLocations) Void
+        +locationManager(didFailWithError) Void
+        -observeOrderStatus(requestId) Void
+        -interval(forDistance) TimeInterval
+        -publish(coordinate, requestId) async
+        -deinit() Void
+    }
+
+    class ChatWatchViewModel["ChatWatchViewModel"] {
+        <<ViewModel / ObservableObject>>
+        +Int unreadCount
+        +init(serviceRequestId, counterpartName)
+        +start() async
+        +stop() Void
+        +markAllRead() Void
+    }
+
+    %% ============ REPOSITORY / SERVICES ============
+    class OrderLocationRepository["OrderLocationRepository"] {
+        <<Repository>>
+        +upsertLocation(payload) async
+        +fetchLocation(serviceRequestId) OrderLocation~opt~
+        +upsertCustomerLocation(payload) async
+        +fetchCustomerLocation(serviceRequestId) CustomerLocation~opt~
+    }
+
+    class OrderRepository["OrderRepository"] {
+        <<Repository>>
+        +fetchOrder(id) NearbyOrder
+        +openDispute(requestId, reason, proofUrl) NearbyOrder
+    }
+
+    class NotificationService["NotificationService"] {
+        <<Service>>
+        +notifyNewOrder(title, body) Void
+    }
+
+    class StorageService["StorageService"] {
+        <<Service>>
+        +uploadOrderPhoto(uid, data) String
+    }
+
+    class AuthService["AuthService"] {
+        <<Service>>
+        +getCurrentSession() Session
+    }
+
+    class CLLocationManager["CLLocationManager"] {
+        <<System>>
+        +CLLocationAccuracy desiredAccuracy
+        +CLAuthorizationStatus authorizationStatus
+        +requestWhenInUseAuthorization() Void
+        +startUpdatingLocation() Void
+        +stopUpdatingLocation() Void
+    }
+
+    %% ============ MODELS ============
+    class OrderLocation["OrderLocation"] {
+        <<Model>>
+        +String serviceRequestId
+        +String~opt~ providerUid
+        +Double latitude
+        +Double longitude
+        +String~opt~ updatedAt
+        +String id
+        +CodingKeys
+    }
+
+    class CustomerLocation["CustomerLocation"] {
+        <<Model>>
+        +String serviceRequestId
+        +String~opt~ customerId
+        +Double latitude
+        +Double longitude
+        +String~opt~ updatedAt
+        +String id
+        +CodingKeys
+    }
+
+    class NearbyOrder["NearbyOrder"] {
+        <<Model>>
+        +String id
+        +String customerId
+        +String~opt~ customerName
+        +String~opt~ serviceType
+        +String~opt~ description
+        +Bool~opt~ isEmergency
+        +Double latitude
+        +Double longitude
+        +Int~opt~ price
+        +String status
+        +Int~opt~ tireCount
+        +List~String~ photoUrls
+        +String~opt~ vehicleId
+        +String~opt~ vehicleInfo
+        +String~opt~ bengkelId
+        +Int~opt~ rating
+        +String~opt~ review
+        +Bool~opt~ customerCompleted
+        +Bool~opt~ providerCompleted
+        +String~opt~ completionPhotoUrl
+        +String~opt~ createdAt
+        +Double~opt~ distanceM
+        +CodingKeys
+    }
+
+    class TrackingPin["TrackingPin"] {
+        <<Model>>
+        +String id
+        +CLLocationCoordinate2D coordinate
+        +String label
+        +String icon
+        +Color tint
+    }
+
+    %% ============ DTOs ============
+    class OrderLocationPayload["OrderLocationPayload"] {
+        <<DTO>>
+        +String service_request_id
+        +String provider_uid
+        +Double latitude
+        +Double longitude
+    }
+
+    class CustomerLocationPayload["CustomerLocationPayload"] {
+        <<DTO>>
+        +String service_request_id
+        +String customer_id
+        +Double latitude
+        +Double longitude
+    }
+
+    %% ============ VIEW -> VIEWMODEL ============
+    OrderTrackingView ..> OrderTrackingViewModel : observes
+    OrderTrackingView ..> CustomerLocationPublishViewModel : observes
+    OrderTrackingView ..> ChatWatchViewModel : observes
+    BengkelRouteView ..> BengkelRouteViewModel : routes via
+    BengkelRouteView ..> ChatWatchViewModel : observes
+    OrderDetailView ..> LocationPublishViewModel : observes
+
+    %% ============ VIEW -> VIEW (embeds) ============
+    OrderTrackingView *-- TrackingMapView : embeds
+    OrderTrackingView *-- TrackingInfoCard : embeds
+    TrackingInfoCard *-- UnreadBadge : embeds
+    BengkelRouteView *-- UnreadBadge : embeds
+
+    %% ============ VIEW -> MODEL (has a / builds) ============
+    OrderTrackingView --> Bid : has a
+    TrackingInfoCard --> Bid : has a
+    TrackingMapView ..> TrackingPin : builds
+    BengkelRouteView ..> TrackingPin : builds
+    BengkelRouteView --> NearbyOrder : has a
+
+    %% ============ VIEWMODEL -> MODEL (manages / has a) ============
+    OrderTrackingViewModel --> NearbyOrder : holds
+    OrderTrackingViewModel ..> OrderLocation : applies
+    BengkelRouteViewModel --> NearbyOrder : holds
+
+    %% ============ VIEWMODEL -> SERVICE / REPOSITORY (uses) ============
+    OrderTrackingViewModel *-- OrderLocationRepository : manages
+    OrderTrackingViewModel *-- OrderRepository : manages
+    OrderTrackingViewModel *-- NotificationService : has a
+    BengkelRouteViewModel *-- CLLocationManager : manages
+    BengkelRouteViewModel *-- OrderRepository : manages
+    BengkelRouteViewModel *-- OrderLocationRepository : has a
+    BengkelRouteViewModel *-- StorageService : has a
+    BengkelRouteViewModel *-- AuthService : has a
+    BengkelRouteViewModel *-- NotificationService : has a
+    CustomerLocationPublishViewModel *-- CLLocationManager : manages
+    CustomerLocationPublishViewModel *-- OrderLocationRepository : has a
+    CustomerLocationPublishViewModel *-- AuthService : has a
+    LocationPublishViewModel *-- CLLocationManager : manages
+    LocationPublishViewModel *-- OrderLocationRepository : has a
+    LocationPublishViewModel *-- AuthService : has a
+    LocationPublishViewModel *-- OrderRepository : has a
+
+    %% ============ VIEWMODEL -> DTO (builds) ============
+    BengkelRouteViewModel ..> OrderLocationPayload : produces
+    CustomerLocationPublishViewModel ..> CustomerLocationPayload : produces
+    LocationPublishViewModel ..> OrderLocationPayload : produces
+
+    %% ============ REPOSITORY -> DTO / MODEL ============
+    OrderLocationRepository ..> OrderLocation : returns
+    OrderLocationRepository ..> CustomerLocation : returns
+    OrderLocationRepository ..> OrderLocationPayload : consumes
+    OrderLocationRepository ..> CustomerLocationPayload : consumes
+    OrderRepository ..> NearbyOrder : returns

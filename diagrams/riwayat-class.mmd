@@ -1,0 +1,344 @@
+---
+config:
+  layout: elk
+  elk:
+    mergeEdges: false
+    nodePlacementStrategy: NETWORK_SIMPLEX
+---
+classDiagram
+    direction LR
+
+    %% ============================================================
+    %% VIEW LAYER — Pages
+    %% ============================================================
+
+    class HistoryView {
+        <<View>>
+        +AuthViewModel authViewModel
+        +some View body
+    }
+
+    class CustomerHistoryView {
+        <<View>>
+        -HistoryViewModel viewModel
+        -NearbyOrder? reportOrder
+        +some View body
+        -some View content
+        -some View orderList
+        -Binding~Bool~ detailBinding
+        -Binding~Bool~ trackingBinding
+        -Binding~Bool~ biddingBinding
+    }
+
+    class BengkelHistoryView {
+        <<View>>
+        -BengkelHistoryViewModel viewModel
+        -NearbyOrder? reportOrder
+        +some View body
+        -some View content
+        -some View orderList
+        -Binding~Bool~ detailBinding
+    }
+
+    class OrderDetailView {
+        <<View>>
+        +NearbyOrder order
+        +Bool isCustomer
+        -OrderRatingViewModel ratingViewModel
+        -LocationPublishViewModel locationPublisher
+        -MKCoordinateRegion region
+        -Int? localRating
+        -String? localReview
+        -Int selectedRating
+        -String reviewText
+        -Bool hasRating
+        -Bool canRate
+        -Bool shouldPublishLocation
+        +init(order, isCustomer)
+        +some View body
+        -some View detailCard
+        -some View ratingInputCard
+        -detailRow(label, value) some View
+    }
+
+    %% ============================================================
+    %% VIEW LAYER — Components
+    %% ============================================================
+
+    class OrderHistoryRow {
+        <<View Component>>
+        +NearbyOrder order
+        +()→Void onTap
+        +(()→Void)? onReport
+        -Bool canReport
+        +some View body
+        -some View card
+    }
+
+    class HistoryEmptyState {
+        <<View Component>>
+        +String message
+        +some View body
+    }
+
+    class ReportBehaviorSheet {
+        <<View Component>>
+        +NearbyOrder order
+        -BehaviorReportViewModel viewModel
+        -DismissAction dismiss
+        -String reason
+        -Bool isValid
+        +some View body
+    }
+
+    class OrderStatusBadge {
+        <<View Component>>
+        +String status
+        -String label
+        -Color color
+        +some View body
+    }
+
+    %% ============================================================
+    %% VIEWMODEL LAYER
+    %% ============================================================
+
+    class HistoryViewModel {
+        <<ViewModel @MainActor>>
+        +[NearbyOrder] orders
+        +Bool isLoading
+        +String? errorMessage
+        +NearbyOrder? detailOrder
+        +NearbyOrder? biddingOrder
+        +Bid? trackingBid
+        +CLLocationCoordinate2D? trackingCoordinate
+        -AuthService authService
+        -OrderRepository orderRepository
+        +loadOrders() async Void
+        +select(order) async Void
+        -openTracking(order) async Void
+        -isOrderedBefore(lhs, rhs)$ Bool
+        -priority(status)$ Int
+    }
+
+    class BengkelHistoryViewModel {
+        <<ViewModel @MainActor>>
+        +[NearbyOrder] orders
+        +Bool isLoading
+        +String? errorMessage
+        +NearbyOrder? detailOrder
+        -BengkelRepository bengkelRepository
+        -OrderRepository orderRepository
+        -AuthService authService
+        -RealtimeChannelV2? channel
+        -String? bengkelId
+        -[Task] realtimeReaderTasks
+        +deinit()
+        +loadOrders() async Void
+        -startRealtimeIfNeeded() Void
+        -reload() async Void
+        +select(order) Void
+        -isOrderedBefore(lhs, rhs)$ Bool
+        -priority(status)$ Int
+    }
+
+    class OrderRatingViewModel {
+        <<ViewModel @MainActor>>
+        +Bool isSubmitting
+        +String? errorMessage
+        -OrderRepository orderRepository
+        +submit(requestId, rating, review) async Bool
+    }
+
+    class LocationPublishViewModel {
+        <<ViewModel @MainActor>>
+        +Bool isPublishing
+        +String? errorMessage
+        -CLLocationManager locationManager
+        -OrderLocationRepository repository
+        -AuthService authService
+        -OrderRepository orderRepository
+        -String? serviceRequestId
+        -CLLocationCoordinate2D? customerCoordinate
+        -Date? lastPublishedAt
+        -RealtimeChannelV2? statusChannel
+        -Task statusReaderTask
+        +start(serviceRequestId, customerCoordinate) Void
+        +stop() Void
+        +deinit()
+        -observeOrderStatus(requestId) Void
+        -interval(forDistance) TimeInterval
+        -publish(coordinate, requestId) async Void
+    }
+
+    class BehaviorReportViewModel {
+        <<ViewModel @MainActor>>
+        +Bool isSubmitting
+        +String? errorMessage
+        -BehaviorReportRepository repository
+        -AuthService authService
+        +submit(serviceRequestId, reason) async Bool
+    }
+
+    %% ============================================================
+    %% REPOSITORY / SERVICE LAYER
+    %% ============================================================
+
+    class OrderRepository {
+        <<Repository>>
+        +fetchOrders(customerId) async [NearbyOrder]
+        +fetchBengkelOrders(bengkelId) async [NearbyOrder]
+        +fetchOrder(id) async NearbyOrder
+        +fetchAcceptedBid(serviceRequestId) async Bid?
+        +submitRating(requestId, rating, review) async Void
+        +markOrderCompleted(requestId, photoUrl) async NearbyOrder
+        +fetchTodaysEarnings(bengkelId) async Double
+    }
+
+    class BengkelRepository {
+        <<Repository>>
+        +fetchBengkel(providerUid) async Bengkel
+    }
+
+    class BehaviorReportRepository {
+        <<Repository>>
+        +submit(serviceRequestId, reporterId, reason) async Void
+    }
+
+    class OrderLocationRepository {
+        <<Repository>>
+        +upsertLocation(payload) async Void
+    }
+
+    class AuthService {
+        <<Service external>>
+        +getCurrentSession() async Session
+        +currentUID() async String
+    }
+
+    %% ============================================================
+    %% MODEL LAYER
+    %% ============================================================
+
+    class NearbyOrder {
+        <<Model>>
+        +String id
+        +String customerId
+        +String? customerName
+        +String? serviceType
+        +String? description
+        +Bool? isEmergency
+        +Double latitude
+        +Double longitude
+        +Int? price
+        +String status
+        +Int? tireCount
+        +[String]? photoUrls
+        +String? vehicleId
+        +String? vehicleInfo
+        +String? bengkelId
+        +Int? rating
+        +String? review
+        +Bool? customerCompleted
+        +Bool? providerCompleted
+        +String? completionPhotoUrl
+        +String? createdAt
+        +Double? distanceM
+        +enum CodingKeys
+    }
+
+    class Bid {
+        <<Model external>>
+    }
+
+    %% ============================================================
+    %% ROUTED DESTINATIONS (external to feature)
+    %% ============================================================
+
+    class AuthViewModel {
+        <<ViewModel external>>
+        +AppMode appMode
+        +User? currentUser
+    }
+
+    class OrderTrackingView {
+        <<View external>>
+    }
+
+    class CustomerBiddingView {
+        <<View external>>
+    }
+
+    class BengkelRouteView {
+        <<View external>>
+    }
+
+    class ChatView {
+        <<View external>>
+    }
+
+    %% ============================================================
+    %% RELATIONSHIPS
+    %% ============================================================
+
+    %% --- Top-level routing ---
+    HistoryView ..> AuthViewModel : observes
+    HistoryView ..> CustomerHistoryView : routes
+    HistoryView ..> BengkelHistoryView : routes
+
+    %% --- Customer page wiring ---
+    CustomerHistoryView *-- HistoryViewModel : manages
+    CustomerHistoryView *-- OrderHistoryRow : contains
+    CustomerHistoryView *-- HistoryEmptyState : contains
+    CustomerHistoryView ..> ReportBehaviorSheet : presents
+    CustomerHistoryView ..> OrderDetailView : routes
+    CustomerHistoryView ..> OrderTrackingView : routes
+    CustomerHistoryView ..> CustomerBiddingView : routes
+
+    %% --- Bengkel page wiring ---
+    BengkelHistoryView *-- BengkelHistoryViewModel : manages
+    BengkelHistoryView *-- OrderHistoryRow : contains
+    BengkelHistoryView *-- HistoryEmptyState : contains
+    BengkelHistoryView ..> ReportBehaviorSheet : presents
+    BengkelHistoryView ..> OrderDetailView : routes
+    BengkelHistoryView ..> BengkelRouteView : routes
+
+    %% --- Detail page wiring ---
+    OrderDetailView *-- OrderRatingViewModel : manages
+    OrderDetailView *-- LocationPublishViewModel : manages
+    OrderDetailView ..> OrderStatusBadge : contains
+    OrderDetailView ..> ChatView : routes
+    OrderDetailView o-- NearbyOrder : has a
+
+    %% --- Component data ---
+    OrderHistoryRow o-- NearbyOrder : embeds
+    OrderHistoryRow *-- OrderStatusBadge : contains
+    ReportBehaviorSheet o-- NearbyOrder : has a
+    ReportBehaviorSheet *-- BehaviorReportViewModel : manages
+
+    %% --- ViewModel dependencies ---
+    HistoryViewModel o-- "0..*" NearbyOrder : manages
+    HistoryViewModel --> OrderRepository : holds
+    HistoryViewModel --> AuthService : authenticates via
+    HistoryViewModel ..> Bid : tracks
+
+    BengkelHistoryViewModel o-- "0..*" NearbyOrder : manages
+    BengkelHistoryViewModel --> OrderRepository : holds
+    BengkelHistoryViewModel --> BengkelRepository : holds
+    BengkelHistoryViewModel --> AuthService : authenticates via
+    BengkelHistoryViewModel ..> RealtimeChannelV2 : observes
+
+    OrderRatingViewModel --> OrderRepository : holds
+
+    LocationPublishViewModel --> OrderLocationRepository : holds
+    LocationPublishViewModel --> OrderRepository : holds
+    LocationPublishViewModel --> AuthService : authenticates via
+    LocationPublishViewModel ..> RealtimeChannelV2 : observes status
+
+    BehaviorReportViewModel --> BehaviorReportRepository : holds
+    BehaviorReportViewModel --> AuthService : authenticates via
+
+    %% --- Repository data flow ---
+    OrderRepository ..> NearbyOrder : returns
+    OrderRepository ..> Bid : returns
+    BengkelRepository ..> Bengkel : returns

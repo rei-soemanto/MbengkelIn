@@ -1,0 +1,205 @@
+%% MbengkelIn — Entity Relationship Diagram
+%% Generated from the live Supabase project (ref: nerrnpbopdfrdcfvjowx)
+%% Scope: public schema + auth.users (the auth-schema anchor public.users extends).
+%% Note: auth.* internal tables (sessions, identities, refresh_tokens, mfa_*, etc.)
+%%       are omitted; only auth.users is shown since it is the only auth entity the
+%%       app's public schema references.
+%% Convention-only links (NOT enforced FK constraints): bengkels.provider_uid,
+%%       vehicles.customer_id — drawn here because they relate logically.
+%% Rendered in pure black & white (no fill colors) via the init theme directive below.
+
+%%{init: {'theme': 'base', 'layout': 'elk', 'themeVariables': {
+  'primaryColor': '#ffffff',
+  'primaryBorderColor': '#000000',
+  'primaryTextColor': '#000000',
+  'lineColor': '#000000',
+  'textColor': '#000000',
+  'fontFamily': 'monospace',
+  'attributeBackgroundColorOdd': '#ffffff',
+  'attributeBackgroundColorEven': '#ffffff'
+}}}%%
+
+erDiagram
+    AUTH_USERS ||--|| USERS : "extends (id = id)"
+
+    USERS ||--o{ VEHICLES          : "owns (convention)"
+    USERS ||--o{ BENGKELS          : "operates (convention)"
+    USERS ||--o{ SERVICE_REQUESTS  : "requests (customer_id)"
+    USERS ||--o{ BIDS              : "places (provider_uid)"
+    USERS ||--o{ CHAT_MESSAGES     : "sends (sender_id)"
+    USERS ||--o{ ORDER_LOCATIONS   : "publishes (provider_uid)"
+    USERS ||--o{ CUSTOMER_LOCATIONS: "publishes (customer_id)"
+    USERS ||--o{ BEHAVIOR_REPORTS  : "files (reporter_id)"
+    USERS ||--o{ ORDER_DISPUTES    : "initiates (initiated_by)"
+    USERS ||--o{ TOPUPS            : "tops up"
+    USERS ||--o{ WITHDRAWALS       : "withdraws"
+
+    BENGKELS ||--o{ SERVICE_REQUESTS : "assigned to"
+    BENGKELS ||--o{ BIDS             : "bids via"
+
+    VEHICLES ||--o{ SERVICE_REQUESTS : "used in"
+
+    SERVICE_REQUESTS ||--o{ BIDS               : "receives"
+    SERVICE_REQUESTS ||--o{ CHAT_MESSAGES      : "has"
+    SERVICE_REQUESTS ||--|| ORDER_LOCATIONS    : "live mechanic loc"
+    SERVICE_REQUESTS ||--|| CUSTOMER_LOCATIONS : "live customer loc"
+    SERVICE_REQUESTS ||--o{ BEHAVIOR_REPORTS   : "reported in"
+    SERVICE_REQUESTS ||--o{ ORDER_DISPUTES     : "disputed in"
+
+    AUTH_USERS {
+        uuid id PK
+        varchar email
+        text phone
+        varchar encrypted_password
+        jsonb raw_user_meta_data
+        timestamptz email_confirmed_at
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    USERS {
+        uuid id PK "FK -> auth.users.id"
+        text name
+        text profile_image_url
+        double balance
+        double held_balance "escrow for active orders"
+        double pending_balance "provider earnings pending"
+        text role "USER | PROVIDER"
+        text bank_name
+        text bank_account_number
+        text bank_account_name
+    }
+
+    VEHICLES {
+        uuid id PK
+        uuid customer_id "-> users.id (convention)"
+        text manufacturer
+        text model
+        int year
+        text license_plate
+        text color
+        timestamptz created_at
+    }
+
+    BENGKELS {
+        uuid id PK
+        uuid provider_uid "-> users.id (convention)"
+        text name
+        text address
+        double latitude
+        double longitude
+        enum status "BengkelStatus"
+        jsonb offered_services
+        double average_rating
+        int total_reviews
+        timestamptz created_at
+    }
+
+    SERVICE_REQUESTS {
+        uuid id PK
+        uuid customer_id FK
+        uuid bengkel_id FK "nullable; set on bid accept"
+        uuid vehicle_id FK
+        enum service_type "ServiceType"
+        text description
+        boolean is_emergency
+        double latitude
+        double longitude
+        bigint price
+        enum status "ServiceStatus"
+        int rating
+        text review
+        int tire_count
+        boolean customer_completed
+        boolean provider_completed
+        jsonb photo_urls
+        text vehicle_info
+        text mechanic_notes
+        text completion_photo_url
+        timestamptz assigned_at
+        timestamptz completed_at
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    BIDS {
+        uuid id PK
+        uuid service_request_id FK
+        uuid provider_uid FK
+        uuid bengkel_id FK
+        bigint price
+        text notes
+        enum status "BidStatus"
+        timestamptz created_at
+    }
+
+    CHAT_MESSAGES {
+        uuid id PK
+        uuid service_request_id FK
+        uuid sender_id FK
+        text content
+        text image_url
+        timestamptz created_at
+    }
+
+    ORDER_LOCATIONS {
+        uuid service_request_id PK
+        uuid provider_uid FK
+        double latitude
+        double longitude
+        timestamptz updated_at
+    }
+
+    CUSTOMER_LOCATIONS {
+        uuid service_request_id PK
+        uuid customer_id FK
+        double latitude
+        double longitude
+        timestamptz updated_at
+    }
+
+    BEHAVIOR_REPORTS {
+        uuid id PK
+        uuid service_request_id FK
+        uuid reporter_id FK
+        text reason
+        timestamptz created_at
+    }
+
+    ORDER_DISPUTES {
+        uuid id PK
+        uuid service_request_id FK
+        uuid initiated_by FK
+        text initiator_role
+        text reason
+        text proof_url
+        text status
+        timestamptz created_at
+        timestamptz resolved_at
+    }
+
+    TOPUPS {
+        uuid id PK
+        uuid user_id FK
+        text order_id
+        double gross_amount
+        enum status
+        text payment_type
+        text redirect_url
+        text snap_token
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    WITHDRAWALS {
+        uuid id PK
+        uuid user_id FK
+        double amount
+        text bank_name
+        text bank_account_number
+        text bank_account_name
+        enum status
+        text notes
+        timestamptz created_at
+        timestamptz updated_at
+    }

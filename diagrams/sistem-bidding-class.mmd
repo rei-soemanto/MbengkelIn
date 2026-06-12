@@ -1,0 +1,564 @@
+---
+config:
+  layout: elk
+  elk:
+    nodePlacementStrategy: NETWORK_SIMPLEX
+    mergeEdges: false
+    cycleBreakingStrategy: DEPTH_FIRST
+---
+classDiagram
+    direction TB
+
+    %% ============ CUSTOMER-SIDE VIEWS ============
+    class CustomerBiddingView["CustomerBiddingView"] {
+        <<SwiftUI View>>
+        +Closure popToRoot
+        -CustomerBiddingViewModel viewModel
+        -DismissAction dismiss
+        -Bool isResuming
+        +init(serviceType, coordinate, tireCount, photoUrls, vehicleId, vehicleInfo, popToRoot)
+        +init(resuming order, popToRoot)
+        +some_View body
+    }
+
+    class ActiveBiddingView["ActiveBiddingView"] {
+        <<SwiftUI View>>
+        +CustomerBiddingViewModel viewModel
+        -Bool showCancelConfirm
+        -CLLocationCoordinate2D customerCoordinate
+        +some_View body
+        -some_View header
+        -some_View bidsSection
+    }
+
+    class BidPriceSetupView["BidPriceSetupView"] {
+        <<SwiftUI View>>
+        +ServiceType serviceType
+        +Int minPrice
+        +Int initialPrice
+        +Bool isStartingSearch
+        +Closure onSubmit
+        -Int inputPrice
+        -String priceText
+        -Bool showError
+        +init(serviceType, minPrice, initialPrice, isStartingSearch, onSubmit)
+        +some_View body
+        -some_View infoCard
+        -some_View inputCard
+        -some_View quickSelect
+        -some_View submitButton
+    }
+
+    class BiddingWaitingState["BiddingWaitingState"] {
+        <<SwiftUI View>>
+        +Bool isAnimating
+        +some_View body
+    }
+
+    class SearchCountdownBar["SearchCountdownBar"] {
+        <<SwiftUI View>>
+        +Int secondsRemaining
+        +Double progress
+        +some_View body
+        -timeString(seconds) String
+    }
+
+    class BidReceivedCard["BidReceivedCard"] {
+        <<SwiftUI View>>
+        +Bid bid
+        +CLLocationCoordinate2D~opt~ customerCoordinate
+        +Closure onAccept
+        +Closure onReject
+        +Closure~opt~ onExpire
+        -TimeInterval timeRemaining
+        -Bool hasExpired
+        -Timer timer
+        -Color statusColor
+        -Double~opt~ distanceMeters
+        -Bool isUrgent
+        -String statusLabel
+        +some_View body
+        -updateCountdown() Void
+        -formatTimeRemaining() String
+        -parseDate(dateString) Date~opt~
+    }
+
+    %% ============ BENGKEL-SIDE VIEWS ============
+    class BengkelBiddingView["BengkelBiddingView"] {
+        <<SwiftUI View>>
+        +BengkelBiddingViewModel viewModel
+        -NearbyOrder~opt~ selectedOrder
+        +some_View body
+    }
+
+    class OrderRequestCard["OrderRequestCard"] {
+        <<SwiftUI View>>
+        +NearbyOrder order
+        +Bid~opt~ pendingBid
+        +Closure onBid
+        +Closure~opt~ onExpire
+        +Bool wasRejected
+        -String priceLabel
+        -Bool isTireService
+        -List~String~ photoUrls
+        +some_View body
+        -some_View header
+        -some_View emergencyBadge
+        -some_View serviceChip
+        -some_View detailRow
+        -some_View deniedNote
+        -some_View bottomRow
+    }
+
+    class OrderCountdownBar["OrderCountdownBar"] {
+        <<SwiftUI View>>
+        +String~opt~ createdAt
+        +Closure~opt~ onExpire
+        -TimeInterval windowSeconds
+        -TimeInterval timeRemaining
+        -Bool hasExpired
+        -Timer timer
+        -Bool isUrgent
+        +some_View body
+        -updateCountdown() Void
+        -formatTimeRemaining() String
+        -parseDate(dateString) Date~opt~
+    }
+
+    class PlaceBidSheet["PlaceBidSheet"] {
+        <<SwiftUI View>>
+        +Int minPrice
+        +Closure onSubmit
+        -DismissAction dismiss
+        -String priceText
+        -String notes
+        -Int price
+        -Bool isValid
+        +init(minPrice, onSubmit)
+        +some_View body
+    }
+
+    class IncomingJobModal["IncomingJobModal"] {
+        <<SwiftUI View>>
+        +NearbyOrder order
+        +Closure onBid
+        +Closure onDismiss
+        -String priceLabel
+        +some_View body
+    }
+
+    class BengkelCard["BengkelCard"] {
+        <<SwiftUI View>>
+        +NearbyBengkel bengkel
+        +some_View body
+    }
+
+    %% ============ SHARED COMPONENT VIEWS ============
+    class BiddingEmptyState["BiddingEmptyState"] {
+        <<SwiftUI View>>
+        +String icon
+        +String title
+        +String subtitle
+        +some_View body
+    }
+
+    class DistanceBadge["DistanceBadge"] {
+        <<SwiftUI View>>
+        +Double meters
+        -String label
+        +some_View body
+    }
+
+    class OrderPhotoThumbnail["OrderPhotoThumbnail"] {
+        <<SwiftUI View>>
+        +String photoUrl
+        -Bool showPhoto
+        +some_View body
+    }
+
+    class OrderPhotoViewer["OrderPhotoViewer"] {
+        <<SwiftUI View>>
+        +String photoUrl
+        +Closure onClose
+        +some_View body
+    }
+
+    class OrderTrackingView["OrderTrackingView"] {
+        <<SwiftUI View>>
+        +Bid bid
+        +CLLocationCoordinate2D customerCoordinate
+        +Closure popToRoot
+        +some_View body
+    }
+
+    %% ============ VIEWMODELS ============
+    class CustomerBiddingViewModel["CustomerBiddingViewModel"] {
+        <<ViewModel / ObservableObject>>
+        -AuthService authService
+        +List~Bid~ bids
+        +Bid~opt~ acceptedBid
+        +Bool isLoading
+        +Bool isStartingSearch
+        +String~opt~ errorMessage
+        +LoadingPhase loadingPhase
+        +Int minPrice
+        +Int customerBidPrice
+        +Bool isSearching
+        +String~opt~ serviceRequestId
+        +Double balance
+        +Bool showRetryPrompt
+        +Bool shouldDismiss
+        +Int searchSecondsRemaining
+        +Int searchTotalSeconds
+        +Double searchProgress
+        +ServiceType serviceType
+        +Double latitude
+        +Double longitude
+        +Int tireCount
+        +List~String~ photoUrls
+        +String~opt~ vehicleId
+        +String~opt~ vehicleInfo
+        -UInt64 searchTimeoutSeconds
+        -UInt64 decisionTimeoutSeconds
+        -TimeInterval bidDecisionWindowSeconds
+        -Task searchCountdownTask
+        -Task decisionCountdownTask
+        -Task bidExpiryTask
+        -RealtimeChannelV2~opt~ realtimeChannel
+        -List~Task~ realtimeReaderTasks
+        -UserRepository userRepository
+        -OrderRepository orderRepository
+        -StorageService storageService
+        -NotificationService notificationService
+        -Set~String~ knownBidIds
+        -Bool didLoadBidsOnce
+        +init(serviceType, latitude, longitude, tireCount, photoUrls, vehicleId, vehicleInfo)
+        +init(resuming order)
+        +resume() Void
+        -deinit() Void
+        +startSearch(price) Void
+        -startSearchCountdown() Void
+        -expireSearch() Void
+        +retrySamePrice() Void
+        +raisePrice() Void
+        -stopSearchingState() Void
+        +cancelAndDelete() Void
+        +cancel() Void
+        +startRealtimeSubscription() Void
+        +stopRealtimeSubscription() Void
+        +loadReceivedBids() Void
+        +refresh() Void
+        +acceptBid(bid) Void
+        +rejectBid(bid) Void
+        +expireBid(bid) Void
+        -scheduleBidExpiry() Void
+        -expireOverdueBids() Void
+        +parseISODate(s)$ Date~opt~
+    }
+
+    class BengkelBiddingViewModel["BengkelBiddingViewModel"] {
+        <<ViewModel / ObservableObject>>
+        -AuthService authService
+        +List~NearbyOrder~ orders
+        +Bengkel~opt~ myBengkel
+        +List~Bid~ myPendingBids
+        +Bool isLoading
+        +String~opt~ errorMessage
+        +String~opt~ successMessage
+        +NearbyOrder~opt~ newOrderAlert
+        +String~opt~ lostBidAlert
+        +String~opt~ expiredBidAlert
+        +NearbyOrder~opt~ activeBengkelOrder
+        +String~opt~ rejectedBidAlert
+        +String~opt~ orderUnavailableAlert
+        +List~Bid~ myRejectedBids
+        -RealtimeChannelV2~opt~ realtimeChannel
+        -List~Task~ realtimeReaderTasks
+        -OrderRepository orderRepository
+        -NotificationService notificationService
+        -Set~String~ knownOrderIds
+        -Dictionary bidStatusById
+        -Bool didInitialLoad
+        -Bool hasStarted
+        -String~opt~ providerUid
+        -deinit() Void
+        +start() Void
+        +refreshOnForeground() Void
+        +startRealtimeSubscription() Void
+        +stopRealtimeSubscription() Void
+        +loadOrders() Void
+        +placeBid(order, price, notes) Void
+        +handleExpiredOrder(order) Void
+        +expireBid(bid) Void
+        +rejectBid(bid) Void
+    }
+
+    %% ============ REPOSITORY / SERVICES ============
+    class OrderRepository["OrderRepository"] {
+        <<Repository>>
+        +createOrder(payload) CreatedServiceRequest
+        +fetchOrders(customerId) List~NearbyOrder~
+        +fetchTodaysEarnings(bengkelId) Double
+        +fetchBengkelOrders(bengkelId) List~NearbyOrder~
+        +fetchOrder(id) NearbyOrder
+        +deleteOrder(id) Void
+        +cancelOrder(id) Void
+        +openDispute(requestId, reason, proofUrl) NearbyOrder
+        +fetchAcceptedBid(serviceRequestId) Bid~opt~
+        +submitRating(requestId, rating, review) Void
+        +markOrderCompleted(requestId, completionPhotoUrl) NearbyOrder
+        +fetchActiveOrder(customerId) NearbyOrder~opt~
+        +fetchPendingBids(serviceRequestId) List~Bid~
+        +acceptBid(bidId) NearbyOrder
+    }
+
+    class AuthService["AuthService"] {
+        <<Service>>
+        +getCurrentSession() Session
+        +currentUID() String
+    }
+
+    class UserRepository["UserRepository"] {
+        <<Repository>>
+        +fetchUser(uid) User
+    }
+
+    class StorageService["StorageService"] {
+        <<Service>>
+        +deleteOrderPhotos(urls) Void
+    }
+
+    class NotificationService["NotificationService"] {
+        <<Service>>
+        +requestAuthorization() Void
+        +notifyNewOrder(title, body) Void
+    }
+
+    %% ============ MODELS ============
+    class Bid["Bid"] {
+        <<Model>>
+        +String id
+        +String serviceRequestId
+        +String providerUid
+        +String bengkelId
+        +Int price
+        +String~opt~ notes
+        +String status
+        +String~opt~ createdAt
+        +Bengkel~opt~ bengkel
+        +CodingKeys
+    }
+
+    class NearbyOrder["NearbyOrder"] {
+        <<Model>>
+        +String id
+        +String customerId
+        +String~opt~ customerName
+        +String~opt~ serviceType
+        +String~opt~ description
+        +Bool~opt~ isEmergency
+        +Double latitude
+        +Double longitude
+        +Int~opt~ price
+        +String status
+        +Int~opt~ tireCount
+        +List~String~ photoUrls
+        +String~opt~ vehicleId
+        +String~opt~ vehicleInfo
+        +String~opt~ bengkelId
+        +Int~opt~ rating
+        +String~opt~ review
+        +Bool~opt~ customerCompleted
+        +Bool~opt~ providerCompleted
+        +String~opt~ completionPhotoUrl
+        +String~opt~ createdAt
+        +Double~opt~ distanceM
+        +CodingKeys
+    }
+
+    class NearbyBengkel["NearbyBengkel"] {
+        <<Model>>
+        +String id
+        +String providerUid
+        +String name
+        +String address
+        +Double latitude
+        +Double longitude
+        +Double averageRating
+        +Int totalReviews
+        +List~BengkelService~ offeredServices~opt~
+        +Double distanceM
+        +CodingKeys
+    }
+
+    class Bengkel["Bengkel"] {
+        <<Model>>
+        +String~opt~ id
+        +String providerUid
+        +String name
+        +String address
+        +Double latitude
+        +Double longitude
+        +String status
+        +List~BengkelService~ offeredServices
+        +Double averageRating
+        +Int totalReviews
+        +Date~opt~ createdAt
+        +CodingKeys
+    }
+
+    class ServiceType["ServiceType"] {
+        <<enumeration>>
+        banGembos
+        banPecah
+        akiKering
+        mogokMesinMati
+        gantiBanSerep
+        rantaiMotorLepas
+        mesinOverheat
+        +Int minPrice
+        +Bool requiresTireCount
+        +String iconName
+    }
+
+    %% ============ DTOs ============
+    class ServiceRequestPayload["ServiceRequestPayload"] {
+        <<DTO>>
+        +String customer_id
+        +ServiceType service_type
+        +String description
+        +Double latitude
+        +Double longitude
+        +Int price
+        +Bool is_emergency
+        +String status
+        +Int tire_count
+        +List~String~ photo_urls
+        +String~opt~ vehicle_id
+        +String~opt~ vehicle_info
+    }
+
+    class CreatedServiceRequest["CreatedServiceRequest"] {
+        <<DTO>>
+        +String id
+    }
+
+    class StartSearchPayload["StartSearchPayload"] {
+        <<DTO>>
+        +Int price
+    }
+
+    class BidStatusUpdate["BidStatusUpdate"] {
+        <<DTO>>
+        +String status
+    }
+
+    class AcceptBidParams["AcceptBidParams"] {
+        <<DTO>>
+        +String p_bid_id
+    }
+
+    class CancelOrderParams["CancelOrderParams"] {
+        <<DTO>>
+        +String p_request_id
+    }
+
+    class OrdersRequest["OrdersRequest"] {
+        <<DTO>>
+        +String action
+        +Double latitude
+        +Double longitude
+        +Double radiusMeters
+    }
+
+    class OrdersResponse["OrdersResponse"] {
+        <<DTO>>
+        +List~NearbyOrder~ orders
+    }
+
+    class PlaceBidRequest["PlaceBidRequest"] {
+        <<DTO>>
+        +String action
+        +String serviceRequestId
+        +String bengkelId
+        +Int price
+        +String~opt~ notes
+    }
+
+    class PlaceBidResponse["PlaceBidResponse"] {
+        <<DTO>>
+        +Bid bid
+    }
+
+    %% ============ VIEW -> VIEWMODEL ============
+    CustomerBiddingView "1" *-- "1" CustomerBiddingViewModel : owns (@StateObject)
+    ActiveBiddingView --> CustomerBiddingViewModel : observes (@ObservedObject)
+    BengkelBiddingView --> BengkelBiddingViewModel : observes (@ObservedObject)
+
+    %% ============ VIEW -> VIEW (embeds / routes) ============
+    CustomerBiddingView *-- BidPriceSetupView : embeds
+    CustomerBiddingView *-- ActiveBiddingView : embeds
+    CustomerBiddingView ..> OrderTrackingView : routes to
+    ActiveBiddingView *-- BiddingWaitingState : embeds
+    ActiveBiddingView *-- SearchCountdownBar : embeds
+    ActiveBiddingView *-- BidReceivedCard : embeds
+    BengkelBiddingView *-- BiddingEmptyState : embeds
+    BengkelBiddingView *-- OrderRequestCard : embeds
+    BengkelBiddingView *-- PlaceBidSheet : embeds
+    OrderRequestCard *-- OrderCountdownBar : embeds
+    OrderRequestCard *-- OrderPhotoThumbnail : embeds
+    OrderRequestCard *-- DistanceBadge : embeds
+    BidReceivedCard *-- DistanceBadge : embeds
+    BengkelCard *-- DistanceBadge : embeds
+    OrderPhotoThumbnail ..> OrderPhotoViewer : presents
+
+    %% ============ VIEW -> MODEL (has a) ============
+    BidReceivedCard --> Bid : has a
+    OrderRequestCard --> NearbyOrder : has a
+    OrderRequestCard ..> Bid : references
+    IncomingJobModal --> NearbyOrder : has a
+    BengkelCard --> NearbyBengkel : has a
+    BidPriceSetupView ..> ServiceType : uses
+    OrderTrackingView --> Bid : has a
+
+    %% ============ VIEWMODEL -> MODEL (manages / has a) ============
+    CustomerBiddingViewModel "1" o-- "*" Bid : manages (bids)
+    CustomerBiddingViewModel --> ServiceType : has a
+    CustomerBiddingViewModel ..> NearbyOrder : resumes from
+    BengkelBiddingViewModel "1" o-- "*" NearbyOrder : manages (orders)
+    BengkelBiddingViewModel "1" o-- "*" Bid : manages (bids)
+    BengkelBiddingViewModel --> Bengkel : has a (myBengkel)
+
+    %% ============ VIEWMODEL -> SERVICE / REPOSITORY (uses) ============
+    CustomerBiddingViewModel o-- OrderRepository : uses
+    CustomerBiddingViewModel o-- UserRepository : uses
+    CustomerBiddingViewModel o-- AuthService : uses
+    CustomerBiddingViewModel o-- StorageService : uses
+    CustomerBiddingViewModel o-- NotificationService : uses
+    BengkelBiddingViewModel o-- OrderRepository : uses
+    BengkelBiddingViewModel o-- AuthService : uses
+    BengkelBiddingViewModel o-- NotificationService : uses
+
+    %% ============ VIEWMODEL -> DTO (builds / decodes) ============
+    CustomerBiddingViewModel ..> ServiceRequestPayload : builds
+    CustomerBiddingViewModel ..> StartSearchPayload : builds
+    CustomerBiddingViewModel ..> BidStatusUpdate : builds
+    BengkelBiddingViewModel ..> OrdersRequest : builds
+    BengkelBiddingViewModel ..> OrdersResponse : decodes
+    BengkelBiddingViewModel ..> PlaceBidRequest : builds
+    BengkelBiddingViewModel ..> PlaceBidResponse : decodes
+    BengkelBiddingViewModel ..> BidStatusUpdate : builds
+
+    %% ============ REPOSITORY -> DTO / MODEL ============
+    OrderRepository ..> ServiceRequestPayload : consumes
+    OrderRepository ..> CreatedServiceRequest : returns
+    OrderRepository ..> AcceptBidParams : builds
+    OrderRepository ..> CancelOrderParams : builds
+    OrderRepository --> Bid : returns
+    OrderRepository --> NearbyOrder : returns
+
+    %% ============ MODEL / DTO COMPOSITION ============
+    Bid *-- Bengkel : embeds
+    ServiceRequestPayload ..> ServiceType : tags with
+    OrdersResponse o-- NearbyOrder : contains
+    PlaceBidResponse o-- Bid : contains

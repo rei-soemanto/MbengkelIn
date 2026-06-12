@@ -1,0 +1,294 @@
+---
+config:
+  layout: elk
+  elk:
+    mergeEdges: false
+    nodePlacementStrategy: NETWORK_SIMPLEX
+---
+classDiagram
+    direction TB
+
+    %% ============ VIEWS (Pages) ============
+    class PaymentView["PaymentView"] {
+        <<SwiftUI View>>
+        -PaymentViewModel viewModel
+        -String customAmount
+        -Bool showBankSheet
+        -Bool showWithdrawSheet
+        -Int enteredAmount
+        -Bool isAmountValid
+        +some View body
+        -some View balanceCard
+        -some View topUpSection
+        -some View withdrawSection
+        -some View historySection
+        -some View withdrawalHistorySection
+    }
+
+    class WithdrawView["WithdrawView"] {
+        <<SwiftUI View>>
+        +PaymentViewModel viewModel
+        -DismissAction dismiss
+        -String amountText
+        -Int amount
+        -String? amountError
+        -Bool isValid
+        +some View body
+    }
+
+    class BankDetailsView["BankDetailsView"] {
+        <<SwiftUI View>>
+        +PaymentViewModel viewModel
+        -DismissAction dismiss
+        -IndonesianBank? selectedBank
+        -String accountNumber
+        -String accountName
+        -String? accountNumberError
+        -Bool isValid
+        +some View body
+    }
+
+    class MidtransPaymentSheet["MidtransPaymentSheet"] {
+        <<SwiftUI View>>
+        +URL url
+        +Closure onFinish
+        -DismissAction dismiss
+        +some View body
+    }
+
+    %% ============ VIEWS (Components) ============
+    class MidtransWebView["MidtransWebView"] {
+        <<UIViewRepresentable>>
+        +URL url
+        +Closure onFinish
+        +makeCoordinator() Coordinator
+        +makeUIView(context) WKWebView
+        +updateUIView(uiView, context) void
+    }
+
+    class Coordinator["MidtransWebView.Coordinator"] {
+        <<WKNavigationDelegate>>
+        +Closure onFinish
+        +init(onFinish)
+        +webView(webView, decidePolicyFor, decisionHandler) void
+    }
+
+    class TopupHistoryRow["TopupHistoryRow"] {
+        <<SwiftUI View>>
+        +Topup topup
+        -Bool isResumable
+        -Color statusColor
+        -String statusLabel
+        +some View body
+    }
+
+    class WithdrawalHistoryRow["WithdrawalHistoryRow"] {
+        <<SwiftUI View>>
+        +Withdrawal withdrawal
+        -Color statusColor
+        -String statusLabel
+        +some View body
+    }
+
+    %% ============ VIEWMODEL ============
+    class PaymentViewModel["PaymentViewModel"] {
+        <<ViewModel / ObservableObject>>
+        +Double balance
+        +Double heldBalance
+        +Topup[] topups
+        +Withdrawal[] withdrawals
+        +Bool isLoading
+        +String? errorMessage
+        +String? successMessage
+        +String bankName
+        +String bankAccountNumber
+        +String bankAccountName
+        +PaymentTarget? paymentTarget
+        +String? currentOrderId
+        +Int[] presetAmounts
+        +Int minTopupAmount
+        +Int maxTopupAmount
+        +Bool hasBankDetails
+        +Double availableBalance
+        -AuthService authService
+        -UserRepository userRepository
+        -TopupRepository topupRepository
+        -WithdrawalRepository withdrawalRepository
+        -PaymentService paymentService
+        -RealtimeChannelV2? realtimeChannel
+        -Task[] realtimeReaderTasks
+        -Set~String~ knownSuccessTopupIds
+        -Bool didLoadTopupsOnce
+        +start() async
+        +startRealtimeSubscription() async
+        +stop() void
+        +refresh() async
+        -detectSuccessfulTopups(fetched) void
+        +startTopup(amount) async
+        +saveBankDetails(bankName, accountNumber, accountName) async Bool
+        +requestWithdrawal(amount) async Bool
+        +resumeTopup(topup) void
+        +paymentFlowFinished() async
+        -deinit()
+    }
+
+    class PaymentTarget["PaymentTarget"] {
+        <<Identifiable>>
+        +UUID id
+        +URL url
+    }
+
+    %% ============ SERVICE ============
+    class PaymentService["PaymentService"] {
+        <<Service>>
+        +createTopup(amount) async CreateTopupResponse
+    }
+
+    %% ============ REPOSITORIES ============
+    class UserRepository["UserRepository"] {
+        <<Repository>>
+        +fetchUser(uid) async User
+        +updateProfile(uid, payload) async
+        +updateProfileImageUrl(uid, payload) async
+        +updateBankDetails(uid, payload) async
+        +deleteUser(uid) async
+    }
+
+    class TopupRepository["TopupRepository"] {
+        <<Repository>>
+        +fetchTopups(userId) async Topup[]
+    }
+
+    class WithdrawalRepository["WithdrawalRepository"] {
+        <<Repository>>
+        +fetchWithdrawals(userId) async Withdrawal[]
+        +requestWithdrawal(amount) async
+    }
+
+    %% ============ DTOs ============
+    class CreateTopupRequest["CreateTopupRequest"] {
+        <<DTO Encodable>>
+        +String action
+        +Int amount
+    }
+
+    class CreateTopupResponse["CreateTopupResponse"] {
+        <<DTO Decodable>>
+        +String order_id
+        +String redirect_url
+        +String token
+    }
+
+    class BankDetailsUpdatePayload["BankDetailsUpdatePayload"] {
+        <<DTO Encodable>>
+        +String bank_name
+        +String bank_account_number
+        +String bank_account_name
+    }
+
+    class RequestWithdrawalParams["RequestWithdrawalParams"] {
+        <<DTO Encodable>>
+        +Double p_amount
+    }
+
+    %% ============ MODELS ============
+    class Topup["Topup"] {
+        <<Model Codable Identifiable>>
+        +String? id
+        +String userId
+        +String orderId
+        +Double grossAmount
+        +String status
+        +String? paymentType
+        +String? redirectUrl
+        +String? snapToken
+        +Date? createdAt
+        +Date? updatedAt
+        +CodingKeys
+    }
+
+    class Withdrawal["Withdrawal"] {
+        <<Model Codable Identifiable>>
+        +String? id
+        +String userId
+        +Double amount
+        +String? bankName
+        +String? bankAccountNumber
+        +String? bankAccountName
+        +String status
+        +String? notes
+        +Date? createdAt
+        +Date? updatedAt
+        +CodingKeys
+    }
+
+    class IndonesianBank["IndonesianBank"] {
+        <<Identifiable Hashable>>
+        +String id
+        +String name
+        +Int[] accountLengths
+        +IndonesianBank[] all$
+        +String lengthDescription
+        +named(name)$ IndonesianBank?
+        +isValidAccountNumber(accountNumber) Bool
+    }
+
+    class User["User"] {
+        <<Model Codable Identifiable>>
+        +String id
+        +String name
+        +String? profileImageUrl
+        +Double balance
+        +Double? heldBalance
+        +Double? pendingBalance
+        +String? email
+        +String? phoneNumber
+        +String role
+        +String? bankName
+        +String? bankAccountNumber
+        +String? bankAccountName
+        +Double availableBalance
+        +CodingKeys
+    }
+
+    %% ============ RELATIONSHIPS ============
+    %% View -> ViewModel
+    PaymentView "1" *-- "1" PaymentViewModel : owns (@StateObject)
+    WithdrawView --> PaymentViewModel : observes (@ObservedObject)
+    BankDetailsView --> PaymentViewModel : observes (@ObservedObject)
+
+    %% View -> View (routing / containment)
+    PaymentView ..> MidtransPaymentSheet : routes to (sheet)
+    PaymentView ..> BankDetailsView : routes to (sheet)
+    PaymentView ..> WithdrawView : routes to (sheet)
+    PaymentView o-- TopupHistoryRow : contains
+    PaymentView o-- WithdrawalHistoryRow : contains
+    MidtransPaymentSheet *-- MidtransWebView : embeds
+    MidtransWebView *-- Coordinator : manages
+
+    %% ViewModel -> Service / Repositories
+    PaymentViewModel *-- PaymentTarget : has a
+    PaymentViewModel o-- PaymentService : delegates to
+    PaymentViewModel o-- UserRepository : delegates to
+    PaymentViewModel o-- TopupRepository : delegates to
+    PaymentViewModel o-- WithdrawalRepository : delegates to
+
+    %% ViewModel -> Models (holds state)
+    PaymentViewModel "1" o-- "*" Topup : holds
+    PaymentViewModel "1" o-- "*" Withdrawal : holds
+
+    %% View -> Model (display data)
+    TopupHistoryRow --> Topup : displays
+    WithdrawalHistoryRow --> Withdrawal : displays
+    BankDetailsView ..> IndonesianBank : selects
+
+    %% Service -> DTOs
+    PaymentService ..> CreateTopupRequest : builds
+    PaymentService ..> CreateTopupResponse : returns
+
+    %% Repositories -> DTOs / Models
+    UserRepository ..> BankDetailsUpdatePayload : consumes
+    UserRepository --> User : returns
+    TopupRepository --> Topup : returns
+    WithdrawalRepository ..> RequestWithdrawalParams : consumes
+    WithdrawalRepository --> Withdrawal : returns
