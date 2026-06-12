@@ -69,6 +69,9 @@
     border-radius: 999px; padding: 4px 12px; white-space: nowrap;
   }
   .badge.pass { color: #fff; background: #1a7f37; }
+  td.result { white-space: nowrap; text-align: center; }
+  td.result .badge { font-size: 11px; padding: 2px 8px; }
+  thead th:last-child { text-align: center; }
   .results table th {
     text-align: left; white-space: nowrap; width: 150px;
     font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;
@@ -118,7 +121,7 @@
   <p class="scope">Login and sign-up (register) flows, driven through a mocked <code>AuthService</code> + <code>UserRepository</code>.</p>
   <table>
     <thead>
-      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th><th>Result</th></tr>
     </thead>
     <tbody>
       <tr>
@@ -126,24 +129,28 @@
         <td class="name">loginSuccessSetsSessionAndUser</td>
         <td>Valid credentials; auth returns a session and the user row resolves.</td>
         <td>Session set, <code>currentUser.name</code> = "Budi", email merged, no error, <code>isLoading</code> false, sign-in called once.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">2</td>
         <td class="name">loginFailureSetsErrorMessageAndNoSession</td>
         <td>Auth sign-in throws "Email atau kata sandi salah".</td>
         <td>No session, no current user, error message surfaced, <code>isLoading</code> false.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">3</td>
         <td class="name">signUpSuccessSignsOutAndReportsSuccess</td>
         <td>New account registered successfully.</td>
         <td>Sign-up + sign-out each called once, request carries name/phone/email, no session, success message set, no error.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">4</td>
         <td class="name">signUpFailureSetsErrorAndDoesNotSignOut</td>
         <td>Sign-up throws "Email sudah terdaftar".</td>
         <td>Error surfaced, sign-out never called, no success message, <code>isLoading</code> false.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
     </tbody>
   </table>
@@ -155,7 +162,7 @@
   <p class="scope">Vehicle CRUD orchestration, driven through a mocked <code>VehicleRepository</code> + auth.</p>
   <table>
     <thead>
-      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th><th>Result</th></tr>
     </thead>
     <tbody>
       <tr>
@@ -163,42 +170,49 @@
         <td class="name">addVehicleSuccessInsertsAndRefreshes</td>
         <td>Add a vehicle with a valid session.</td>
         <td>Returns true, insert called once with correct manufacturer + customer id, list has 1 vehicle, no error.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">2</td>
         <td class="name">addVehicleFailureSetsError</td>
         <td>Repository insert throws "DB down".</td>
         <td>Returns false, error = "DB down", vehicle list empty, <code>isLoading</code> false.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">3</td>
         <td class="name">addVehicleWithoutSessionReturnsFalse</td>
         <td>No session configured; <code>getCurrentSession</code> throws.</td>
         <td>Returns false, insert never called, <code>isLoading</code> false.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">4</td>
         <td class="name">updateVehicleSuccessSendsPayload</td>
         <td>Update an existing vehicle.</td>
         <td>Returns true, update called once with payload (Toyota / "L 9 XYZ"), success message set.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">5</td>
         <td class="name">updateVehicleFailureSetsError</td>
         <td>Repository update throws "update failed".</td>
         <td>Returns false, error surfaced, <code>isLoading</code> false.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">6</td>
         <td class="name">deleteVehicleSuccessRemovesFromList</td>
         <td>Delete a stored vehicle.</td>
         <td>Returns true, delete called once, vehicle list empty afterwards.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">7</td>
         <td class="name">deleteVehicleFailureSetsError</td>
         <td>Repository delete throws "delete failed".</td>
         <td>Returns false, error = "delete failed".</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
     </tbody>
   </table>
@@ -210,7 +224,7 @@
   <p class="scope">Bengkel register/update and offered-service CRUD, through a mocked auth + <code>BengkelRepository</code>.</p>
   <table>
     <thead>
-      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th><th>Result</th></tr>
     </thead>
     <tbody>
       <tr>
@@ -218,60 +232,70 @@
         <td class="name">registerBengkelSuccess</td>
         <td>Register a workshop with a valid session.</td>
         <td>Returns true, insert called once, record carries name + provider uid + status "Pending", success message set.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">2</td>
         <td class="name">registerBengkelRequiresSession</td>
         <td>No session; <code>getCurrentSession</code> throws.</td>
         <td>Returns false, insert never called, error = "Anda harus masuk untuk mendaftarkan Bengkel."</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">3</td>
         <td class="name">registerBengkelInsertFailure</td>
         <td>Repository insert throws "insert failed".</td>
         <td>Returns false, error surfaced, <code>isLoading</code> false.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">4</td>
         <td class="name">updateBengkelSuccessSendsPayload</td>
         <td>Update workshop name + address.</td>
         <td>Returns true, update called once with payload ("Bengkel Baru" / "Alamat Baru").</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">5</td>
         <td class="name">updateBengkelFailureSetsError</td>
         <td>Repository update throws "update failed".</td>
         <td>Returns false, error surfaced.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">6</td>
         <td class="name">addServiceAppendsAndPersists</td>
         <td>Add an "Aki Kering" service to an existing bengkel.</td>
         <td>Returns true, offered services count 1, first type = <code>.akiKering</code>, services persisted once.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">7</td>
         <td class="name">addServiceWithoutBengkelFails</td>
         <td>Add a service when no bengkel is loaded.</td>
         <td>Returns false, error = "Data bengkel tidak ditemukan."</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">8</td>
         <td class="name">updateServiceMutatesExisting</td>
         <td>Change an existing service's type + active flag.</td>
         <td>Returns true, first service now <code>.banPecah</code> + inactive, services persisted once.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">9</td>
         <td class="name">deleteServiceRemovesMatching</td>
         <td>Delete one of two offered services by id.</td>
         <td>Returns true, count drops to 1, remaining service = <code>.akiKering</code>, persisted once.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">10</td>
         <td class="name">deleteBengkelSuccessClearsState</td>
         <td>Delete the workshop with re-auth (password + email).</td>
         <td>Returns true, delete called once, <code>myBengkel</code> cleared to nil.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
     </tbody>
   </table>
@@ -283,7 +307,7 @@
   <p class="scope">Pure ordering logic (service selection, tire-count pricing, form reset) plus the backend-free <code>createOrder()</code> validation ladder — every guard runs before any upload, so it is tested without Supabase.</p>
   <table>
     <thead>
-      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th><th>Result</th></tr>
     </thead>
     <tbody>
       <tr>
@@ -291,60 +315,70 @@
         <td class="name">selectNonTireService</td>
         <td>Select "Aki Kering" (a non-tire service).</td>
         <td>Estimated price 60,000; <code>requiresTireCount</code> false.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">2</td>
         <td class="name">selectTireServiceAndTireCount</td>
         <td>Select "Ban Gembos", then set tire counts of 3, 9, and 0.</td>
         <td>Base price 25,000 &amp; requires tire count; ×3 → 75,000 with 3 photo slots; 9 clamps to 4; 0 clamps to 1.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">3</td>
         <td class="name">prepareForNewOrderResets</td>
         <td>Configure an order, then call <code>prepareForNewOrder()</code>.</td>
         <td>Service nil, price 0, selected vehicle nil, tire count back to 1.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">4</td>
         <td class="name">createOrderWithoutServiceIsNoOp</td>
         <td>Call <code>createOrder()</code> with nothing selected.</td>
         <td>No error set, <code>navigateToBidding</code> stays false (silent no-op).</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">5</td>
         <td class="name">createOrderWithoutResolvedLocationErrors</td>
         <td>Service + address set but location never resolved (GPS/map/search).</td>
         <td>Error "Tentukan lokasi kamu dulu…", no navigation.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">6</td>
         <td class="name">createOrderWithoutAnyVehicleErrors</td>
         <td>Resolved location, valid service, but the vehicle list is empty.</td>
         <td>Error "Tambahkan kendaraan di menu Profil terlebih dahulu."</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">7</td>
         <td class="name">createOrderWithoutSelectedVehicleErrors</td>
         <td>Vehicles exist but none is selected.</td>
         <td>Error "Pilih kendaraan yang bermasalah."</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">8</td>
         <td class="name">createOrderTireServiceMissingPhotosErrors</td>
         <td>"Ban Gembos" with a valid vehicle but no tire photos attached.</td>
         <td>Error "Mohon sertakan 1 foto kondisi ban (satu per ban)."</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">9</td>
         <td class="name">requiresTireCountTracksServiceType</td>
         <td>Switch selection none → "Aki Kering" → "Ban Gembos".</td>
         <td><code>requiresTireCount</code> false, false, then true.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">10</td>
         <td class="name">cancelLoadingResetsPhase</td>
         <td>Set a <code>.loading</code> phase, then call <code>cancelLoading()</code>.</td>
         <td><code>loadingPhase</code> back to <code>.idle</code>.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
     </tbody>
   </table>
@@ -356,7 +390,7 @@
   <p class="scope">Customer-side bidding setup: minimum-price derivation, resuming an existing order, the <code>startSearch</code> floor guard, countdown-progress math, and the ISO8601 timestamp parser that schedules bid expiry.</p>
   <table>
     <thead>
-      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th><th>Result</th></tr>
     </thead>
     <tbody>
       <tr>
@@ -364,60 +398,70 @@
         <td class="name">nonTireMinPrice</td>
         <td>Init with "Aki Kering", tire count 1.</td>
         <td><code>minPrice</code> = 60,000 and initial <code>customerBidPrice</code> = 60,000.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">2</td>
         <td class="name">tireMinPriceScalesWithCount</td>
         <td>Init with "Ban Gembos", tire count 2.</td>
         <td><code>minPrice</code> = 50,000 (25,000 × 2).</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">3</td>
         <td class="name">resumingOrder</td>
         <td>Resume from a decoded <code>NearbyOrder</code> ("Ban Pecah", price 99,000).</td>
         <td>Request id "r1", bid price 99,000, <code>isSearching</code> true, vehicle id "v9", vehicle info "Y".</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">4</td>
         <td class="name">startSearchBelowMinPriceIsRejected</td>
         <td>Call <code>startSearch</code> with a price below <code>minPrice</code> (60,000).</td>
         <td>Error mentions "minimal", <code>isStartingSearch</code> false, no order created — guard returns before any backend call.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">5</td>
         <td class="name">searchProgressReflectsRemainingFraction</td>
         <td>Total seconds, then remaining 60 and 120.</td>
         <td><code>searchTotalSeconds</code> 120; <code>searchProgress</code> 0 → 0.5 → 1.0 (guarded against divide-by-zero).</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">6</td>
         <td class="name">raisePriceLeavesSearchingState</td>
         <td>While searching, the customer chooses to raise the price.</td>
         <td><code>isSearching</code> false, <code>showRetryPrompt</code> false.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">7</td>
         <td class="name">parseISODateAcceptsFractionalSeconds</td>
         <td>Timestamp with 6 fractional digits + "Z".</td>
         <td>Parses to a non-nil <code>Date</code>.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">8</td>
         <td class="name">parseISODateAcceptsPlainInternetDateTime</td>
         <td>Timestamp without fractional seconds.</td>
         <td>Parses to a non-nil <code>Date</code> (fallback formatter).</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">9</td>
         <td class="name">parseISODateAcceptsFractionalWithOffset</td>
         <td>Fractional seconds with a "+07:00" offset.</td>
         <td>Parses to a non-nil <code>Date</code>.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">10</td>
         <td class="name">parseISODateRejectsGarbage</td>
         <td>A non-date string.</td>
         <td>Returns nil.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
     </tbody>
   </table>
@@ -429,7 +473,7 @@
   <p class="scope">Balance arithmetic (available balance, bank-detail completeness) plus the money-input guards — top-up bounds, withdrawal rules, and resume-topup — each of which returns before the first <code>await</code>.</p>
   <table>
     <thead>
-      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th><th>Result</th></tr>
     </thead>
     <tbody>
       <tr>
@@ -437,72 +481,84 @@
         <td class="name">availableBalanceSubtractsHeld</td>
         <td>Balance 100,000, held 30,000.</td>
         <td>Available balance = 70,000.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">2</td>
         <td class="name">availableBalanceClampsAtZero</td>
         <td>Balance 10,000, held 50,000 (held exceeds balance).</td>
         <td>Available balance clamped to 0 (never negative).</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">3</td>
         <td class="name">availableBalanceEqualsBalanceWhenNoHold</td>
         <td>Balance 42,000, held 0.</td>
         <td>Available balance = 42,000.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">4</td>
         <td class="name">hasBankDetails</td>
         <td>Empty bank fields, then fill name + account number + account name.</td>
         <td><code>hasBankDetails</code> false initially, true once all three are set.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">5</td>
         <td class="name">topupBelowMinimumIsRejected</td>
         <td>Top up <code>minTopupAmount − 1</code>.</td>
         <td>Error contains "Minimal top up", no <code>paymentTarget</code>, <code>isLoading</code> false.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">6</td>
         <td class="name">topupAboveMaximumIsRejected</td>
         <td>Top up <code>maxTopupAmount + 1</code>.</td>
         <td>Error contains "Maksimal top up", no <code>paymentTarget</code>.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">7</td>
         <td class="name">withdrawalBelowMinimumIsRejected</td>
         <td>Request a withdrawal of 9,999.</td>
         <td>Returns false, error "Minimal penarikan Rp10.000".</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">8</td>
         <td class="name">withdrawalExceedingBalanceIsRejected</td>
         <td>Balance 20,000, request 50,000.</td>
         <td>Returns false, error "Saldo tidak mencukupi."</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">9</td>
         <td class="name">withdrawalWithoutBankDetailsIsRejected</td>
         <td>Sufficient balance but no bank details on file.</td>
         <td>Returns false, error "Atur rekening bank terlebih dahulu."</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">10</td>
         <td class="name">resumePendingTopupOpensPaymentTarget</td>
         <td>Resume a <code>pending</code> top-up that carries a redirect URL.</td>
         <td><code>paymentTarget</code> set, <code>currentOrderId</code> = "o1".</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">11</td>
         <td class="name">resumeSettledTopupIsIgnored</td>
         <td>Resume a <code>success</code> top-up.</td>
         <td>No-op: <code>paymentTarget</code> nil, <code>currentOrderId</code> nil.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">12</td>
         <td class="name">resumePendingTopupWithoutUrlIsIgnored</td>
         <td>Resume a <code>pending</code> top-up with no redirect URL.</td>
         <td>No-op: <code>paymentTarget</code> nil.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
     </tbody>
   </table>
@@ -514,7 +570,7 @@
   <p class="scope">Completion-state derivation from the decoded order and the customer-vs-provider role — <code>status</code>, <code>isFinished</code>, and <code>mySideCompleted</code> are pure computed properties, no backend involved.</p>
   <table>
     <thead>
-      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th><th>Result</th></tr>
     </thead>
     <tbody>
       <tr>
@@ -522,24 +578,28 @@
         <td class="name">defaultsBeforeAnyOrderLoaded</td>
         <td>VM constructed, no order pushed yet.</td>
         <td><code>status</code> "On Progress", <code>isFinished</code> false, <code>mySideCompleted</code> false.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">2</td>
         <td class="name">doneAndCancelledCountAsFinished</td>
         <td>Order status set to "Done", then "Cancelled".</td>
         <td><code>isFinished</code> true in both cases.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">3</td>
         <td class="name">mySideCompletedUsesCustomerFlagForCustomer</td>
         <td>Customer role; only <code>provider_completed</code>, then only <code>customer_completed</code>.</td>
         <td><code>mySideCompleted</code> false, then true (reads the customer flag).</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">4</td>
         <td class="name">mySideCompletedUsesProviderFlagForProvider</td>
         <td>Provider role; only <code>customer_completed</code>, then only <code>provider_completed</code>.</td>
         <td><code>mySideCompleted</code> false, then true (reads the provider flag).</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
     </tbody>
   </table>
@@ -551,7 +611,7 @@
   <p class="scope">The star-count guard in <code>submit()</code> runs before any repository call, so out-of-range ratings are rejected deterministically.</p>
   <table>
     <thead>
-      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th><th>Result</th></tr>
     </thead>
     <tbody>
       <tr>
@@ -559,18 +619,21 @@
         <td class="name">zeroStarsIsRejected</td>
         <td>Submit with rating 0.</td>
         <td>Returns false, error "Pilih jumlah bintang terlebih dahulu.", <code>isSubmitting</code> false.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">2</td>
         <td class="name">aboveFiveStarsIsRejected</td>
         <td>Submit with rating 6.</td>
         <td>Returns false, same star-count error.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">3</td>
         <td class="name">negativeRatingIsRejected</td>
         <td>Submit with rating −3.</td>
         <td>Returns false.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
     </tbody>
   </table>
@@ -582,7 +645,7 @@
   <p class="scope">The bengkel route screen's only fully backend-free surface: <code>status</code> mirrors the tracked order, defaulting to "To Do" before one loads.</p>
   <table>
     <thead>
-      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th><th>Result</th></tr>
     </thead>
     <tbody>
       <tr>
@@ -590,12 +653,14 @@
         <td class="name">statusDefaultsToToDoBeforeOrderLoads</td>
         <td>VM constructed, no order set.</td>
         <td><code>status</code> == "To Do".</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
       <tr>
         <td class="idx">2</td>
         <td class="name">statusReflectsLoadedOrder</td>
         <td>Order set to "On Progress", then "Done".</td>
         <td><code>status</code> tracks each value.</td>
+      <td class="result"><span class="badge pass">✔ Pass</span></td>
       </tr>
     </tbody>
   </table>
