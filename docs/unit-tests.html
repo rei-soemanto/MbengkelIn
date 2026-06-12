@@ -74,7 +74,7 @@
 <header>
   <h1>MbengkelIn — Unit Test Documentation</h1>
   <p class="sub">XCTest / Swift Testing suite, grouped per ViewModel.</p>
-  <p class="meta">Target: <code>MbengkelInUnitTests</code> &nbsp;·&nbsp; 6 ViewModels &nbsp;·&nbsp; 31 test cases</p>
+  <p class="meta">Target: <code>MbengkelInUnitTests</code> &nbsp;·&nbsp; 9 ViewModels &nbsp;·&nbsp; 62 test cases</p>
 </header>
 
 <!-- AuthViewModel -->
@@ -244,8 +244,8 @@
 
 <!-- OrderViewModel -->
 <section>
-  <h2>OrderViewModel <span class="count">3 tests</span></h2>
-  <p class="scope">Pure ordering logic: service selection, tire-count pricing, and form reset.</p>
+  <h2>OrderViewModel <span class="count">10 tests</span></h2>
+  <p class="scope">Pure ordering logic (service selection, tire-count pricing, form reset) plus the backend-free <code>createOrder()</code> validation ladder — every guard runs before any upload, so it is tested without Supabase.</p>
   <table>
     <thead>
       <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
@@ -269,14 +269,56 @@
         <td>Configure an order, then call <code>prepareForNewOrder()</code>.</td>
         <td>Service nil, price 0, selected vehicle nil, tire count back to 1.</td>
       </tr>
+      <tr>
+        <td class="idx">4</td>
+        <td class="name">createOrderWithoutServiceIsNoOp</td>
+        <td>Call <code>createOrder()</code> with nothing selected.</td>
+        <td>No error set, <code>navigateToBidding</code> stays false (silent no-op).</td>
+      </tr>
+      <tr>
+        <td class="idx">5</td>
+        <td class="name">createOrderWithoutResolvedLocationErrors</td>
+        <td>Service + address set but location never resolved (GPS/map/search).</td>
+        <td>Error "Tentukan lokasi kamu dulu…", no navigation.</td>
+      </tr>
+      <tr>
+        <td class="idx">6</td>
+        <td class="name">createOrderWithoutAnyVehicleErrors</td>
+        <td>Resolved location, valid service, but the vehicle list is empty.</td>
+        <td>Error "Tambahkan kendaraan di menu Profil terlebih dahulu."</td>
+      </tr>
+      <tr>
+        <td class="idx">7</td>
+        <td class="name">createOrderWithoutSelectedVehicleErrors</td>
+        <td>Vehicles exist but none is selected.</td>
+        <td>Error "Pilih kendaraan yang bermasalah."</td>
+      </tr>
+      <tr>
+        <td class="idx">8</td>
+        <td class="name">createOrderTireServiceMissingPhotosErrors</td>
+        <td>"Ban Gembos" with a valid vehicle but no tire photos attached.</td>
+        <td>Error "Mohon sertakan 1 foto kondisi ban (satu per ban)."</td>
+      </tr>
+      <tr>
+        <td class="idx">9</td>
+        <td class="name">requiresTireCountTracksServiceType</td>
+        <td>Switch selection none → "Aki Kering" → "Ban Gembos".</td>
+        <td><code>requiresTireCount</code> false, false, then true.</td>
+      </tr>
+      <tr>
+        <td class="idx">10</td>
+        <td class="name">cancelLoadingResetsPhase</td>
+        <td>Set a <code>.loading</code> phase, then call <code>cancelLoading()</code>.</td>
+        <td><code>loadingPhase</code> back to <code>.idle</code>.</td>
+      </tr>
     </tbody>
   </table>
 </section>
 
 <!-- CustomerBiddingViewModel -->
 <section>
-  <h2>CustomerBiddingViewModel <span class="count">3 tests</span></h2>
-  <p class="scope">Customer-side bidding setup: minimum-price derivation and resuming an existing order.</p>
+  <h2>CustomerBiddingViewModel <span class="count">10 tests</span></h2>
+  <p class="scope">Customer-side bidding setup: minimum-price derivation, resuming an existing order, the <code>startSearch</code> floor guard, countdown-progress math, and the ISO8601 timestamp parser that schedules bid expiry.</p>
   <table>
     <thead>
       <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
@@ -300,14 +342,56 @@
         <td>Resume from a decoded <code>NearbyOrder</code> ("Ban Pecah", price 99,000).</td>
         <td>Request id "r1", bid price 99,000, <code>isSearching</code> true, vehicle id "v9", vehicle info "Y".</td>
       </tr>
+      <tr>
+        <td class="idx">4</td>
+        <td class="name">startSearchBelowMinPriceIsRejected</td>
+        <td>Call <code>startSearch</code> with a price below <code>minPrice</code> (60,000).</td>
+        <td>Error mentions "minimal", <code>isStartingSearch</code> false, no order created — guard returns before any backend call.</td>
+      </tr>
+      <tr>
+        <td class="idx">5</td>
+        <td class="name">searchProgressReflectsRemainingFraction</td>
+        <td>Total seconds, then remaining 60 and 120.</td>
+        <td><code>searchTotalSeconds</code> 120; <code>searchProgress</code> 0 → 0.5 → 1.0 (guarded against divide-by-zero).</td>
+      </tr>
+      <tr>
+        <td class="idx">6</td>
+        <td class="name">raisePriceLeavesSearchingState</td>
+        <td>While searching, the customer chooses to raise the price.</td>
+        <td><code>isSearching</code> false, <code>showRetryPrompt</code> false.</td>
+      </tr>
+      <tr>
+        <td class="idx">7</td>
+        <td class="name">parseISODateAcceptsFractionalSeconds</td>
+        <td>Timestamp with 6 fractional digits + "Z".</td>
+        <td>Parses to a non-nil <code>Date</code>.</td>
+      </tr>
+      <tr>
+        <td class="idx">8</td>
+        <td class="name">parseISODateAcceptsPlainInternetDateTime</td>
+        <td>Timestamp without fractional seconds.</td>
+        <td>Parses to a non-nil <code>Date</code> (fallback formatter).</td>
+      </tr>
+      <tr>
+        <td class="idx">9</td>
+        <td class="name">parseISODateAcceptsFractionalWithOffset</td>
+        <td>Fractional seconds with a "+07:00" offset.</td>
+        <td>Parses to a non-nil <code>Date</code>.</td>
+      </tr>
+      <tr>
+        <td class="idx">10</td>
+        <td class="name">parseISODateRejectsGarbage</td>
+        <td>A non-date string.</td>
+        <td>Returns nil.</td>
+      </tr>
     </tbody>
   </table>
 </section>
 
 <!-- PaymentViewModel -->
 <section>
-  <h2>PaymentViewModel <span class="count">4 tests</span></h2>
-  <p class="scope">Balance arithmetic: available balance (balance − held, clamped) and bank-detail completeness.</p>
+  <h2>PaymentViewModel <span class="count">12 tests</span></h2>
+  <p class="scope">Balance arithmetic (available balance, bank-detail completeness) plus the money-input guards — top-up bounds, withdrawal rules, and resume-topup — each of which returns before the first <code>await</code>.</p>
   <table>
     <thead>
       <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
@@ -337,12 +421,153 @@
         <td>Empty bank fields, then fill name + account number + account name.</td>
         <td><code>hasBankDetails</code> false initially, true once all three are set.</td>
       </tr>
+      <tr>
+        <td class="idx">5</td>
+        <td class="name">topupBelowMinimumIsRejected</td>
+        <td>Top up <code>minTopupAmount − 1</code>.</td>
+        <td>Error contains "Minimal top up", no <code>paymentTarget</code>, <code>isLoading</code> false.</td>
+      </tr>
+      <tr>
+        <td class="idx">6</td>
+        <td class="name">topupAboveMaximumIsRejected</td>
+        <td>Top up <code>maxTopupAmount + 1</code>.</td>
+        <td>Error contains "Maksimal top up", no <code>paymentTarget</code>.</td>
+      </tr>
+      <tr>
+        <td class="idx">7</td>
+        <td class="name">withdrawalBelowMinimumIsRejected</td>
+        <td>Request a withdrawal of 9,999.</td>
+        <td>Returns false, error "Minimal penarikan Rp10.000".</td>
+      </tr>
+      <tr>
+        <td class="idx">8</td>
+        <td class="name">withdrawalExceedingBalanceIsRejected</td>
+        <td>Balance 20,000, request 50,000.</td>
+        <td>Returns false, error "Saldo tidak mencukupi."</td>
+      </tr>
+      <tr>
+        <td class="idx">9</td>
+        <td class="name">withdrawalWithoutBankDetailsIsRejected</td>
+        <td>Sufficient balance but no bank details on file.</td>
+        <td>Returns false, error "Atur rekening bank terlebih dahulu."</td>
+      </tr>
+      <tr>
+        <td class="idx">10</td>
+        <td class="name">resumePendingTopupOpensPaymentTarget</td>
+        <td>Resume a <code>pending</code> top-up that carries a redirect URL.</td>
+        <td><code>paymentTarget</code> set, <code>currentOrderId</code> = "o1".</td>
+      </tr>
+      <tr>
+        <td class="idx">11</td>
+        <td class="name">resumeSettledTopupIsIgnored</td>
+        <td>Resume a <code>success</code> top-up.</td>
+        <td>No-op: <code>paymentTarget</code> nil, <code>currentOrderId</code> nil.</td>
+      </tr>
+      <tr>
+        <td class="idx">12</td>
+        <td class="name">resumePendingTopupWithoutUrlIsIgnored</td>
+        <td>Resume a <code>pending</code> top-up with no redirect URL.</td>
+        <td>No-op: <code>paymentTarget</code> nil.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- OrderCompletionViewModel -->
+<section>
+  <h2>OrderCompletionViewModel <span class="count">4 tests</span></h2>
+  <p class="scope">Completion-state derivation from the decoded order and the customer-vs-provider role — <code>status</code>, <code>isFinished</code>, and <code>mySideCompleted</code> are pure computed properties, no backend involved.</p>
+  <table>
+    <thead>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="idx">1</td>
+        <td class="name">defaultsBeforeAnyOrderLoaded</td>
+        <td>VM constructed, no order pushed yet.</td>
+        <td><code>status</code> "On Progress", <code>isFinished</code> false, <code>mySideCompleted</code> false.</td>
+      </tr>
+      <tr>
+        <td class="idx">2</td>
+        <td class="name">doneAndCancelledCountAsFinished</td>
+        <td>Order status set to "Done", then "Cancelled".</td>
+        <td><code>isFinished</code> true in both cases.</td>
+      </tr>
+      <tr>
+        <td class="idx">3</td>
+        <td class="name">mySideCompletedUsesCustomerFlagForCustomer</td>
+        <td>Customer role; only <code>provider_completed</code>, then only <code>customer_completed</code>.</td>
+        <td><code>mySideCompleted</code> false, then true (reads the customer flag).</td>
+      </tr>
+      <tr>
+        <td class="idx">4</td>
+        <td class="name">mySideCompletedUsesProviderFlagForProvider</td>
+        <td>Provider role; only <code>customer_completed</code>, then only <code>provider_completed</code>.</td>
+        <td><code>mySideCompleted</code> false, then true (reads the provider flag).</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- OrderRatingViewModel -->
+<section>
+  <h2>OrderRatingViewModel <span class="count">3 tests</span></h2>
+  <p class="scope">The star-count guard in <code>submit()</code> runs before any repository call, so out-of-range ratings are rejected deterministically.</p>
+  <table>
+    <thead>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="idx">1</td>
+        <td class="name">zeroStarsIsRejected</td>
+        <td>Submit with rating 0.</td>
+        <td>Returns false, error "Pilih jumlah bintang terlebih dahulu.", <code>isSubmitting</code> false.</td>
+      </tr>
+      <tr>
+        <td class="idx">2</td>
+        <td class="name">aboveFiveStarsIsRejected</td>
+        <td>Submit with rating 6.</td>
+        <td>Returns false, same star-count error.</td>
+      </tr>
+      <tr>
+        <td class="idx">3</td>
+        <td class="name">negativeRatingIsRejected</td>
+        <td>Submit with rating −3.</td>
+        <td>Returns false.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- BengkelRouteViewModel -->
+<section>
+  <h2>BengkelRouteViewModel <span class="count">2 tests</span></h2>
+  <p class="scope">The bengkel route screen's only fully backend-free surface: <code>status</code> mirrors the tracked order, defaulting to "To Do" before one loads.</p>
+  <table>
+    <thead>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="idx">1</td>
+        <td class="name">statusDefaultsToToDoBeforeOrderLoads</td>
+        <td>VM constructed, no order set.</td>
+        <td><code>status</code> == "To Do".</td>
+      </tr>
+      <tr>
+        <td class="idx">2</td>
+        <td class="name">statusReflectsLoadedOrder</td>
+        <td>Order set to "On Progress", then "Done".</td>
+        <td><code>status</code> tracks each value.</td>
+      </tr>
     </tbody>
   </table>
 </section>
 
 <footer>
-  Generated from <code>MbengkelInUnitTests</code> · Swift Testing (<code>@Suite</code> / <code>@Test</code>). ViewModel logic only — repositories and services are mocked, network/DB paths are out of scope.
+  Generated from <code>MbengkelInUnitTests</code> · Swift Testing (<code>@Suite</code> / <code>@Test</code>). ViewModel logic only. Auth / Vehicle / Bengkel inject protocol-mocked repositories, so their full orchestration is covered. The remaining ViewModels hard-instantiate their repositories/services against the global Supabase client, so only their <em>backend-free</em> surface is tested — pure computed state and validation guards that run before the first <code>await</code>. Network/DB paths are out of scope until those ViewModels adopt dependency injection.
 </footer>
 
 </div>
