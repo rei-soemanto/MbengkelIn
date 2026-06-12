@@ -1,0 +1,137 @@
+---
+title: MbengkelIn — Order Flow Sequence Diagram
+config:
+  theme: neutral
+  themeVariables:
+    actorLineColor: "#444444"
+    actorBorder: "#444444"
+  sequence:
+    mirrorActors: false
+---
+%% Covers: order screen + OSM map display, customer pin (location picking via pan / search / GPS),
+%% order creation (photo upload + service_requests insert), and live tracking where the
+%% customer pin and bengkel pin are rendered together on the tracking map.
+sequenceDiagram
+    autonumber
+
+    actor C as Customer
+    box rgb(225, 238, 255) SwiftUI Views
+        participant OV as OrderView
+        participant MAP as OrderMapView<br/>(MKMapView + OSMTileOverlay)
+        participant TV as OrderTrackingView<br/>(TrackingMapView)
+    end
+    box rgb(232, 255, 232) ViewModels
+        participant OVM as OrderViewModel
+        participant BVM as CustomerBiddingViewModel
+        participant TVM as OrderTrackingViewModel
+    end
+    box rgb(255, 244, 222) Services and Repositories
+        participant LS as LocationService
+        participant SS as StorageService
+        participant OR as OrderRepository
+        participant OLR as OrderLocationRepository
+    end
+    box rgb(245, 230, 255) External
+        participant OSM as OSM Tile Server<br/>tile.openstreetmap.org
+        participant PH as Photon API<br/>photon.komoot.io
+        participant SB as Supabase<br/>(DB + Storage + Realtime)
+        actor B as Bengkel (provider app)
+    end
+
+    %% ============================================================
+    rect rgb(238, 246, 255)
+        Note over C, OSM: 1. Open order screen and display the map (OSM tiles)
+        C->>OV: tap "Buat Pesanan"
+        OV->>OVM: OrderViewModel()
+        OV->>MAP: OrderMapView(region: $viewModel.region)
+        MAP->>MAP: makeUIView() → addOverlay(OSMTileOverlay)
+        loop every visible map tile
+            MAP->>OSM: loadTile(at: z/x/y)
+            OSM-->>MAP: PNG tile
+        end
+        Note over OV, MAP: Customer pin = SwiftUI Image("mappin") overlaid at map center,<br/>allowsHitTesting(false) — the map moves under it (not an annotation)
+    end
+
+    %% ============================================================
+    rect rgb(238, 255, 238)
+        Note over C, PH: 2. Pin the customer location (three ways)
+        alt Drag / pan the map
+            C->>MAP: pan gesture
+            MAP->>MAP: regionDidChangeAnimated() (debounce 0.8s, ignore < 30m)
+            MAP->>OVM: updateLocationFromMap(coordinate)
+            OVM->>LS: fetchAddress(from: coordinate)
+            LS->>PH: GET /reverse?lon&lat
+            PH-->>LS: PhotonSearchResponse
+            LS-->>OVM: address
+            OVM-->>OV: @Published locationAddress
+        else Search an address
+            C->>OV: type in LocationSearchView
+            OV->>OVM: $locationAddress (debounce 400ms)
+            OVM->>LS: searchOSM(query, coordinate)
+            LS->>PH: GET /api/?q&limit&lat&lon
+            PH-->>LS: [PhotonSearchFeature]
+            LS-->>OVM: searchResults
+            OVM-->>OV: result list
+            C->>OV: tap a result
+            OV->>OVM: selectSearchResult(result)
+            OVM-->>MAP: setRegion(animated)
+        else Use current GPS location
+            C->>OV: tap "use current location"
+            OV->>OVM: useCurrentLocation()
+            OVM->>OVM: requestLocation()
+            OVM->>OVM: didUpdateLocations() → region = GPS
+            OVM-->>MAP: setRegion(animated)
+            OVM->>LS: fetchAddress(from: coordinate)
+            LS->>PH: GET /reverse?lon&lat
+            PH-->>LS: address
+            LS-->>OVM: locationAddress
+        end
+        OVM->>OVM: hasResolvedLocation = true
+    end
+
+    %% ============================================================
+    rect rgb(255, 248, 235)
+        Note over C, SB: 3. Create the order
+        C->>OV: pick ServiceType, vehicle, tire photos → tap "Buat Pesanan"
+        OV->>OVM: createOrder()
+        OVM->>OVM: validate(service, vehicle, location, photo count)
+        loop each tire photo
+            OVM->>SS: uploadOrderPhoto(uid, jpegData)
+            SS->>SB: storage.upload("order-photos")
+            SB-->>SS: publicURL
+            SS-->>OVM: url
+        end
+        OVM-->>OV: navigateToBidding = true
+        OV->>BVM: CustomerBiddingView(serviceType, coordinate, …)
+        C->>BVM: startSearch(price)
+        BVM->>SB: userRepository.fetchUser(uid)
+        BVM->>OR: createOrder(payload)
+        OR->>SB: from("service_requests").insert(payload)
+        SB-->>OR: CreatedServiceRequest(id)
+        OR-->>BVM: serviceRequestId
+        BVM->>SB: channel("bids-updates-{id}").subscribe()
+        B->>SB: placeBid(order, price, notes)
+        SB-->>BVM: postgresChange INSERT bids → BidReceivedCard
+        C->>BVM: acceptBid(bid)
+        BVM->>SB: orderRepository.acceptBid(bidId)
+    end
+
+    %% ============================================================
+    rect rgb(248, 240, 255)
+        Note over C, B: 4. Tracking map — customer pin and bengkel pin together
+        C->>TV: OrderTrackingView(bid, customerCoordinate)
+        TV->>TVM: start(serviceRequestId)
+        TVM->>SB: channel("order-tracking-{id}").postgresChange(order_locations, service_requests)
+        TV->>TV: TrackingMapView → customer pin, region = .fitting(customer, nil)
+        loop while order is "On Progress" (live)
+            B->>SB: upsertLocation(OrderLocationPayload)
+            SB-->>TVM: postgresChange event
+            TVM->>OLR: fetchLocation(serviceRequestId)
+            OLR->>SB: from("order_locations").select()
+            SB-->>OLR: OrderLocation
+            OLR-->>TVM: providerCoordinate, isLive = true
+            TVM-->>TV: bengkel pin, region = .fitting(customer, bengkel)
+        end
+        SB-->>TVM: postgresChange UPDATE service_requests
+        TVM-->>TV: refresh status / handle completion
+    end

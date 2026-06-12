@@ -1,0 +1,116 @@
+---
+title: Sistem Bidding — Sequence Diagram
+config:
+  theme: neutral
+  themeVariables:
+    actorLineColor: "#444444"
+    actorBorder: "#444444"
+  sequence:
+    mirrorActors: false
+    messageMargin: 40
+---
+sequenceDiagram
+    autonumber
+
+    actor C as Customer
+    participant CVM as CustomerBiddingViewModel
+    participant DB as Supabase DB<br/>(service_requests, bids, users)
+    participant RT as Supabase Realtime
+    participant EF as bidding Edge Function
+    participant BVM as BengkelBiddingViewModel
+    actor B as Bengkel (Mechanic)
+
+    rect rgb(235, 244, 255)
+    Note over C,DB: Fase 1 — Customer membuat order & mulai mencari bengkel
+    C->>CVM: startSearch(price)
+    CVM->>DB: userRepository.fetchUser(uid)
+    DB-->>CVM: User (balance − held_balance)
+    alt availableBalance ≥ price
+        CVM->>DB: orderRepository.createOrder(payload)
+        Note right of DB: Trigger DB: held_balance += price<br/>(escrow hold di saldo customer)
+        DB-->>CVM: CreatedServiceRequest(id)
+        CVM->>RT: channel("bids-updates-{id}").subscribe()
+        CVM->>CVM: startSearchCountdown()
+        DB-)RT: postgresChange INSERT service_requests<br/>(RLS: order "To Do" tanpa bengkel_id terbaca mechanic)
+    else availableBalance < price
+        CVM-->>C: errorMessage = "Saldo tidak cukup"
+    end
+    end
+
+    rect rgb(255, 247, 230)
+    Note over RT,B: Fase 2 — Bengkel menerima order & memasang tawaran
+    RT-)BVM: postgresChange(service_requests)
+    BVM->>EF: functions.invoke("bidding", "ordersForBengkel")
+    EF->>DB: rpc nearby_service_requests(lat, lng, radius)
+    DB-->>EF: [NearbyOrder]
+    EF-->>BVM: OrdersResponse
+    BVM->>B: notifyNewOrder("Order baru di sekitar!")
+    B->>BVM: placeBid(order, price, notes)
+    BVM->>DB: orderRepository.fetchOrder(id)
+    alt order masih "To Do" & price ≥ harga customer
+        BVM->>EF: functions.invoke("bidding", "placeBid")
+        EF->>DB: INSERT bids (status "Pending")
+        EF-->>BVM: PlaceBidResponse
+        BVM-->>B: push BengkelRouteView
+        DB-)RT: postgresChange INSERT bids
+    else order sudah dibatalkan / diambil
+        BVM-->>B: orderUnavailableAlert
+    end
+    end
+
+    rect rgb(232, 250, 235)
+    Note over C,RT: Fase 3 — Customer menerima tawaran secara realtime
+    RT-)CVM: postgresChange(bids)
+    CVM->>DB: loadReceivedBids()
+    DB-->>CVM: [Bid] (+ bengkel, order by price asc)
+    CVM->>C: notifyNewOrder("Tawaran baru masuk!")
+    CVM->>CVM: scheduleBidExpiry()
+    end
+
+    rect rgb(245, 237, 255)
+    Note over C,B: Fase 4 — Keputusan customer
+    alt Customer menerima tawaran
+        C->>CVM: acceptBid(bid)
+        CVM->>DB: orderRepository.acceptBid(bidId)
+        Note right of DB: rpc accept_bid — SECURITY DEFINER (row lock):<br/>• validasi auth.uid() = customer pemilik<br/>• validasi order masih "To Do"<br/>• validasi availableBalance ≥ price<br/>• bid terpilih → "Accepted"<br/>• bid lain → "AutoRejected"<br/>• order → "On Progress" + bengkel_id + assigned_at
+        DB-->>CVM: NearbyOrder (updated)
+        CVM->>CVM: stopRealtimeSubscription()
+        CVM-->>C: push OrderTrackingView
+        DB-)RT: postgresChange UPDATE bids
+        RT-)BVM: postgresChange(bids, filter provider_uid)
+        BVM->>BVM: loadOrders()
+        alt Bid bengkel ini "Accepted"
+            BVM->>B: notifyNewOrder("Tawaran diterima!")
+        else Bid bengkel lain menang ("AutoRejected")
+            BVM->>B: notifyNewOrder("Order diambil bengkel lain")
+        end
+    else Customer menolak tawaran
+        C->>CVM: rejectBid(bid)
+        CVM->>DB: from("bids").update(BidStatusUpdate("Rejected"))
+        DB-)RT: postgresChange UPDATE bids
+        RT-)BVM: postgresChange(bids)
+        BVM->>B: notifyNewOrder("Tawaran ditolak")
+    else Tawaran tidak direspon 120 detik
+        CVM->>DB: from("bids").update(BidStatusUpdate("Expired"))
+        DB-)RT: postgresChange UPDATE bids
+        RT-)BVM: postgresChange(bids)
+        BVM->>B: notifyNewOrder("Waktu order habis")
+    end
+    end
+
+    rect rgb(255, 235, 235)
+    Note over C,DB: Fase 5 (opsional) — Tidak ada tawaran dalam 120 detik
+    opt expireSearch() tanpa tawaran
+        CVM-->>C: showRetryPrompt
+        alt Customer retry / naikkan harga
+            C->>CVM: retrySamePrice() / raisePrice()
+            CVM->>CVM: startSearchCountdown()
+        else Customer batal atau tidak merespon
+            C->>CVM: cancelAndDelete()
+            CVM->>DB: orderRepository.deleteOrder(id)
+            CVM->>DB: storageService.deleteOrderPhotos(urls)
+            Note right of DB: Trigger DB: held_balance −= price<br/>(escrow hold dilepas)
+            CVM-->>C: shouldDismiss = true
+        end
+    end
+    end

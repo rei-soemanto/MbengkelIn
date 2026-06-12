@@ -1,0 +1,113 @@
+---
+title: Riwayat Pesanan — Sequence Diagram
+config:
+  theme: neutral
+  themeVariables:
+    actorLineColor: "#444444"
+    actorBorder: "#444444"
+  sequence:
+    mirrorActors: false
+    messageMargin: 40
+---
+sequenceDiagram
+    autonumber
+
+    actor C as Customer
+    participant CHV as CustomerHistoryView<br/>(tab Riwayat)
+    participant HVM as HistoryViewModel
+    participant CVM as CustomerBiddingViewModel
+    participant ODV as OrderDetailView<br/>(Rating / Report / LocationPublish VMs)
+    participant DB as Supabase DB<br/>(service_requests, bids, behavior_reports)
+    participant RT as Supabase Realtime
+    participant BHVM as BengkelHistoryViewModel
+    participant BHV as BengkelHistoryView<br/>(tab Pesanan)
+    actor B as Bengkel (Mechanic)
+
+    rect rgb(235, 244, 255)
+    Note over C,DB: Fase 1 — Customer membuka tab Riwayat
+    C->>CHV: buka tab Riwayat
+    CHV->>HVM: .task → loadOrders()
+    HVM->>DB: authService.getCurrentSession()
+    DB-->>HVM: Session (uid lowercased)
+    HVM->>DB: orderRepository.fetchOrders(customerId)
+    DB-->>HVM: [NearbyOrder]
+    HVM->>HVM: sort by priority<br/>(On Progress → To Do → lainnya, terbaru dulu)
+    HVM-->>CHV: orders → daftar OrderHistoryRow
+    end
+
+    rect rgb(255, 247, 230)
+    Note over C,DB: Fase 2 — Customer memilih order (routing per status)
+    C->>CHV: tap OrderHistoryRow
+    CHV->>HVM: select(order)
+    alt status "On Progress" — lanjut tracking
+        HVM->>DB: orderRepository.fetchAcceptedBid(serviceRequestId)
+        DB-->>HVM: Bid? (status "Accepted", + bengkel)
+        alt bid ditemukan
+            HVM-->>CHV: trackingBid + trackingCoordinate
+            CHV-->>C: push OrderTrackingView(bid, coordinate)
+        else bid tidak ada
+            HVM-->>CHV: detailOrder
+            CHV->>ODV: push OrderDetailView(order, isCustomer: true)
+        end
+    else status "To Do" — masuk kembali ke bidding
+        HVM-->>CHV: biddingOrder
+        CHV->>CVM: CustomerBiddingView(resuming: order)<br/>→ init(resuming:) + resume()
+        CVM->>DB: loadReceivedBids()
+        DB-->>CVM: [Bid] (Pending, + bengkel)
+        CVM->>RT: channel("bids-updates-{id}").subscribe()
+        Note over CVM,RT: Pencarian berlanjut — alur selanjutnya<br/>mengikuti Sistem Bidding (bidding-sequence)
+    else status "Done" / "Cancelled" — lihat detail
+        HVM-->>CHV: detailOrder
+        CHV->>ODV: push OrderDetailView(order, isCustomer: true)
+    end
+    end
+
+    rect rgb(232, 250, 235)
+    Note over C,DB: Fase 3 — Detail pesanan: rating & laporan perilaku
+    opt canRate — status "Done" dan belum dirating (isCustomer)
+        C->>ODV: pilih bintang + tulis ulasan → "Kirim Penilaian"
+        ODV->>DB: OrderRatingViewModel.submit →<br/>orderRepository.submitRating(requestId, rating, review)
+        Note right of DB: Trigger DB: tulis rating memicu<br/>recompute average_rating & total_reviews bengkel
+        DB-->>ODV: ok → localRating/localReview tampil tanpa refetch
+    end
+    opt laporkan perilaku (dari OrderHistoryRow)
+        C->>CHV: tap "Laporkan" → sheet ReportBehaviorSheet
+        CHV->>DB: BehaviorReportViewModel.submit →<br/>BehaviorReportRepository.submit(serviceRequestId, reporterId, reason)
+        DB-->>CHV: ok → sheet ditutup
+    end
+    end
+
+    rect rgb(245, 237, 255)
+    Note over DB,B: Fase 4 — Bengkel membuka tab Pesanan (riwayat + live update)
+    B->>BHV: buka tab Pesanan
+    BHV->>BHVM: .task → loadOrders()
+    BHVM->>DB: authService.currentUID()
+    BHVM->>DB: bengkelRepository.fetchBengkel(providerUid)
+    DB-->>BHVM: Bengkel (id)
+    BHVM->>DB: orderRepository.fetchBengkelOrders(bengkelId)
+    DB-->>BHVM: [NearbyOrder] → sorted
+    BHVM->>RT: channel("bengkel-history-{bengkelId}")<br/>postgresChange(service_requests, filter bengkel_id).subscribe()
+    BHVM-->>BHV: orders → daftar OrderHistoryRow
+    loop setiap perubahan order milik bengkel ini
+        DB-)RT: postgresChange UPDATE service_requests
+        RT-)BHVM: event → reload()
+        BHVM->>DB: fetchBengkelOrders(bengkelId)
+        DB-->>BHVM: [NearbyOrder]
+        BHVM-->>BHV: orders ter-update live (tanpa polling)
+    end
+    end
+
+    rect rgb(255, 235, 235)
+    Note over ODV,B: Fase 5 — Bengkel memilih order
+    B->>BHV: tap OrderHistoryRow
+    BHV->>BHVM: select(order) → detailOrder
+    alt status "On Progress" — lanjut pekerjaan
+        BHV-->>B: push BengkelRouteView(order)
+    else status lainnya — lihat detail
+        BHV->>ODV: push OrderDetailView(order, isCustomer: false)
+        opt shouldPublishLocation — bengkel & "On Progress"
+            ODV->>DB: LocationPublishViewModel.start →<br/>OrderLocationRepository.upsertLocation(payload)
+            Note right of DB: order_locations → dibaca customer<br/>via Realtime di OrderTrackingView
+        end
+    end
+    end
