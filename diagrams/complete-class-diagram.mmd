@@ -1,0 +1,1741 @@
+---
+title: MbengkelIn — Complete Application Class Diagram
+config:
+  layout: elk
+  elk:
+    nodePlacementStrategy: NETWORK_SIMPLEX
+    mergeEdges: false
+    cycleBreakingStrategy: DEPTH_FIRST
+---
+classDiagram
+    direction TB
+
+    %% ============================================================
+    %% APP ENTRY
+    %% ============================================================
+    class MbengkelInApp {
+        <<App @main>>
+        -AppDelegate delegate
+        +some View body
+    }
+
+    class AppDelegate {
+        <<AppDelegate>>
+        +didFinishLaunching() Bool
+        +willPresent(notification) UNNotificationPresentationOptions
+    }
+
+    class ContentView {
+        <<SwiftUI View>>
+        -AuthViewModel authViewModel
+        -NetworkMonitor network
+        -BengkelBiddingViewModel bengkelBiddingViewModel
+        -NearbyOrder? bidOrder
+        -ScenePhase scenePhase
+        -Bool isProvider
+        -Bool isBengkelMode
+        +some View body
+        -some View mainTabView
+    }
+
+    class NetworkMonitor {
+        <<Service>>
+        +Bool isConnected
+        +init()
+        +deinit()
+    }
+
+    %% ============================================================
+    %% PROTOCOLS
+    %% ============================================================
+    class AuthServiceProtocol {
+        <<interface>>
+        +getCurrentSession() Session
+        +cachedSession() Session?
+        +authStateChanges() AsyncStream
+        +signIn(email, password) Session
+        +signUp(request) Void
+        +signOut() Void
+        +resetPassword(email) Void
+    }
+
+    class UserRepositoryProtocol {
+        <<interface>>
+        +fetchUser(uid) User
+        +deleteUser(uid) Void
+    }
+
+    class VehicleRepositoryProtocol {
+        <<interface>>
+        +fetchVehicles(customerId) [Vehicle]
+        +insertVehicle(vehicle) Void
+        +updateVehicle(vehicleId, payload) Void
+        +deleteVehicle(vehicleId) Void
+    }
+
+    class BengkelRepositoryProtocol {
+        <<interface>>
+        +fetchBengkel(providerUid) Bengkel
+        +insertBengkel(bengkel) Void
+        +updateBengkel(bengkelId, payload) Void
+        +updateServices(bengkelId, payload) Void
+        +deleteBengkel(bengkelId) Void
+    }
+
+    class LocationSearchable {
+        <<protocol @MainActor>>
+        +String locationAddress
+        +Bool isEditingLocation
+        +Bool isFetchingLocation
+        +[PhotonSearchFeature] searchResults
+        +MKCoordinateRegion region
+        +useCurrentLocation() Void
+        +selectSearchResult(result) Void
+        +updateLocationFromMap(coordinate) Void
+    }
+
+    %% ============================================================
+    %% VIEWMODELS
+    %% ============================================================
+    class AuthViewModel {
+        <<ViewModel @MainActor>>
+        +SupabaseUser? userSession
+        +User? currentUser
+        +Bool isLoading
+        +Bool isInitializing
+        +String? errorMessage
+        +String? successMessage
+        +AppMode appMode
+        -AuthServiceProtocol authService
+        -UserRepositoryProtocol userRepository
+        +init(authService, userRepository, startObserving)
+        +loadInitialSession() async
+        +login(email, password) async
+        +signUp(email, password, name, phoneNumber) async
+        +fetchUser() async
+        +sendPasswordResetEmail() async
+        +deleteAccount(password) async
+        +signOut()
+    }
+
+    class AppMode {
+        <<enumeration>>
+        customer
+        bengkel
+    }
+
+    class ProfileViewModel {
+        <<ViewModel @MainActor>>
+        +Bool isLoading
+        +String? errorMessage
+        +String? successMessage
+        +updateProfile(name, phoneNumber) Bool
+        +uploadProfileImage(data) Bool
+    }
+
+    class VehicleViewModel {
+        <<ViewModel @MainActor>>
+        +[Vehicle] userVehicles
+        +Bool isLoading
+        +String? errorMessage
+        +String? successMessage
+        +init(authService, vehicleRepository)
+        +fetchVehicles() async Void
+        +addVehicle(manufacturer, model, year, licensePlate, color) async Bool
+        +updateVehicle(vehicleId, manufacturer, model, year, licensePlate, color) async Bool
+        +deleteVehicle(vehicleId) async Bool
+    }
+
+    class BengkelViewModel {
+        <<ViewModel @MainActor>>
+        +Bengkel? myBengkel
+        +Bool isLoading
+        +String? errorMessage
+        +String? successMessage
+        +Double todaysEarnings
+        +String locationAddress
+        +Bool isEditingLocation
+        +Bool isFetchingLocation
+        +[PhotonSearchFeature] searchResults
+        +MKCoordinateRegion region
+        +init(authService, bengkelRepository)
+        +registerBengkel(name, address) Bool
+        +fetchMyBengkel(uid)
+        +updateBengkel(bengkelId, name, address) Bool
+        +deleteBengkel(bengkelId, password, email) Bool
+        +addService(bengkelId, serviceType, isActive) Bool
+        +updateService(bengkelId, serviceId, serviceType, isActive) Bool
+        +deleteService(bengkelId, serviceId) Bool
+        +loadTodaysEarnings()
+        +startWatching(uid)
+        +stopWatching()
+        +useCurrentLocation()
+        +selectSearchResult(result)
+        +updateLocationFromMap(coordinate)
+    }
+
+    class OrderViewModel {
+        <<ViewModel @MainActor>>
+        +String locationAddress
+        +String? selectedService
+        +Int estimatedPrice
+        +Bool isFetchingLocation
+        +Bool isEditingLocation
+        +[PhotonSearchFeature] searchResults
+        +String? errorMessage
+        +Int tireCount
+        +[Data?] photosData
+        +Bool navigateToBidding
+        +LoadingPhase loadingPhase
+        +[Vehicle] vehicles
+        +String? selectedVehicleId
+        +Bool requiresTireCount
+        +MKCoordinateRegion region
+        +[String] services
+        +init()
+        +loadVehicles() async Void
+        +prepareForNewOrder() Void
+        +selectService(service) Void
+        +setTireCount(count) Void
+        +createOrder() Void
+        +useCurrentLocation() Void
+        +selectSearchResult(result) Void
+        +updateLocationFromMap(coordinate) Void
+    }
+
+    class CustomerBiddingViewModel {
+        <<ViewModel @MainActor>>
+        +[Bid] bids
+        +Bid? acceptedBid
+        +Bool isLoading
+        +Bool isStartingSearch
+        +String? errorMessage
+        +LoadingPhase loadingPhase
+        +Int minPrice
+        +Int customerBidPrice
+        +Bool isSearching
+        +String? serviceRequestId
+        +Double balance
+        +Int searchSecondsRemaining
+        +ServiceType serviceType
+        +init(serviceType, latitude, longitude, tireCount, photoUrls, vehicleId, vehicleInfo)
+        +init(resuming order)
+        +startSearch(price) Void
+        +retrySamePrice() Void
+        +raisePrice() Void
+        +cancelAndDelete() Void
+        +startRealtimeSubscription() Void
+        +stopRealtimeSubscription() Void
+        +loadReceivedBids() Void
+        +acceptBid(bid) Void
+        +rejectBid(bid) Void
+        +expireBid(bid) Void
+    }
+
+    class BengkelBiddingViewModel {
+        <<ViewModel @MainActor>>
+        +[NearbyOrder] orders
+        +Bengkel? myBengkel
+        +[Bid] myPendingBids
+        +Bool isLoading
+        +String? errorMessage
+        +String? successMessage
+        +NearbyOrder? newOrderAlert
+        +NearbyOrder? activeBengkelOrder
+        +[Bid] myRejectedBids
+        +start() Void
+        +refreshOnForeground() Void
+        +startRealtimeSubscription() Void
+        +stopRealtimeSubscription() Void
+        +loadOrders() Void
+        +placeBid(order, price, notes) Void
+        +handleExpiredOrder(order) Void
+        +expireBid(bid) Void
+        +rejectBid(bid) Void
+    }
+
+    class OrderTrackingViewModel {
+        <<ViewModel @MainActor>>
+        +CLLocationCoordinate2D? providerCoordinate
+        +String? lastUpdated
+        +NearbyOrder? order
+        +Bool isLive
+        +String status
+        +Bool alreadyRated
+        +start(serviceRequestId) async
+        +stop() Void
+        +openDispute(reason) Bool
+        +notifyBengkelNear() Void
+    }
+
+    class BengkelRouteViewModel {
+        <<ViewModel @MainActor>>
+        +NearbyOrder? order
+        +CLLocationCoordinate2D? bengkelCoordinate
+        +CLLocationCoordinate2D? customerLiveCoordinate
+        +String status
+        +init()
+        +start(order) async
+        +stop() Void
+        +reportIssue(reason, photoData) Bool
+    }
+
+    class CustomerLocationPublishViewModel {
+        <<ViewModel @MainActor>>
+        +Bool isPublishing
+        +String? errorMessage
+        +init()
+        +start(serviceRequestId) Void
+        +stop() Void
+    }
+
+    class LocationPublishViewModel {
+        <<ViewModel @MainActor>>
+        +Bool isPublishing
+        +String? errorMessage
+        +init()
+        +start(serviceRequestId, customerCoordinate) Void
+        +stop() Void
+    }
+
+    class OrderCompletionViewModel {
+        <<ViewModel @MainActor>>
+        +NearbyOrder? order
+        +Bool isLoading
+        +String? errorMessage
+        +String requestId
+        +Bool isCustomer
+        +String status
+        +Bool isFinished
+        +Bool mySideCompleted
+        +start()
+        +refresh()
+        +markCompleted(photoData)
+        +startRealtimeSubscription()
+        +stopRealtimeSubscription()
+    }
+
+    class OrderRatingViewModel {
+        <<ViewModel @MainActor>>
+        +Bool isSubmitting
+        +String? errorMessage
+        +submit(requestId, rating, review) async Bool
+    }
+
+    class HistoryViewModel {
+        <<ViewModel @MainActor>>
+        +[NearbyOrder] orders
+        +Bool isLoading
+        +String? errorMessage
+        +NearbyOrder? detailOrder
+        +NearbyOrder? biddingOrder
+        +Bid? trackingBid
+        +CLLocationCoordinate2D? trackingCoordinate
+        +loadOrders() async Void
+        +select(order) async Void
+    }
+
+    class BengkelHistoryViewModel {
+        <<ViewModel @MainActor>>
+        +[NearbyOrder] orders
+        +Bool isLoading
+        +String? errorMessage
+        +NearbyOrder? detailOrder
+        +loadOrders() async Void
+        +select(order) Void
+    }
+
+    class BehaviorReportViewModel {
+        <<ViewModel @MainActor>>
+        +Bool isSubmitting
+        +String? errorMessage
+        +submit(serviceRequestId, reason) async Bool
+    }
+
+    class ChatViewModel {
+        <<ViewModel @MainActor>>
+        +[ChatMessage] messages
+        +String draft
+        +Bool isSending
+        +Bool isLocked
+        +String? errorMessage
+        +String serviceRequestId
+        +String currentUserId
+        +init(serviceRequestId)
+        +start() async
+        +loadMessages() async
+        +loadLockState() async
+        +startRealtimeSubscription()
+        +stopRealtimeSubscription()
+        +sendText() async
+        +sendImage(data) async
+    }
+
+    class ChatWatchViewModel {
+        <<ViewModel @MainActor (final)>>
+        +Int unreadCount
+        +init(serviceRequestId, counterpartName)
+        +start() async
+        +stop() Void
+        +markAllRead() Void
+    }
+
+    class PaymentViewModel {
+        <<ViewModel @MainActor>>
+        +Double balance
+        +Double heldBalance
+        +[Topup] topups
+        +[Withdrawal] withdrawals
+        +Bool isLoading
+        +String? errorMessage
+        +String? successMessage
+        +PaymentTarget? paymentTarget
+        +Bool hasBankDetails
+        +Double availableBalance
+        +start() async
+        +startRealtimeSubscription() async
+        +stop() Void
+        +refresh() async
+        +startTopup(amount) async
+        +saveBankDetails(bankName, accountNumber, accountName) async Bool
+        +requestWithdrawal(amount) async Bool
+        +resumeTopup(topup) Void
+        +paymentFlowFinished() async
+    }
+
+    %% ============================================================
+    %% SERVICES
+    %% ============================================================
+    class AuthService {
+        <<Service>>
+        +getCurrentSession() Session
+        +currentUID() String
+        +cachedSession() Session?
+        +authStateChanges() AsyncStream
+        +signIn(email, password) Session
+        +signUp(request) Void
+        +signOut() Void
+        +resetPassword(email) Void
+    }
+
+    class StorageService {
+        <<Service>>
+        +uploadAvatar(uid, data) String
+        +uploadOrderPhoto(uid, data) String
+        +deleteOrderPhotos(urls) Void
+        +uploadChatImage(serviceRequestId, data) String
+    }
+
+    class NotificationService {
+        <<Service>>
+        +requestAuthorization() Void
+        +notifyNewOrder(title, body) Void
+    }
+
+    class LocationService {
+        <<Service>>
+        +searchOSM(query, coordinate) [PhotonSearchFeature]
+        +fetchAddress(from coordinate) String?
+    }
+
+    class PaymentService {
+        <<Service>>
+        +createTopup(amount) CreateTopupResponse
+    }
+
+    class ChatPresence {
+        <<Service (Singleton)>>
+        +ChatPresence shared$
+        +String? activeServiceRequestId
+    }
+
+    class ChatReadCursor {
+        <<Service / Value Type>>
+        +String serviceRequestId
+        +Date lastReadAt
+        +markRead(at date)
+        +unreadCount(in incoming) Int
+        +date(of message) Date$
+    }
+
+    class WatchSessionManager {
+        <<Service Singleton>>
+        +WatchSessionManager shared$
+        -OrderRepository orderRepository
+        -UserRepository userRepository
+        -OrderLocationRepository locationRepository
+        -String? customerId
+        -RealtimeChannelV2? requestChannel
+        -RealtimeChannelV2? bidChannel
+        -RealtimeChannelV2? locationChannel
+        -Bool hasBeenNear
+        -WatchOrderState lastState
+        +activate()
+        +startObserving(customerId)
+        +stop()
+        +pushState()
+        +forwardNotification(title, body)
+        +rebuildState()
+        +handleCommand()
+        +approveBid()
+        +refreshOnForeground()
+    }
+
+    %% ============================================================
+    %% REPOSITORIES
+    %% ============================================================
+    class UserRepository {
+        <<Repository>>
+        +fetchUser(uid) User
+        +updateProfile(uid, payload) Void
+        +updateProfileImageUrl(uid, payload) Void
+        +updateBankDetails(uid, payload) Void
+        +deleteUser(uid) Void
+    }
+
+    class VehicleRepository {
+        <<Repository>>
+        +fetchVehicles(customerId) [Vehicle]
+        +insertVehicle(vehicle) Void
+        +updateVehicle(vehicleId, payload) Void
+        +deleteVehicle(vehicleId) Void
+    }
+
+    class BengkelRepository {
+        <<Repository>>
+        +fetchBengkel(providerUid) Bengkel
+        +insertBengkel(bengkel) Void
+        +updateBengkel(bengkelId, payload) Void
+        +updateServices(bengkelId, payload) Void
+        +deleteBengkel(bengkelId) Void
+    }
+
+    class OrderRepository {
+        <<Repository>>
+        +createOrder(payload) CreatedServiceRequest
+        +fetchOrders(customerId) [NearbyOrder]
+        +fetchTodaysEarnings(bengkelId) Double
+        +fetchBengkelOrders(bengkelId) [NearbyOrder]
+        +fetchOrder(id) NearbyOrder
+        +deleteOrder(id) Void
+        +cancelOrder(id) Void
+        +openDispute(requestId, reason, proofUrl) NearbyOrder
+        +fetchAcceptedBid(serviceRequestId) Bid?
+        +submitRating(requestId, rating, review) Void
+        +markOrderCompleted(requestId, completionPhotoUrl) NearbyOrder
+        +fetchActiveOrder(customerId) NearbyOrder?
+        +fetchPendingBids(serviceRequestId) [Bid]
+        +acceptBid(bidId) NearbyOrder
+    }
+
+    class OrderLocationRepository {
+        <<Repository>>
+        +upsertLocation(payload) Void
+        +fetchLocation(serviceRequestId) OrderLocation?
+        +upsertCustomerLocation(payload) Void
+        +fetchCustomerLocation(serviceRequestId) CustomerLocation?
+    }
+
+    class ChatRepository {
+        <<Repository>>
+        +fetchMessages(serviceRequestId) [ChatMessage]
+        +sendMessage(payload) Void
+    }
+
+    class TopupRepository {
+        <<Repository>>
+        +fetchTopups(userId) [Topup]
+    }
+
+    class WithdrawalRepository {
+        <<Repository>>
+        +fetchWithdrawals(userId) [Withdrawal]
+        +requestWithdrawal(amount) Void
+    }
+
+    class BehaviorReportRepository {
+        <<Repository>>
+        +submit(serviceRequestId, reporterId, reason) Void
+    }
+
+    %% ============================================================
+    %% MODELS
+    %% ============================================================
+    class User {
+        <<Model>>
+        +String id
+        +String name
+        +String? profileImageUrl
+        +Double balance
+        +Double? heldBalance
+        +Double? pendingBalance
+        +String? email
+        +String? phoneNumber
+        +String role
+        +String? bankName
+        +String? bankAccountNumber
+        +String? bankAccountName
+        +Double availableBalance
+        +CodingKeys
+    }
+
+    class Vehicle {
+        <<Model>>
+        +String? id
+        +String customerId
+        +String manufacturer
+        +String model
+        +Int year
+        +String licensePlate
+        +String color
+        +Date? createdAt
+        +CodingKeys
+    }
+
+    class Bengkel {
+        <<Model>>
+        +String? id
+        +String providerUid
+        +String name
+        +String address
+        +Double latitude
+        +Double longitude
+        +String status
+        +[BengkelService] offeredServices
+        +Double averageRating
+        +Int totalReviews
+        +Date? createdAt
+        +CodingKeys
+    }
+
+    class BengkelService {
+        <<Model>>
+        +String id
+        +ServiceType serviceType
+        +Bool isActive
+    }
+
+    class ServiceType {
+        <<enumeration>>
+        banGembos
+        banPecah
+        akiKering
+        mogokMesinMati
+        gantiBanSerep
+        rantaiMotorLepas
+        mesinOverheat
+        +Int minPrice
+        +Bool requiresTireCount
+        +String iconName
+    }
+
+    class NearbyOrder {
+        <<Model>>
+        +String id
+        +String customerId
+        +String? customerName
+        +String? serviceType
+        +String? description
+        +Bool? isEmergency
+        +Double latitude
+        +Double longitude
+        +Int? price
+        +String status
+        +Int? tireCount
+        +[String]? photoUrls
+        +String? vehicleId
+        +String? vehicleInfo
+        +String? bengkelId
+        +Int? rating
+        +String? review
+        +Bool? customerCompleted
+        +Bool? providerCompleted
+        +String? completionPhotoUrl
+        +String? createdAt
+        +Double? distanceM
+        +CodingKeys
+    }
+
+    class NearbyBengkel {
+        <<Model>>
+        +String id
+        +String providerUid
+        +String name
+        +String address
+        +Double latitude
+        +Double longitude
+        +Double averageRating
+        +Int totalReviews
+        +[BengkelService]? offeredServices
+        +Double distanceM
+        +CodingKeys
+    }
+
+    class Bid {
+        <<Model>>
+        +String id
+        +String serviceRequestId
+        +String providerUid
+        +String bengkelId
+        +Int price
+        +String? notes
+        +String status
+        +String? createdAt
+        +Bengkel? bengkel
+        +CodingKeys
+    }
+
+    class ChatMessage {
+        <<Model>>
+        +String id
+        +String serviceRequestId
+        +String senderId
+        +String? content
+        +String? imageUrl
+        +String? createdAt
+        +CodingKeys
+    }
+
+    class OrderLocation {
+        <<Model>>
+        +String id
+        +String serviceRequestId
+        +String? providerUid
+        +Double latitude
+        +Double longitude
+        +String? updatedAt
+        +CodingKeys
+    }
+
+    class CustomerLocation {
+        <<Model>>
+        +String id
+        +String serviceRequestId
+        +String? customerId
+        +Double latitude
+        +Double longitude
+        +String? updatedAt
+        +CodingKeys
+    }
+
+    class TrackingPin {
+        <<Model>>
+        +String id
+        +CLLocationCoordinate2D coordinate
+        +String label
+        +String icon
+        +Color tint
+    }
+
+    class PhotonSearchResponse {
+        <<Model>>
+        +[PhotonSearchFeature] features
+    }
+
+    class PhotonSearchFeature {
+        <<Model Identifiable>>
+        +UUID id
+        +PhotonSearchProperties properties
+        +PhotonSearchGeometry geometry
+        +CodingKeys
+    }
+
+    class PhotonSearchProperties {
+        <<Model>>
+        +Int? osm_id
+        +String? name
+        +String? street
+        +String? city
+        +String? state
+    }
+
+    class PhotonSearchGeometry {
+        <<Model>>
+        +[Double] coordinates
+    }
+
+    class Topup {
+        <<Model>>
+        +String? id
+        +String userId
+        +String orderId
+        +Double grossAmount
+        +String status
+        +String? paymentType
+        +String? redirectUrl
+        +String? snapToken
+        +Date? createdAt
+        +Date? updatedAt
+        +CodingKeys
+    }
+
+    class Withdrawal {
+        <<Model>>
+        +String? id
+        +String userId
+        +Double amount
+        +String? bankName
+        +String? bankAccountNumber
+        +String? bankAccountName
+        +String status
+        +String? notes
+        +Date? createdAt
+        +Date? updatedAt
+        +CodingKeys
+    }
+
+    class IndonesianBank {
+        <<Model Identifiable>>
+        +String id
+        +String name
+        +[Int] accountLengths
+        +[IndonesianBank] all$
+        +isValidAccountNumber(accountNumber) Bool
+    }
+
+    %% ============================================================
+    %% DTOs
+    %% ============================================================
+    class SignUpRequest {
+        <<DTO>>
+        +String email
+        +String password
+        +String name
+        +String phoneNumber
+    }
+
+    class ProfileUpdatePayload {
+        <<DTO>>
+        +String name
+        +String phone_number
+    }
+
+    class ProfileImageUpdatePayload {
+        <<DTO>>
+        +String profile_image_url
+    }
+
+    class VehicleUpdatePayload {
+        <<DTO>>
+        +String manufacturer
+        +String model
+        +Int year
+        +String license_plate
+        +String color
+    }
+
+    class BengkelUpdatePayload {
+        <<DTO>>
+        +String name
+        +String address
+        +Double latitude
+        +Double longitude
+    }
+
+    class BengkelServicesUpdatePayload {
+        <<DTO>>
+        +[BengkelService] offered_services
+    }
+
+    class ServiceRequestPayload {
+        <<DTO>>
+        +String customer_id
+        +ServiceType service_type
+        +String description
+        +Double latitude
+        +Double longitude
+        +Int price
+        +Bool is_emergency
+        +String status
+        +Int tire_count
+        +[String]? photo_urls
+        +String? vehicle_id
+        +String? vehicle_info
+    }
+
+    class CreatedServiceRequest {
+        <<DTO>>
+        +String id
+    }
+
+    class StartSearchPayload {
+        <<DTO>>
+        +Int price
+    }
+
+    class BidStatusUpdate {
+        <<DTO>>
+        +String status
+    }
+
+    class AcceptBidParams {
+        <<DTO>>
+        +String p_bid_id
+    }
+
+    class CancelOrderParams {
+        <<DTO>>
+        +String p_request_id
+    }
+
+    class OrdersRequest {
+        <<DTO>>
+        +String action
+        +Double latitude
+        +Double longitude
+        +Double radiusMeters
+    }
+
+    class OrdersResponse {
+        <<DTO>>
+        +[NearbyOrder] orders
+    }
+
+    class PlaceBidRequest {
+        <<DTO>>
+        +String action
+        +String serviceRequestId
+        +String bengkelId
+        +Int price
+        +String? notes
+    }
+
+    class PlaceBidResponse {
+        <<DTO>>
+        +Bid bid
+    }
+
+    class ChatMessagePayload {
+        <<DTO>>
+        +String service_request_id
+        +String sender_id
+        +String? content
+        +String? image_url
+    }
+
+    class OrderLocationPayload {
+        <<DTO>>
+        +String service_request_id
+        +String provider_uid
+        +Double latitude
+        +Double longitude
+    }
+
+    class CustomerLocationPayload {
+        <<DTO>>
+        +String service_request_id
+        +String customer_id
+        +Double latitude
+        +Double longitude
+    }
+
+    class CreateTopupRequest {
+        <<DTO>>
+        +String action
+        +Int amount
+    }
+
+    class CreateTopupResponse {
+        <<DTO>>
+        +String order_id
+        +String redirect_url
+        +String token
+    }
+
+    class BankDetailsUpdatePayload {
+        <<DTO>>
+        +String bank_name
+        +String bank_account_number
+        +String bank_account_name
+    }
+
+    class RequestWithdrawalParams {
+        <<DTO>>
+        +Double p_amount
+    }
+
+    %% phone->watch snapshot DTOs (watch target keeps its own duplicated copies)
+    class WatchOrderState {
+        <<DTO>>
+        +Bool hasActiveOrder
+        +String stage
+        +String? serviceType
+        +String? bengkelName
+        +Int? agreedPrice
+        +Bool mySideCompleted
+        +Bool canFinish
+        +Bool alreadyRated
+        +String? requestId
+        +[WatchBidOffer] offers
+        +WatchOrderState empty$
+    }
+
+    class WatchBidOffer {
+        <<DTO>>
+        +String bidId
+        +String bengkelName
+        +Int price
+        +Double? rating
+        +String id
+    }
+
+    %% ============================================================
+    %% VIEWS — Pages
+    %% ============================================================
+    class LoginView {
+        <<SwiftUI View>>
+        +AuthViewModel authViewModel
+        +some View body
+    }
+
+    class RegistrationView {
+        <<SwiftUI View>>
+        +AuthViewModel authViewModel
+        +some View body
+    }
+
+    class OfflineView {
+        <<SwiftUI View>>
+        +Closure onRetry
+        +some View body
+    }
+
+    class DashboardView {
+        <<SwiftUI View>>
+        +AuthViewModel authViewModel
+        +BengkelBiddingViewModel bengkelBiddingViewModel
+        +[NearbyOrder] recentOrders
+        -NavigationPath path
+        +some View body
+    }
+
+    class DashboardRoute {
+        <<enumeration>>
+        createOrder
+    }
+
+    class ProfileView {
+        <<SwiftUI View>>
+        +AuthViewModel authViewModel
+        -ProfileViewModel profileViewModel
+        -VehicleViewModel vehicleViewModel
+        -PhotosPickerItem? selectedPhotoItem
+        -Bool isDarkMode
+        +some View body
+    }
+
+    class UpdateProfileView {
+        <<SwiftUI View>>
+        +AuthViewModel authViewModel
+        +ProfileViewModel profileViewModel
+        -String name
+        -String phoneNumber
+        +some View body
+    }
+
+    class VehicleFormView {
+        <<SwiftUI View>>
+        +VehicleViewModel vehicleViewModel
+        +Vehicle? vehicleToEdit
+        +some View body
+    }
+
+    class RegisterBengkelView {
+        <<SwiftUI View>>
+        +BengkelViewModel viewModel
+        +some View body
+    }
+
+    class UpdateBengkelView {
+        <<SwiftUI View>>
+        +BengkelViewModel bengkelViewModel
+        +AuthViewModel authViewModel
+        +Bengkel bengkel
+        +some View body
+    }
+
+    class BengkelDashboardView {
+        <<SwiftUI View>>
+        +AuthViewModel authViewModel
+        +BengkelBiddingViewModel bengkelBiddingViewModel
+        +BengkelViewModel bengkelViewModel
+        +some View body
+    }
+
+    class BengkelProfileView {
+        <<SwiftUI View>>
+        +AuthViewModel authViewModel
+        +BengkelViewModel bengkelViewModel
+        +some View body
+    }
+
+    class BengkelServiceFormView {
+        <<SwiftUI View>>
+        +BengkelViewModel bengkelViewModel
+        +BengkelService? serviceToEdit
+        +some View body
+    }
+
+    class OrderView {
+        <<SwiftUI View>>
+        +Closure popToRoot
+        -OrderViewModel viewModel
+        +some View body
+    }
+
+    class CustomerBiddingView {
+        <<SwiftUI View>>
+        +Closure popToRoot
+        -CustomerBiddingViewModel viewModel
+        +some View body
+    }
+
+    class BengkelBiddingView {
+        <<SwiftUI View>>
+        +BengkelBiddingViewModel viewModel
+        +some View body
+    }
+
+    class OrderTrackingView {
+        <<SwiftUI View>>
+        +Bid bid
+        +CLLocationCoordinate2D customerCoordinate
+        +Closure popToRoot
+        -OrderTrackingViewModel trackingViewModel
+        -ChatWatchViewModel chatWatch
+        -CustomerLocationPublishViewModel locationPublisher
+        +some View body
+    }
+
+    class BengkelRouteView {
+        <<SwiftUI View>>
+        +NearbyOrder order
+        -BengkelRouteViewModel viewModel
+        -ChatWatchViewModel chatWatch
+        +some View body
+    }
+
+    class ChatView {
+        <<SwiftUI View>>
+        +String title
+        -ChatViewModel viewModel
+        +init(serviceRequestId, title)
+        +some View body
+    }
+
+    class HistoryView {
+        <<SwiftUI View>>
+        +AuthViewModel authViewModel
+        +some View body
+    }
+
+    class CustomerHistoryView {
+        <<SwiftUI View>>
+        -HistoryViewModel viewModel
+        +some View body
+    }
+
+    class BengkelHistoryView {
+        <<SwiftUI View>>
+        -BengkelHistoryViewModel viewModel
+        +some View body
+    }
+
+    class OrderDetailView {
+        <<SwiftUI View>>
+        +NearbyOrder order
+        +Bool isCustomer
+        -OrderRatingViewModel ratingViewModel
+        -LocationPublishViewModel locationPublisher
+        +some View body
+    }
+
+    class PaymentView {
+        <<SwiftUI View>>
+        -PaymentViewModel viewModel
+        +some View body
+    }
+
+    class WithdrawView {
+        <<SwiftUI View>>
+        +PaymentViewModel viewModel
+        +some View body
+    }
+
+    class BankDetailsView {
+        <<SwiftUI View>>
+        +PaymentViewModel viewModel
+        +some View body
+    }
+
+    %% ============================================================
+    %% VIEWS — Components
+    %% ============================================================
+    class OrderMapView {
+        <<UIViewRepresentable>>
+        +MKCoordinateRegion region
+        +Bool isEditing
+        +makeUIView(context) MKMapView
+    }
+
+    class LocationInputCard {
+        <<View>>
+        +String address
+        +Bool isFetchingLocation
+        +some View body
+    }
+
+    class LocationSearchView~VM~ {
+        <<View>>
+        +VM viewModel
+        +some View body
+    }
+
+    class VehiclePicker {
+        <<View>>
+        +[Vehicle] vehicles
+        +String? selectedVehicleId
+        +some View body
+    }
+
+    class TireCountSelector {
+        <<View>>
+        +Int selectedCount
+        +some View body
+    }
+
+    class TirePhotoGrid {
+        <<View>>
+        +Int count
+        +[Data?] photos
+        +some View body
+    }
+
+    class ServicePill {
+        <<View>>
+        +String title
+        +Bool isSelected
+        +some View body
+    }
+
+    class PrimaryButton {
+        <<View>>
+        +String title
+        +String? iconName
+        +some View body
+    }
+
+    class VehicleCardRow {
+        <<View>>
+        +VehicleViewModel vehicleViewModel
+        +Vehicle vehicle
+        +some View body
+    }
+
+    class BidReceivedCard {
+        <<View>>
+        +Bid bid
+        +CLLocationCoordinate2D? customerCoordinate
+        +some View body
+    }
+
+    class OrderRequestCard {
+        <<View>>
+        +NearbyOrder order
+        +Bid? pendingBid
+        +some View body
+    }
+
+    class PlaceBidSheet {
+        <<View>>
+        +Int minPrice
+        +Closure onSubmit
+        +some View body
+    }
+
+    class BiddingEmptyState {
+        <<View>>
+        +String title
+        +String subtitle
+        +some View body
+    }
+
+    class DistanceBadge {
+        <<View>>
+        +Double meters
+        +some View body
+    }
+
+    class TrackingMapView {
+        <<View>>
+        +MKCoordinateRegion region
+        +CLLocationCoordinate2D customerCoordinate
+        +some View body
+    }
+
+    class TrackingInfoCard {
+        <<View>>
+        +Bid bid
+        +Bool isLive
+        +Int unreadCount
+        +some View body
+    }
+
+    class OrderHistoryRow {
+        <<View Component>>
+        +NearbyOrder order
+        +some View body
+    }
+
+    class OrderStatusBadge {
+        <<View Component>>
+        +String status
+        +some View body
+    }
+
+    class ReportBehaviorSheet {
+        <<View Component>>
+        +NearbyOrder order
+        -BehaviorReportViewModel viewModel
+        +some View body
+    }
+
+    class TopupHistoryRow {
+        <<View>>
+        +Topup topup
+        +some View body
+    }
+
+    class WithdrawalHistoryRow {
+        <<View>>
+        +Withdrawal withdrawal
+        +some View body
+    }
+
+    class CompleteOrderButton {
+        <<View>>
+        -OrderCompletionViewModel viewModel
+        +Bool isCustomer
+        +Bool canComplete
+        +some View body
+    }
+
+    class OrderReviewSheet {
+        <<View>>
+        +String requestId
+        +Int? existingRating
+        +Closure onSubmitted
+        -OrderRatingViewModel viewModel
+        +some View body
+    }
+
+    %% --- Shared helpers ---
+    class LoadingPhase {
+        <<enumeration>>
+        idle
+        loading
+        failed
+    }
+
+    class LoadingOverlay {
+        <<View>>
+        +LoadingPhase phase
+        +Closure onRetry
+        +Closure onStop
+        +some View body
+    }
+
+    class StatBox {
+        <<View>>
+        +String title
+        +String value
+        +String icon
+        +Color color
+        +some View body
+    }
+
+    class StarRatingView {
+        <<View>>
+        +Double rating
+        +Int maxRating
+        +some View body
+    }
+
+    class InteractiveStarRating {
+        <<View>>
+        +Binding~Int~ rating
+        +Int maxRating
+        +CGFloat size
+        +some View body
+    }
+
+    class ImageCompressor {
+        <<Utility>>
+        +compressed(data) Data$
+    }
+
+    class Rupiah {
+        <<utility>>
+        +format(Int) String$
+        +format(Double) String$
+    }
+
+    class MKCoordinateRegion_Fit {
+        <<extension>>
+        +fitting(first, second, defaultSpan, maxFitMeters) MKCoordinateRegion$
+    }
+
+    class RealtimeChannelV2 {
+        <<Supabase SDK>>
+        +subscribeWithError() async
+        +postgresChange(...) AsyncStream
+    }
+
+    class CLLocationManager {
+        <<System>>
+        +requestWhenInUseAuthorization() Void
+        +startUpdatingLocation() Void
+        +stopUpdatingLocation() Void
+    }
+
+    %% ============================================================
+    %% watchOS TARGET (separate target; links no Supabase; shares no files)
+    %% WatchOrderState / WatchBidOffer above are the SAME nodes — the watch
+    %% target keeps its own duplicated copies of those two DTOs.
+    %% ============================================================
+    class MbengkelInWatchOS_App {
+        <<App @main>>
+        -WatchAppDelegate delegate
+        -WatchConnectivityClient client
+    }
+
+    class WatchAppDelegate {
+        <<AppDelegate>>
+    }
+
+    class WatchConnectivityClient {
+        <<Service Singleton>>
+        +WatchConnectivityClient shared$
+        +WatchOrderState state
+        +Bool isWorking
+        +String? errorMessage
+        +activate()
+        +requestState()
+        +approve(bidId)
+        +finishJob()
+        +submitRating(rating)
+    }
+
+    class WatchContentView {
+        <<View>>
+        +WatchConnectivityClient client
+        +some View body
+    }
+
+    class WatchProgressBar {
+        <<View>>
+        +String stage
+        +some View body
+    }
+
+    class WatchOfferRow {
+        <<View>>
+        +WatchBidOffer offer
+        +Bool isWorking
+        +Closure onApprove
+        +some View body
+    }
+
+    class WatchStarRating {
+        <<View>>
+        +Binding~Int~ rating
+        +some View body
+    }
+
+    class RatingSubmitView {
+        <<View>>
+        +Bool isWorking
+        +Closure onSubmit
+        -Int rating
+        +some View body
+    }
+
+    %% ============================================================
+    %% RELATIONSHIPS
+    %% ============================================================
+
+    %% --- App entry / top-level routing ---
+    MbengkelInApp --> AppDelegate : has a
+    MbengkelInApp --> ContentView : shows
+    AppDelegate ..> WatchSessionManager : activates
+    ContentView *-- AuthViewModel : owns (@StateObject)
+    ContentView o-- NetworkMonitor : observes
+    ContentView ..> LoginView : routes
+    ContentView ..> OfflineView : routes
+    ContentView ..> DashboardView : routes
+    ContentView ..> PaymentView : routes
+    ContentView ..> HistoryView : routes
+    ContentView ..> ProfileView : routes
+    LoginView ..> RegistrationView : routes
+    OfflineView ..> NetworkMonitor : onRetry
+
+    %% --- Protocol realizations ---
+    AuthService ..|> AuthServiceProtocol : realizes
+    UserRepository ..|> UserRepositoryProtocol : realizes
+    VehicleRepository ..|> VehicleRepositoryProtocol : realizes
+    BengkelRepository ..|> BengkelRepositoryProtocol : realizes
+    OrderViewModel ..|> LocationSearchable : realizes
+    BengkelViewModel ..|> LocationSearchable : realizes
+
+    %% --- View -> ViewModel ---
+    LoginView --> AuthViewModel : observes
+    RegistrationView --> AuthViewModel : observes
+    DashboardView --> AuthViewModel : observes
+    DashboardView --> BengkelBiddingViewModel : observes
+    DashboardView ..> DashboardRoute : routes via
+    DashboardView ..> BengkelDashboardView : embeds
+    DashboardView ..> OrderView : routes
+    ProfileView *-- ProfileViewModel : owns
+    ProfileView *-- VehicleViewModel : owns
+    ProfileView --> AuthViewModel : observes
+    ProfileView ..> UpdateProfileView : routes
+    ProfileView ..> VehicleFormView : routes
+    ProfileView ..> VehicleCardRow : renders
+    UpdateProfileView --> ProfileViewModel : observes
+    UpdateProfileView --> AuthViewModel : observes
+    VehicleFormView --> VehicleViewModel : observes
+    VehicleCardRow --> VehicleViewModel : observes
+    RegisterBengkelView *-- BengkelViewModel : owns
+    BengkelDashboardView *-- BengkelViewModel : owns
+    BengkelProfileView *-- BengkelViewModel : owns
+    UpdateBengkelView --> BengkelViewModel : observes
+    BengkelServiceFormView --> BengkelViewModel : observes
+    BengkelProfileView ..> UpdateBengkelView : routes
+    BengkelProfileView ..> BengkelServiceFormView : routes
+    OrderView --> OrderViewModel : observes
+    OrderView ..> CustomerBiddingView : routes
+    CustomerBiddingView *-- CustomerBiddingViewModel : owns
+    CustomerBiddingView ..> OrderTrackingView : routes
+    BengkelBiddingView --> BengkelBiddingViewModel : observes
+    OrderTrackingView --> OrderTrackingViewModel : observes
+    OrderTrackingView --> CustomerLocationPublishViewModel : observes
+    OrderTrackingView --> ChatWatchViewModel : observes
+    OrderTrackingView ..> ChatView : routes
+    BengkelRouteView --> BengkelRouteViewModel : observes
+    BengkelRouteView --> ChatWatchViewModel : observes
+    BengkelRouteView ..> ChatView : routes
+    ChatView *-- ChatViewModel : owns
+    HistoryView --> AuthViewModel : observes
+    HistoryView ..> CustomerHistoryView : routes
+    HistoryView ..> BengkelHistoryView : routes
+    CustomerHistoryView *-- HistoryViewModel : owns
+    CustomerHistoryView ..> OrderDetailView : routes
+    CustomerHistoryView ..> OrderTrackingView : routes
+    CustomerHistoryView ..> CustomerBiddingView : routes
+    BengkelHistoryView *-- BengkelHistoryViewModel : owns
+    BengkelHistoryView ..> OrderDetailView : routes
+    BengkelHistoryView ..> BengkelRouteView : routes
+    OrderDetailView *-- OrderRatingViewModel : owns
+    OrderDetailView *-- LocationPublishViewModel : owns
+    OrderDetailView ..> ChatView : routes
+    PaymentView *-- PaymentViewModel : owns
+    PaymentView ..> WithdrawView : routes
+    PaymentView ..> BankDetailsView : routes
+    WithdrawView --> PaymentViewModel : observes
+    BankDetailsView --> PaymentViewModel : observes
+    CompleteOrderButton *-- OrderCompletionViewModel : owns
+    OrderReviewSheet --> OrderRatingViewModel : observes
+    ReportBehaviorSheet *-- BehaviorReportViewModel : owns
+
+    %% --- Component composition (selected) ---
+    OrderView *-- OrderMapView : contains
+    OrderView *-- LocationInputCard : contains
+    OrderView *-- LocationSearchView : contains
+    OrderView *-- ServicePill : contains
+    OrderView *-- VehiclePicker : contains
+    OrderView *-- TireCountSelector : contains
+    OrderView *-- TirePhotoGrid : contains
+    OrderView *-- PrimaryButton : contains
+    LocationSearchView ..> LocationSearchable : observes
+    BengkelBiddingView *-- OrderRequestCard : embeds
+    BengkelBiddingView *-- BiddingEmptyState : embeds
+    BengkelBiddingView *-- PlaceBidSheet : embeds
+    CustomerBiddingView *-- BidReceivedCard : embeds
+    OrderRequestCard *-- DistanceBadge : embeds
+    BidReceivedCard *-- DistanceBadge : embeds
+    OrderTrackingView *-- TrackingMapView : embeds
+    OrderTrackingView *-- TrackingInfoCard : embeds
+    CustomerHistoryView *-- OrderHistoryRow : contains
+    BengkelHistoryView *-- OrderHistoryRow : contains
+    OrderHistoryRow *-- OrderStatusBadge : contains
+    CustomerHistoryView ..> ReportBehaviorSheet : presents
+    PaymentView o-- TopupHistoryRow : contains
+    PaymentView o-- WithdrawalHistoryRow : contains
+    OrderReviewSheet ..> StarRatingView : uses
+    OrderReviewSheet ..> InteractiveStarRating : uses
+
+    %% --- ViewModel -> Service / Repository / Protocol ---
+    AuthViewModel o-- AuthServiceProtocol : delegates to
+    AuthViewModel o-- UserRepositoryProtocol : delegates to
+    AuthViewModel *-- AppMode : embeds
+    ProfileViewModel --> AuthService : uses
+    ProfileViewModel --> UserRepository : uses
+    ProfileViewModel --> StorageService : uses
+    VehicleViewModel --> VehicleRepositoryProtocol : delegates to
+    VehicleViewModel --> AuthServiceProtocol : authenticates via
+    BengkelViewModel --> BengkelRepositoryProtocol : routes CRUD through
+    BengkelViewModel --> AuthServiceProtocol : authenticates via
+    BengkelViewModel --> OrderRepository : reads earnings from
+    BengkelViewModel --> LocationService : geocodes via
+    BengkelViewModel o-- CLLocationManager : owns
+    OrderViewModel --> LocationService : delegates to
+    OrderViewModel --> OrderRepository : holds
+    OrderViewModel --> VehicleRepository : delegates to
+    OrderViewModel --> StorageService : uploads via
+    OrderViewModel --> AuthService : authenticates via
+    OrderViewModel o-- CLLocationManager : owns
+    CustomerBiddingViewModel o-- OrderRepository : uses
+    CustomerBiddingViewModel o-- UserRepository : uses
+    CustomerBiddingViewModel o-- AuthService : uses
+    CustomerBiddingViewModel o-- StorageService : uses
+    CustomerBiddingViewModel o-- NotificationService : uses
+    BengkelBiddingViewModel o-- OrderRepository : uses
+    BengkelBiddingViewModel o-- AuthService : uses
+    BengkelBiddingViewModel o-- NotificationService : uses
+    OrderTrackingViewModel *-- OrderLocationRepository : uses
+    OrderTrackingViewModel *-- OrderRepository : uses
+    OrderTrackingViewModel *-- NotificationService : uses
+    BengkelRouteViewModel *-- OrderRepository : uses
+    BengkelRouteViewModel *-- OrderLocationRepository : uses
+    BengkelRouteViewModel *-- StorageService : uses
+    BengkelRouteViewModel *-- AuthService : uses
+    BengkelRouteViewModel *-- NotificationService : uses
+    BengkelRouteViewModel *-- CLLocationManager : owns
+    CustomerLocationPublishViewModel *-- OrderLocationRepository : uses
+    CustomerLocationPublishViewModel *-- AuthService : uses
+    CustomerLocationPublishViewModel *-- CLLocationManager : owns
+    LocationPublishViewModel *-- OrderLocationRepository : uses
+    LocationPublishViewModel *-- OrderRepository : uses
+    LocationPublishViewModel *-- AuthService : uses
+    LocationPublishViewModel *-- CLLocationManager : owns
+    OrderCompletionViewModel --> OrderRepository : uses
+    OrderCompletionViewModel --> StorageService : uses
+    OrderCompletionViewModel --> NotificationService : uses
+    OrderCompletionViewModel --> AuthService : uses
+    OrderRatingViewModel --> OrderRepository : uses
+    HistoryViewModel --> OrderRepository : holds
+    HistoryViewModel --> AuthService : authenticates via
+    BengkelHistoryViewModel --> OrderRepository : holds
+    BengkelHistoryViewModel --> BengkelRepository : holds
+    BengkelHistoryViewModel --> AuthService : authenticates via
+    BehaviorReportViewModel --> BehaviorReportRepository : holds
+    BehaviorReportViewModel --> AuthService : authenticates via
+    ChatViewModel --> ChatRepository : uses
+    ChatViewModel --> OrderRepository : uses
+    ChatViewModel --> StorageService : uses
+    ChatViewModel --> AuthService : uses
+    ChatViewModel ..> ImageCompressor : uses
+    ChatWatchViewModel *-- ChatReadCursor : has a
+    ChatWatchViewModel --> ChatRepository : uses
+    ChatWatchViewModel --> NotificationService : uses
+    ChatWatchViewModel --> AuthService : uses
+    ChatWatchViewModel ..> ChatPresence : observes
+    PaymentViewModel o-- PaymentService : delegates to
+    PaymentViewModel o-- UserRepository : delegates to
+    PaymentViewModel o-- TopupRepository : delegates to
+    PaymentViewModel o-- WithdrawalRepository : delegates to
+
+    %% --- ViewModel -> Realtime ---
+    BengkelViewModel ..> RealtimeChannelV2 : observes
+    CustomerBiddingViewModel ..> RealtimeChannelV2 : observes
+    BengkelBiddingViewModel ..> RealtimeChannelV2 : observes
+    OrderTrackingViewModel ..> RealtimeChannelV2 : observes
+    BengkelRouteViewModel ..> RealtimeChannelV2 : observes
+    LocationPublishViewModel ..> RealtimeChannelV2 : observes
+    BengkelHistoryViewModel ..> RealtimeChannelV2 : observes
+    OrderCompletionViewModel ..> RealtimeChannelV2 : observes
+    ChatViewModel ..> RealtimeChannelV2 : observes
+    ChatWatchViewModel ..> RealtimeChannelV2 : observes
+    PaymentViewModel ..> RealtimeChannelV2 : observes
+
+    %% --- Watch bridge ---
+    WatchSessionManager o-- OrderRepository : uses
+    WatchSessionManager o-- UserRepository : uses
+    WatchSessionManager o-- OrderLocationRepository : uses
+    WatchSessionManager ..> RealtimeChannelV2 : observes
+    WatchSessionManager ..> WatchOrderState : builds
+    WatchSessionManager ..> WatchBidOffer : builds
+    NotificationService ..> WatchSessionManager : forwards to
+
+    %% --- Service / Repository -> DTO / Model ---
+    AuthService ..> SignUpRequest : consumes
+    UserRepository --> User : returns
+    UserRepository ..> ProfileUpdatePayload : consumes
+    UserRepository ..> ProfileImageUpdatePayload : consumes
+    UserRepository ..> BankDetailsUpdatePayload : consumes
+    ProfileViewModel ..> ProfileUpdatePayload : builds
+    ProfileViewModel ..> ProfileImageUpdatePayload : builds
+    VehicleRepository ..> Vehicle : persists
+    VehicleRepository ..> VehicleUpdatePayload : sends
+    VehicleViewModel ..> VehicleUpdatePayload : builds
+    BengkelRepository ..> Bengkel : persists
+    BengkelRepository ..> BengkelUpdatePayload : applies
+    BengkelRepository ..> BengkelServicesUpdatePayload : applies
+    BengkelViewModel ..> BengkelUpdatePayload : builds
+    BengkelViewModel ..> BengkelServicesUpdatePayload : builds
+    OrderRepository ..> ServiceRequestPayload : consumes
+    OrderRepository ..> CreatedServiceRequest : returns
+    OrderRepository ..> AcceptBidParams : builds
+    OrderRepository ..> CancelOrderParams : builds
+    OrderRepository --> NearbyOrder : returns
+    OrderRepository --> Bid : returns
+    OrderViewModel ..> ServiceRequestPayload : builds
+    CustomerBiddingViewModel ..> StartSearchPayload : builds
+    CustomerBiddingViewModel ..> BidStatusUpdate : builds
+    BengkelBiddingViewModel ..> OrdersRequest : builds
+    BengkelBiddingViewModel ..> OrdersResponse : decodes
+    BengkelBiddingViewModel ..> PlaceBidRequest : builds
+    BengkelBiddingViewModel ..> PlaceBidResponse : decodes
+    OrderLocationRepository ..> OrderLocation : returns
+    OrderLocationRepository ..> CustomerLocation : returns
+    OrderLocationRepository ..> OrderLocationPayload : consumes
+    OrderLocationRepository ..> CustomerLocationPayload : consumes
+    BengkelRouteViewModel ..> OrderLocationPayload : produces
+    CustomerLocationPublishViewModel ..> CustomerLocationPayload : produces
+    LocationPublishViewModel ..> OrderLocationPayload : produces
+    ChatRepository --> ChatMessage : returns
+    ChatRepository ..> ChatMessagePayload : inserts
+    ChatViewModel ..> ChatMessagePayload : builds
+    PaymentService ..> CreateTopupRequest : builds
+    PaymentService ..> CreateTopupResponse : returns
+    TopupRepository --> Topup : returns
+    WithdrawalRepository --> Withdrawal : returns
+    WithdrawalRepository ..> RequestWithdrawalParams : consumes
+    BehaviorReportRepository ..> NearbyOrder : reports on
+    LocationService ..> PhotonSearchResponse : decodes
+    LocationService --> PhotonSearchFeature : produces
+
+    %% --- Model -> Model composition ---
+    Bengkel *-- BengkelService : embeds (JSONB)
+    BengkelService --> ServiceType : has a
+    Bid *-- Bengkel : embeds
+    NearbyBengkel *-- BengkelService : embeds
+    PhotonSearchResponse o-- PhotonSearchFeature : contains
+    PhotonSearchFeature *-- PhotonSearchProperties : has a
+    PhotonSearchFeature *-- PhotonSearchGeometry : has a
+    ServiceRequestPayload o-- ServiceType : tags with
+    OrdersResponse o-- NearbyOrder : contains
+    PlaceBidResponse o-- Bid : contains
+    WatchOrderState *-- WatchBidOffer : composes
+
+    %% --- watchOS target ---
+    MbengkelInWatchOS_App --> WatchAppDelegate : has a
+    MbengkelInWatchOS_App --> WatchConnectivityClient : owns
+    WatchContentView --> WatchConnectivityClient : observes
+    WatchContentView *-- WatchProgressBar : embeds
+    WatchContentView *-- WatchOfferRow : embeds
+    WatchContentView *-- RatingSubmitView : embeds
+    RatingSubmitView *-- WatchStarRating : embeds
+    WatchConnectivityClient *-- WatchOrderState : holds
+    WatchOfferRow --> WatchBidOffer : has a
+    WatchConnectivityClient <..> WatchSessionManager : WatchConnectivity
