@@ -243,7 +243,7 @@ classDiagram
     %% ============================================================
 
     class ServiceType {
-        <<enum String>>
+        <<enum String Codable CaseIterable>>
         banGembos
         banPecah
         akiKering
@@ -301,7 +301,7 @@ classDiagram
     }
 
     class PhotonSearchFeature {
-        <<Model Identifiable>>
+        <<Model Codable Hashable Identifiable>>
         +UUID id
         +PhotonSearchProperties properties
         +PhotonSearchGeometry geometry

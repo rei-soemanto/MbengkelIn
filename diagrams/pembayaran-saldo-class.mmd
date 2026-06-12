@@ -144,6 +144,18 @@ classDiagram
         +createTopup(amount) async CreateTopupResponse
     }
 
+    class AuthService["AuthService"] {
+        <<Service>>
+        +getCurrentSession() async Session
+        +currentUID() async String
+        +cachedSession() Session?
+        +authStateChanges() AsyncStream
+        +signIn(email, password) async Session
+        +signUp(request) async
+        +signOut() async
+        +resetPassword(email) async
+    }
+
     %% ============ REPOSITORIES ============
     class UserRepository["UserRepository"] {
         <<Repository>>
@@ -268,6 +280,7 @@ classDiagram
 
     %% ViewModel -> Service / Repositories
     PaymentViewModel *-- PaymentTarget : has a
+    PaymentViewModel o-- AuthService : delegates to
     PaymentViewModel o-- PaymentService : delegates to
     PaymentViewModel o-- UserRepository : delegates to
     PaymentViewModel o-- TopupRepository : delegates to
