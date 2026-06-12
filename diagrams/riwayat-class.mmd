@@ -151,7 +151,7 @@ classDiagram
     }
 
     class LocationPublishViewModel {
-        <<ViewModel @MainActor>>
+        <<ViewModel @MainActor, NSObject, CLLocationManagerDelegate>>
         +Bool isPublishing
         +String? errorMessage
         -CLLocationManager locationManager
@@ -163,12 +163,16 @@ classDiagram
         -Date? lastPublishedAt
         -RealtimeChannelV2? statusChannel
         -Task statusReaderTask
+        +init()
         +start(serviceRequestId, customerCoordinate) Void
         +stop() Void
         +deinit()
         -observeOrderStatus(requestId) Void
         -interval(forDistance) TimeInterval
         -publish(coordinate, requestId) async Void
+        +locationManagerDidChangeAuthorization(manager) Void
+        +locationManager(manager, didUpdateLocations) Void
+        +locationManager(manager, didFailWithError) Void
     }
 
     class BehaviorReportViewModel {
@@ -251,6 +255,14 @@ classDiagram
         <<Model external>>
     }
 
+    class Bengkel {
+        <<Model external>>
+    }
+
+    class RealtimeChannelV2 {
+        <<Realtime external>>
+    }
+
     %% ============================================================
     %% ROUTED DESTINATIONS (external to feature)
     %% ============================================================
@@ -306,7 +318,7 @@ classDiagram
     %% --- Detail page wiring ---
     OrderDetailView *-- OrderRatingViewModel : manages
     OrderDetailView *-- LocationPublishViewModel : manages
-    OrderDetailView ..> OrderStatusBadge : contains
+    OrderDetailView *-- OrderStatusBadge : contains
     OrderDetailView ..> ChatView : routes
     OrderDetailView o-- NearbyOrder : has a
 

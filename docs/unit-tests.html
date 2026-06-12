@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MbengkelIn — Unit Tests per ViewModel</title>
+<style>
+  :root {
+    --line: #000;
+    --muted: #555;
+    --zebra: #f4f4f4;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #000;
+    background: #fff;
+    margin: 0;
+    padding: 48px 32px 80px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  header { border-bottom: 2px solid var(--line); padding-bottom: 20px; margin-bottom: 40px; }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 6px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 12px; }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 18px; font-weight: 700; margin: 0 0 4px;
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  .count {
+    font-size: 12px; font-weight: 600; color: #fff; background: #000;
+    border-radius: 999px; padding: 2px 9px;
+  }
+  .scope { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+
+  table {
+    width: 100%; border-collapse: collapse; font-size: 13.5px;
+    border: 1px solid var(--line);
+  }
+  caption { text-align: left; }
+  th, td {
+    text-align: left; padding: 10px 12px; vertical-align: top;
+    border-bottom: 1px solid #ddd;
+  }
+  thead th {
+    border-bottom: 2px solid var(--line);
+    font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  tbody tr:nth-child(even) { background: var(--zebra); }
+  tbody tr:last-child td { border-bottom: none; }
+  .idx { color: var(--muted); width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+  .name { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; white-space: nowrap; }
+  td code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px; background: #f0f0f0; padding: 1px 4px; border-radius: 3px;
+  }
+  .legend { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+  footer { margin-top: 56px; border-top: 1px solid #ddd; padding-top: 16px; color: var(--muted); font-size: 12px; }
+  @media print {
+    body { padding: 0; }
+    section { break-inside: avoid; }
+    tbody tr:nth-child(even) { background: #f4f4f4 !important; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>MbengkelIn — Unit Test Documentation</h1>
+  <p class="sub">XCTest / Swift Testing suite, grouped per ViewModel.</p>
+  <p class="meta">Target: <code>MbengkelInUnitTests</code> &nbsp;·&nbsp; 6 ViewModels &nbsp;·&nbsp; 31 test cases</p>
+</header>
+
+<!-- AuthViewModel -->
+<section>
+  <h2>AuthViewModel <span class="count">4 tests</span></h2>
+  <p class="scope">Login and sign-up (register) flows, driven through a mocked <code>AuthService</code> + <code>UserRepository</code>.</p>
+  <table>
+    <thead>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="idx">1</td>
+        <td class="name">loginSuccessSetsSessionAndUser</td>
+        <td>Valid credentials; auth returns a session and the user row resolves.</td>
+        <td>Session set, <code>currentUser.name</code> = "Budi", email merged, no error, <code>isLoading</code> false, sign-in called once.</td>
+      </tr>
+      <tr>
+        <td class="idx">2</td>
+        <td class="name">loginFailureSetsErrorMessageAndNoSession</td>
+        <td>Auth sign-in throws "Email atau kata sandi salah".</td>
+        <td>No session, no current user, error message surfaced, <code>isLoading</code> false.</td>
+      </tr>
+      <tr>
+        <td class="idx">3</td>
+        <td class="name">signUpSuccessSignsOutAndReportsSuccess</td>
+        <td>New account registered successfully.</td>
+        <td>Sign-up + sign-out each called once, request carries name/phone/email, no session, success message set, no error.</td>
+      </tr>
+      <tr>
+        <td class="idx">4</td>
+        <td class="name">signUpFailureSetsErrorAndDoesNotSignOut</td>
+        <td>Sign-up throws "Email sudah terdaftar".</td>
+        <td>Error surfaced, sign-out never called, no success message, <code>isLoading</code> false.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- VehicleViewModel -->
+<section>
+  <h2>VehicleViewModel <span class="count">7 tests</span></h2>
+  <p class="scope">Vehicle CRUD orchestration, driven through a mocked <code>VehicleRepository</code> + auth.</p>
+  <table>
+    <thead>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="idx">1</td>
+        <td class="name">addVehicleSuccessInsertsAndRefreshes</td>
+        <td>Add a vehicle with a valid session.</td>
+        <td>Returns true, insert called once with correct manufacturer + customer id, list has 1 vehicle, no error.</td>
+      </tr>
+      <tr>
+        <td class="idx">2</td>
+        <td class="name">addVehicleFailureSetsError</td>
+        <td>Repository insert throws "DB down".</td>
+        <td>Returns false, error = "DB down", vehicle list empty, <code>isLoading</code> false.</td>
+      </tr>
+      <tr>
+        <td class="idx">3</td>
+        <td class="name">addVehicleWithoutSessionReturnsFalse</td>
+        <td>No session configured; <code>getCurrentSession</code> throws.</td>
+        <td>Returns false, insert never called, <code>isLoading</code> false.</td>
+      </tr>
+      <tr>
+        <td class="idx">4</td>
+        <td class="name">updateVehicleSuccessSendsPayload</td>
+        <td>Update an existing vehicle.</td>
+        <td>Returns true, update called once with payload (Toyota / "L 9 XYZ"), success message set.</td>
+      </tr>
+      <tr>
+        <td class="idx">5</td>
+        <td class="name">updateVehicleFailureSetsError</td>
+        <td>Repository update throws "update failed".</td>
+        <td>Returns false, error surfaced, <code>isLoading</code> false.</td>
+      </tr>
+      <tr>
+        <td class="idx">6</td>
+        <td class="name">deleteVehicleSuccessRemovesFromList</td>
+        <td>Delete a stored vehicle.</td>
+        <td>Returns true, delete called once, vehicle list empty afterwards.</td>
+      </tr>
+      <tr>
+        <td class="idx">7</td>
+        <td class="name">deleteVehicleFailureSetsError</td>
+        <td>Repository delete throws "delete failed".</td>
+        <td>Returns false, error = "delete failed".</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- BengkelViewModel -->
+<section>
+  <h2>BengkelViewModel <span class="count">10 tests</span></h2>
+  <p class="scope">Bengkel register/update and offered-service CRUD, through a mocked auth + <code>BengkelRepository</code>.</p>
+  <table>
+    <thead>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="idx">1</td>
+        <td class="name">registerBengkelSuccess</td>
+        <td>Register a workshop with a valid session.</td>
+        <td>Returns true, insert called once, record carries name + provider uid + status "Pending", success message set.</td>
+      </tr>
+      <tr>
+        <td class="idx">2</td>
+        <td class="name">registerBengkelRequiresSession</td>
+        <td>No session; <code>getCurrentSession</code> throws.</td>
+        <td>Returns false, insert never called, error = "Anda harus masuk untuk mendaftarkan Bengkel."</td>
+      </tr>
+      <tr>
+        <td class="idx">3</td>
+        <td class="name">registerBengkelInsertFailure</td>
+        <td>Repository insert throws "insert failed".</td>
+        <td>Returns false, error surfaced, <code>isLoading</code> false.</td>
+      </tr>
+      <tr>
+        <td class="idx">4</td>
+        <td class="name">updateBengkelSuccessSendsPayload</td>
+        <td>Update workshop name + address.</td>
+        <td>Returns true, update called once with payload ("Bengkel Baru" / "Alamat Baru").</td>
+      </tr>
+      <tr>
+        <td class="idx">5</td>
+        <td class="name">updateBengkelFailureSetsError</td>
+        <td>Repository update throws "update failed".</td>
+        <td>Returns false, error surfaced.</td>
+      </tr>
+      <tr>
+        <td class="idx">6</td>
+        <td class="name">addServiceAppendsAndPersists</td>
+        <td>Add an "Aki Kering" service to an existing bengkel.</td>
+        <td>Returns true, offered services count 1, first type = <code>.akiKering</code>, services persisted once.</td>
+      </tr>
+      <tr>
+        <td class="idx">7</td>
+        <td class="name">addServiceWithoutBengkelFails</td>
+        <td>Add a service when no bengkel is loaded.</td>
+        <td>Returns false, error = "Data bengkel tidak ditemukan."</td>
+      </tr>
+      <tr>
+        <td class="idx">8</td>
+        <td class="name">updateServiceMutatesExisting</td>
+        <td>Change an existing service's type + active flag.</td>
+        <td>Returns true, first service now <code>.banPecah</code> + inactive, services persisted once.</td>
+      </tr>
+      <tr>
+        <td class="idx">9</td>
+        <td class="name">deleteServiceRemovesMatching</td>
+        <td>Delete one of two offered services by id.</td>
+        <td>Returns true, count drops to 1, remaining service = <code>.akiKering</code>, persisted once.</td>
+      </tr>
+      <tr>
+        <td class="idx">10</td>
+        <td class="name">deleteBengkelSuccessClearsState</td>
+        <td>Delete the workshop with re-auth (password + email).</td>
+        <td>Returns true, delete called once, <code>myBengkel</code> cleared to nil.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- OrderViewModel -->
+<section>
+  <h2>OrderViewModel <span class="count">3 tests</span></h2>
+  <p class="scope">Pure ordering logic: service selection, tire-count pricing, and form reset.</p>
+  <table>
+    <thead>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="idx">1</td>
+        <td class="name">selectNonTireService</td>
+        <td>Select "Aki Kering" (a non-tire service).</td>
+        <td>Estimated price 60,000; <code>requiresTireCount</code> false.</td>
+      </tr>
+      <tr>
+        <td class="idx">2</td>
+        <td class="name">selectTireServiceAndTireCount</td>
+        <td>Select "Ban Gembos", then set tire counts of 3, 9, and 0.</td>
+        <td>Base price 25,000 &amp; requires tire count; ×3 → 75,000 with 3 photo slots; 9 clamps to 4; 0 clamps to 1.</td>
+      </tr>
+      <tr>
+        <td class="idx">3</td>
+        <td class="name">prepareForNewOrderResets</td>
+        <td>Configure an order, then call <code>prepareForNewOrder()</code>.</td>
+        <td>Service nil, price 0, selected vehicle nil, tire count back to 1.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- CustomerBiddingViewModel -->
+<section>
+  <h2>CustomerBiddingViewModel <span class="count">3 tests</span></h2>
+  <p class="scope">Customer-side bidding setup: minimum-price derivation and resuming an existing order.</p>
+  <table>
+    <thead>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="idx">1</td>
+        <td class="name">nonTireMinPrice</td>
+        <td>Init with "Aki Kering", tire count 1.</td>
+        <td><code>minPrice</code> = 60,000 and initial <code>customerBidPrice</code> = 60,000.</td>
+      </tr>
+      <tr>
+        <td class="idx">2</td>
+        <td class="name">tireMinPriceScalesWithCount</td>
+        <td>Init with "Ban Gembos", tire count 2.</td>
+        <td><code>minPrice</code> = 50,000 (25,000 × 2).</td>
+      </tr>
+      <tr>
+        <td class="idx">3</td>
+        <td class="name">resumingOrder</td>
+        <td>Resume from a decoded <code>NearbyOrder</code> ("Ban Pecah", price 99,000).</td>
+        <td>Request id "r1", bid price 99,000, <code>isSearching</code> true, vehicle id "v9", vehicle info "Y".</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- PaymentViewModel -->
+<section>
+  <h2>PaymentViewModel <span class="count">4 tests</span></h2>
+  <p class="scope">Balance arithmetic: available balance (balance − held, clamped) and bank-detail completeness.</p>
+  <table>
+    <thead>
+      <tr><th class="idx">#</th><th>Test Case</th><th>Scenario</th><th>Expected Result</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="idx">1</td>
+        <td class="name">availableBalanceSubtractsHeld</td>
+        <td>Balance 100,000, held 30,000.</td>
+        <td>Available balance = 70,000.</td>
+      </tr>
+      <tr>
+        <td class="idx">2</td>
+        <td class="name">availableBalanceClampsAtZero</td>
+        <td>Balance 10,000, held 50,000 (held exceeds balance).</td>
+        <td>Available balance clamped to 0 (never negative).</td>
+      </tr>
+      <tr>
+        <td class="idx">3</td>
+        <td class="name">availableBalanceEqualsBalanceWhenNoHold</td>
+        <td>Balance 42,000, held 0.</td>
+        <td>Available balance = 42,000.</td>
+      </tr>
+      <tr>
+        <td class="idx">4</td>
+        <td class="name">hasBankDetails</td>
+        <td>Empty bank fields, then fill name + account number + account name.</td>
+        <td><code>hasBankDetails</code> false initially, true once all three are set.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<footer>
+  Generated from <code>MbengkelInUnitTests</code> · Swift Testing (<code>@Suite</code> / <code>@Test</code>). ViewModel logic only — repositories and services are mocked, network/DB paths are out of scope.
+</footer>
+
+</div>
+</body>
+</html>

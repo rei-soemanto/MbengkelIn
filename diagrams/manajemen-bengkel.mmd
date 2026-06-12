@@ -221,7 +221,7 @@ classDiagram
     BengkelViewModel --> AuthServiceProtocol : authenticates via
     BengkelViewModel --> OrderRepository : reads earnings from
     BengkelViewModel --> LocationService : geocodes via
-    BengkelViewModel o-- CLLocationManager : owns
+    BengkelViewModel *-- CLLocationManager : owns
     BengkelViewModel --> Bengkel : manages
     BengkelViewModel ..> Bengkel : observes (realtime)
     BengkelViewModel ..> BengkelUpdatePayload : builds
